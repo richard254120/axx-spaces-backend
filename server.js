@@ -1,8 +1,10 @@
 import express from "express";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
 import cors from "cors";
-import propertyRoutes from "./routes/property.js";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+import path from "path";
+
+import propertyRoutes from "./routes/propertyRoutes.js";
 
 dotenv.config();
 
@@ -11,38 +13,29 @@ const app = express();
 /* =========================
    MIDDLEWARE
 ========================= */
-// Allows frontend access - set to "*" for development flexibility
 app.use(cors({
-  origin: "*"
+  origin: "*", // allow frontend (Netlify)
 }));
 
 app.use(express.json());
-
-// Serve uploaded images from the 'uploads' directory
-app.use("/uploads", express.static("uploads"));
+app.use(express.urlencoded({ extended: true }));
 
 /* =========================
-   MONGODB ATLAS CONNECTION
+   STATIC FILES (IMAGES)
 ========================= */
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("✅ MongoDB Atlas Connected");
-  })
-  .catch((err) => {
-    console.log("❌ Mongo Error:", err);
-  });
+app.use("/uploads", express.static("uploads"));
 
 /* =========================
    ROUTES
 ========================= */
-app.use("/api", propertyRoutes);
+app.use("/", propertyRoutes);
 
 /* =========================
-   TEST ROUTE
+   MONGODB CONNECTION
 ========================= */
-app.get("/", (req, res) => {
-  res.send("API Running 🚀");
-});
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch(err => console.log("❌ DB Error:", err));
 
 /* =========================
    START SERVER
