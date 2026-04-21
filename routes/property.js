@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* =========================
-   CREATE PROPERTY (UPLOAD)
+   CREATE PROPERTY
 ========================= */
 router.post("/properties", upload.single("image"), async (req, res) => {
   try {
@@ -34,14 +34,14 @@ router.post("/properties", upload.single("image"), async (req, res) => {
     }
 
     if (!req.body.title || !req.body.county || !req.body.price || !req.body.type) {
-  return res.status(400).json({ error: "Missing required fields" });
-}
+      return res.status(400).json({ error: "Missing required fields" });
+    }
 
     const newProperty = new Property({
       title: req.body.title,
       county: req.body.county,
       area: req.body.area,
-      price: req.body.price,
+      price: Number(req.body.price),
       deposit: req.body.deposit,
       type: req.body.type,
       bedrooms: req.body.bedrooms,
@@ -49,14 +49,14 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       description: req.body.description,
       phone: req.body.phone,
 
-      // ✅ GEOLOCATION
+      // GEO
       lat: req.body.lat || null,
       lng: req.body.lng || null,
 
-      // ✅ AMENITIES
+      // AMENITIES
       amenities,
 
-      // ✅ IMAGE
+      // IMAGE
       image: req.file ? req.file.filename : "",
 
       status: "pending",
@@ -65,13 +65,13 @@ router.post("/properties", upload.single("image"), async (req, res) => {
     const saved = await newProperty.save();
 
     res.status(201).json({
-      message: "Property submitted for approval ✔",
+      message: "Property submitted ✔",
       data: saved,
     });
 
   } catch (err) {
     console.error("CREATE ERROR:", err);
-    res.status(500).json({ error: "Failed to save property" });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -84,8 +84,10 @@ router.get("/properties/pending", async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json(pending);
+
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch pending" });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -100,10 +102,11 @@ router.patch("/properties/:id/approve", async (req, res) => {
       { new: true }
     );
 
-    res.json({ message: "Property approved ✔", data: updated });
+    res.json(updated);
 
   } catch (err) {
-    res.status(500).json({ error: "Approval failed" });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -118,15 +121,16 @@ router.patch("/properties/:id/reject", async (req, res) => {
       { new: true }
     );
 
-    res.json({ message: "Property rejected ❌", data: updated });
+    res.json(updated);
 
   } catch (err) {
-    res.status(500).json({ error: "Reject failed" });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   GET APPROVED (WITH FILTERS + IMAGES + MAP)
+   GET APPROVED (FILTERS + SAFE)
 ========================= */
 router.get("/properties/approved", async (req, res) => {
   try {
@@ -137,26 +141,25 @@ router.get("/properties/approved", async (req, res) => {
     if (county) filter.county = { $regex: county, $options: "i" };
     if (area) filter.area = { $regex: area, $options: "i" };
     if (type) filter.type = type;
-    if (bedrooms) filter.bedrooms = Number(bedrooms);
-    if (price) filter.price = { $lte: Number(price) };
+
+    if (bedrooms && !isNaN(bedrooms)) {
+      filter.bedrooms = Number(bedrooms);
+    }
+
+    if (price && !isNaN(price)) {
+      filter.price = { $lte: Number(price) };
+    }
+
+    console.log("🔍 FILTER:", filter);
 
     const properties = await Property.find(filter)
       .sort({ createdAt: -1 });
 
-    const updated = properties.map((p) => ({
-      ...p._doc,
-
-      // ✅ IMAGE FIX FOR FRONTEND
-      imageUrl: p.image
-        ? `http://localhost:5000/uploads/${p.image}`
-        : null,
-    }));
-
-    res.json(updated);
+    res.json(properties);
 
   } catch (err) {
-    console.error("FETCH ERROR:", err);
-    res.status(500).json({ error: "Failed to fetch listings" });
+    console.error("🔥 FETCH ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
