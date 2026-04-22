@@ -22,10 +22,11 @@ cloudinary.config({
 ========================= */
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
+  params: async (req, file) => ({
     folder: "axx-spaces",
-    allowed_formats: ["jpg", "png", "jpeg"],
-  },
+    format: "jpg",
+    public_id: Date.now() + "-" + file.originalname,
+  }),
 });
 
 const upload = multer({ storage });
@@ -63,13 +64,19 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       lat: req.body.lat || null,
       lng: req.body.lng || null,
       amenities,
-      image: req.file ? req.file.path : null, // ✅ Cloudinary URL
+
+      // ✅ CLOUDINARY URL (IMPORTANT)
+      image: req.file ? req.file.path : null,
+
       status: "pending",
     });
 
     const saved = await newProperty.save();
 
-    res.status(201).json(saved);
+    res.status(201).json({
+      message: "Property submitted ✔",
+      data: saved,
+    });
 
   } catch (err) {
     console.error("CREATE ERROR:", err);
