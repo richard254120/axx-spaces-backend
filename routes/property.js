@@ -1,7 +1,10 @@
 import express from "express";
 import Property from "../models/Property.js";
 import multer from "multer";
+import pkg from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
+
+const { CloudinaryStorage } = pkg;
 
 const router = express.Router();
 
@@ -15,13 +18,20 @@ cloudinary.config({
 });
 
 /* =========================
-   MULTER (TEMP STORAGE)
+   STORAGE
 ========================= */
-const storage = multer.memoryStorage();
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "axx-spaces",
+    allowed_formats: ["jpg", "png", "jpeg"],
+  },
+});
+
 const upload = multer({ storage });
 
 /* =========================
-   CREATE PROPERTY (UPLOAD)
+   CREATE PROPERTY
 ========================= */
 router.post("/properties", upload.single("image"), async (req, res) => {
   try {
@@ -39,79 +49,31 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    let imageUrl = null;
+    const newProperty = new Property({
+      title: req.body.title,
+      county: req.body.county,
+      area: req.body.area,
+      price: Number(req.body.price),
+      deposit: req.body.deposit,
+      type: req.body.type,
+      bedrooms: req.body.bedrooms,
+      bathrooms: req.body.bathrooms,
+      description: req.body.description,
+      phone: req.body.phone,
+      lat: req.body.lat || null,
+      lng: req.body.lng || null,
+      amenities,
+      image: req.file ? req.file.path : null, // ✅ Cloudinary URL
+      status: "pending",
+    });
 
-    /* 🔥 UPLOAD TO CLOUDINARY */
-    if (req.file) {
-      const result = await cloudinary.uploader.upload_stream(
-        { folder: "axx-spaces" },
-        (error, result) => {
-          if (error) throw error;
-          return result;
-        }
-      );
+    const saved = await newProperty.save();
 
-      // FIX: wrap buffer upload
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: "axx-spaces" },
-        async (error, result) => {
-          if (error) throw error;
-
-          imageUrl = result.secure_url;
-
-          const newProperty = new Property({
-            title: req.body.title,
-            county: req.body.county,
-            area: req.body.area,
-            price: Number(req.body.price),
-            deposit: req.body.deposit,
-            type: req.body.type,
-            bedrooms: req.body.bedrooms,
-            bathrooms: req.body.bathrooms,
-            description: req.body.description,
-            phone: req.body.phone,
-            lat: req.body.lat || null,
-            lng: req.body.lng || null,
-            amenities,
-            image: imageUrl,
-            status: "pending",
-          });
-
-          const saved = await newProperty.save();
-
-          res.status(201).json({
-            message: "Property submitted ✔",
-            data: saved,
-          });
-        }
-      );
-
-      stream.end(req.file.buffer);
-
-    } else {
-      const newProperty = new Property({
-        title: req.body.title,
-        county: req.body.county,
-        area: req.body.area,
-        price: Number(req.body.price),
-        deposit: req.body.deposit,
-        type: req.body.type,
-        bedrooms: req.body.bedrooms,
-        bathrooms: req.body.bathrooms,
-        description: req.body.description,
-        phone: req.body.phone,
-        amenities,
-        status: "pending",
-      });
-
-      const saved = await newProperty.save();
-
-      res.status(201).json(saved);
-    }
+    res.status(201).json(saved);
 
   } catch (err) {
-    console.error("UPLOAD ERROR:", err);
-    res.status(500).json({ error: "Upload failed" });
+    console.error("CREATE ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -126,21 +88,9 @@ router.get("/properties/approved", async (req, res) => {
     res.json(properties);
 
   } catch (err) {
-    res.status(500).json({ error: "Fetch failed" });
+    console.error("FETCH ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
-});
-
-/* =========================
-   APPROVE
-========================= */
-router.patch("/properties/:id/approve", async (req, res) => {
-  const updated = await Property.findByIdAndUpdate(
-    req.params.id,
-    { status: "approved" },
-    { new: true }
-  );
-
-  res.json(updated);
 });
 
 export default router;

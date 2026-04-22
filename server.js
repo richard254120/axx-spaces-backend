@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import path from "path";
 
 import propertyRoutes from "./routes/property.js";
 
@@ -11,7 +10,7 @@ dotenv.config();
 const app = express();
 
 /* =========================
-   CORS (FIXED FOR MOBILE + NETLIFY)
+   CORS
 ========================= */
 app.use(cors({
   origin: "*",
@@ -19,30 +18,25 @@ app.use(cors({
 }));
 
 /* =========================
-   BODY PARSERS
+   BODY PARSER
 ========================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* =========================
-   STATIC FILES (IMAGES)
-========================= */
-app.use("/uploads", express.static("uploads"));
-
-/* =========================
    ROUTES
 ========================= */
-app.use("/api", propertyRoutes); // 🔥 IMPORTANT CHANGE
+app.use("/api", propertyRoutes);
 
 /* =========================
-   HEALTH CHECK (DEBUG TOOL)
+   HEALTH CHECK
 ========================= */
 app.get("/", (req, res) => {
-  res.send("AXX Spaces Backend Running ✔");
+  res.send("Backend running ✔");
 });
 
 /* =========================
-   MONGODB CONNECTION
+   DB CONNECTION
 ========================= */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
@@ -52,7 +46,7 @@ mongoose.connect(process.env.MONGO_URI)
   });
 
 /* =========================
-   START SERVER
+   SERVER START
 ========================= */
 const PORT = process.env.PORT || 5000;
 
