@@ -1,7 +1,7 @@
 import express from "express";
 import Property from "../models/Property.js";
-import multer from "multer"; // ✅ FIXED
-import { CloudinaryStorage } from "multer-storage-cloudinary";
+import multer from "multer";
+import cloudinaryStorage from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
 
 const router = express.Router();
@@ -16,13 +16,14 @@ cloudinary.config({
 });
 
 /* =========================
-   MULTER + CLOUDINARY
+   MULTER + CLOUDINARY STORAGE
 ========================= */
-const storage = new CloudinaryStorage({
+const storage = cloudinaryStorage({
   cloudinary,
   params: {
     folder: "axx-spaces",
     allowed_formats: ["jpg", "png", "jpeg"],
+    transformation: [{ width: 1000, crop: "limit" }],
   },
 });
 
@@ -64,8 +65,8 @@ router.post("/properties", upload.single("image"), async (req, res) => {
 
       amenities,
 
-      // ✅ FIXED IMAGE (IMPORTANT)
-      image: req.file ? req.file.path : "",
+      // ✅ ALWAYS store Cloudinary secure URL
+      image: req.file ? req.file.path : null,
 
       status: "pending",
     });
@@ -92,14 +93,13 @@ router.get("/properties/pending", async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json(pending);
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   APPROVE
+   APPROVE PROPERTY
 ========================= */
 router.patch("/properties/:id/approve", async (req, res) => {
   try {
@@ -110,14 +110,13 @@ router.patch("/properties/:id/approve", async (req, res) => {
     );
 
     res.json(updated);
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   REJECT
+   REJECT PROPERTY
 ========================= */
 router.patch("/properties/:id/reject", async (req, res) => {
   try {
@@ -128,14 +127,13 @@ router.patch("/properties/:id/reject", async (req, res) => {
     );
 
     res.json(updated);
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   GET APPROVED
+   GET APPROVED (FILTER SAFE)
 ========================= */
 router.get("/properties/approved", async (req, res) => {
   try {
