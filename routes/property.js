@@ -2,9 +2,7 @@ import express from "express";
 import Property from "../models/Property.js";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
-import pkg from "multer-storage-cloudinary";
-
-const { CloudinaryStorage } = pkg;
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 const router = express.Router();
 
@@ -18,14 +16,14 @@ cloudinary.config({
 });
 
 /* =========================
-   MULTER STORAGE (CLOUDINARY)
+   STORAGE CONFIG (FIXED)
 ========================= */
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
+  params: async () => ({
     folder: "axx-spaces",
-    allowed_formats: ["jpg", "jpeg", "png"],
-  },
+    allowed_formats: ["jpg", "png", "jpeg"],
+  }),
 });
 
 const upload = multer({ storage });
@@ -35,15 +33,9 @@ const upload = multer({ storage });
 ========================= */
 router.post("/properties", upload.single("image"), async (req, res) => {
   try {
-    let amenities = [];
-
-    if (req.body.amenities) {
-      try {
-        amenities = JSON.parse(req.body.amenities);
-      } catch {
-        amenities = [];
-      }
-    }
+    const amenities = req.body.amenities
+      ? JSON.parse(req.body.amenities)
+      : [];
 
     const newProperty = new Property({
       title: req.body.title,
@@ -56,12 +48,14 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       bathrooms: req.body.bathrooms,
       description: req.body.description,
       phone: req.body.phone,
+
       lat: req.body.lat || null,
       lng: req.body.lng || null,
+
       amenities,
 
-      // IMPORTANT FIX
-      image: req.file ? req.file.path : null,
+      // ✅ Cloudinary URL FIX
+      image: req.file?.path || null,
 
       status: "pending",
     });
@@ -74,7 +68,51 @@ router.post("/properties", upload.single("image"), async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("CREATE ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   GET PENDING
+========================= */
+router.get("/properties/pending", async (req, res) => {
+  try {
+    const data = await Property.find({ status: "pending" }).sort({ createdAt: -1 });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   APPROVE
+========================= */
+router.patch("/properties/:id/approve", async (req, res) => {
+  try {
+    const updated = await Property.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    );
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   REJECT
+========================= */
+router.patch("/properties/:id/reject", async (req, res) => {
+  try {
+    const updated = await Property.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected" },
+      { new: true }
+    );
+    res.json(updated);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -84,9 +122,15 @@ router.post("/properties", upload.single("image"), async (req, res) => {
 ========================= */
 router.get("/properties/approved", async (req, res) => {
   try {
-    const properties = await Property.find({ status: "approved" });
+    const filter = { status: "approved" };
 
-    res.json(properties);
+    if (req.query.county) {
+      filter.county = { $regex: req.query.county, $options: "i" };
+    }
+
+    const data = await Property.find(filter).sort({ createdAt: -1 });
+
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

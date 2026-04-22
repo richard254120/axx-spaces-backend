@@ -2,33 +2,47 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+
 import propertyRoutes from "./routes/property.js";
 
 dotenv.config();
 
 const app = express();
 
+/* =========================
+   CORS
+========================= */
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "PATCH", "DELETE"],
 }));
 
+/* =========================
+   BODY PARSER
+========================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+/* =========================
+   ROUTES
+========================= */
 app.use("/api", propertyRoutes);
 
+/* =========================
+   HEALTH CHECK
+========================= */
 app.get("/", (req, res) => {
-  res.send("Backend running ✔");
+  res.send("AXX Spaces Backend Running ✔");
 });
 
 /* =========================
-   FIXED MONGO CONNECTION
+   DB CONNECTION (FIXED)
 ========================= */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => {
+  .catch(err => {
     console.log("❌ DB Error:", err.message);
+    process.exit(1);
   });
 
 const PORT = process.env.PORT || 5000;
