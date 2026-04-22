@@ -1,18 +1,28 @@
 import express from "express";
 import Property from "../models/Property.js";
-import multer from "multer";
+import multer from "multer"; // ✅ FIXED
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 
 const router = express.Router();
 
 /* =========================
-   MULTER CONFIG (IMAGE UPLOAD)
+   CLOUDINARY CONFIG
 ========================= */
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.CLOUD_API_KEY,
+  api_secret: process.env.CLOUD_API_SECRET,
+});
+
+/* =========================
+   MULTER + CLOUDINARY
+========================= */
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "axx-spaces",
+    allowed_formats: ["jpg", "png", "jpeg"],
   },
 });
 
@@ -49,15 +59,13 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       description: req.body.description,
       phone: req.body.phone,
 
-      // GEO
       lat: req.body.lat || null,
       lng: req.body.lng || null,
 
-      // AMENITIES
       amenities,
 
-      // IMAGE
-      image: req.file ? req.file.filename : "",
+      // ✅ FIXED IMAGE (IMPORTANT)
+      image: req.file ? req.file.path : "",
 
       status: "pending",
     });
@@ -86,13 +94,12 @@ router.get("/properties/pending", async (req, res) => {
     res.json(pending);
 
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   APPROVE PROPERTY
+   APPROVE
 ========================= */
 router.patch("/properties/:id/approve", async (req, res) => {
   try {
@@ -105,13 +112,12 @@ router.patch("/properties/:id/approve", async (req, res) => {
     res.json(updated);
 
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   REJECT PROPERTY
+   REJECT
 ========================= */
 router.patch("/properties/:id/reject", async (req, res) => {
   try {
@@ -124,13 +130,12 @@ router.patch("/properties/:id/reject", async (req, res) => {
     res.json(updated);
 
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   GET APPROVED (FILTERS + SAFE)
+   GET APPROVED
 ========================= */
 router.get("/properties/approved", async (req, res) => {
   try {
@@ -150,15 +155,13 @@ router.get("/properties/approved", async (req, res) => {
       filter.price = { $lte: Number(price) };
     }
 
-    console.log("🔍 FILTER:", filter);
-
     const properties = await Property.find(filter)
       .sort({ createdAt: -1 });
 
     res.json(properties);
 
   } catch (err) {
-    console.error("🔥 FETCH ERROR:", err);
+    console.error("FETCH ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
