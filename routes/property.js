@@ -1,8 +1,8 @@
 import express from "express";
 import Property from "../models/Property.js";
 import multer from "multer";
-import pkg from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
+import pkg from "multer-storage-cloudinary";
 
 const { CloudinaryStorage } = pkg;
 
@@ -18,15 +18,14 @@ cloudinary.config({
 });
 
 /* =========================
-   STORAGE
+   MULTER STORAGE (CLOUDINARY)
 ========================= */
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: async (req, file) => ({
+  params: {
     folder: "axx-spaces",
-    format: "jpg",
-    public_id: Date.now() + "-" + file.originalname,
-  }),
+    allowed_formats: ["jpg", "jpeg", "png"],
+  },
 });
 
 const upload = multer({ storage });
@@ -46,10 +45,6 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       }
     }
 
-    if (!req.body.title || !req.body.county || !req.body.price || !req.body.type) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
     const newProperty = new Property({
       title: req.body.title,
       county: req.body.county,
@@ -65,7 +60,7 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       lng: req.body.lng || null,
       amenities,
 
-      // ✅ CLOUDINARY URL (IMPORTANT)
+      // IMPORTANT FIX
       image: req.file ? req.file.path : null,
 
       status: "pending",
@@ -79,7 +74,7 @@ router.post("/properties", upload.single("image"), async (req, res) => {
     });
 
   } catch (err) {
-    console.error("CREATE ERROR:", err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -89,13 +84,10 @@ router.post("/properties", upload.single("image"), async (req, res) => {
 ========================= */
 router.get("/properties/approved", async (req, res) => {
   try {
-    const properties = await Property.find({ status: "approved" })
-      .sort({ createdAt: -1 });
+    const properties = await Property.find({ status: "approved" });
 
     res.json(properties);
-
   } catch (err) {
-    console.error("FETCH ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
