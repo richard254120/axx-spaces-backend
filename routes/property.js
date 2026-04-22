@@ -1,8 +1,10 @@
 import express from "express";
 import Property from "../models/Property.js";
 import multer from "multer";
+import pkg from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
+
+const { CloudinaryStorage } = pkg;
 
 const router = express.Router();
 
@@ -16,26 +18,35 @@ cloudinary.config({
 });
 
 /* =========================
-   STORAGE CONFIG (FIXED)
+   FIXED CLOUDINARY STORAGE
 ========================= */
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: async () => ({
-    folder: "axx-spaces",
-    allowed_formats: ["jpg", "png", "jpeg"],
-  }),
+  params: async (req, file) => {
+    return {
+      folder: "axx-spaces",
+      allowed_formats: ["jpg", "jpeg", "png"],
+      public_id: Date.now() + "-" + file.originalname,
+    };
+  },
 });
 
 const upload = multer({ storage });
 
 /* =========================
-   CREATE PROPERTY
+   CREATE PROPERTY (UPLOAD FIXED)
 ========================= */
 router.post("/properties", upload.single("image"), async (req, res) => {
   try {
-    const amenities = req.body.amenities
-      ? JSON.parse(req.body.amenities)
-      : [];
+    let amenities = [];
+
+    if (req.body.amenities) {
+      try {
+        amenities = JSON.parse(req.body.amenities);
+      } catch {
+        amenities = [];
+      }
+    }
 
     const newProperty = new Property({
       title: req.body.title,
@@ -54,8 +65,8 @@ router.post("/properties", upload.single("image"), async (req, res) => {
 
       amenities,
 
-      // ✅ Cloudinary URL FIX
-      image: req.file?.path || null,
+      // ✅ FIX: Cloudinary URL
+      image: req.file ? req.file.path : null,
 
       status: "pending",
     });
@@ -63,22 +74,36 @@ router.post("/properties", upload.single("image"), async (req, res) => {
     const saved = await newProperty.save();
 
     res.status(201).json({
-      message: "Property submitted ✔",
+      message: "Property uploaded successfully ✔",
       data: saved,
     });
 
   } catch (err) {
-    console.error("CREATE ERROR:", err);
+    console.log("UPLOAD ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   GET PENDING
+   GET APPROVED
+========================= */
+router.get("/properties/approved", async (req, res) => {
+  try {
+    const properties = await Property.find({ status: "approved" })
+      .sort({ createdAt: -1 });
+
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   PENDING
 ========================= */
 router.get("/properties/pending", async (req, res) => {
   try {
-    const data = await Property.find({ status: "pending" }).sort({ createdAt: -1 });
+    const data = await Property.find({ status: "pending" });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -89,51 +114,26 @@ router.get("/properties/pending", async (req, res) => {
    APPROVE
 ========================= */
 router.patch("/properties/:id/approve", async (req, res) => {
-  try {
-    const updated = await Property.findByIdAndUpdate(
-      req.params.id,
-      { status: "approved" },
-      { new: true }
-    );
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const updated = await Property.findByIdAndUpdate(
+    req.params.id,
+    { status: "approved" },
+    { new: true }
+  );
+
+  res.json(updated);
 });
 
 /* =========================
    REJECT
 ========================= */
 router.patch("/properties/:id/reject", async (req, res) => {
-  try {
-    const updated = await Property.findByIdAndUpdate(
-      req.params.id,
-      { status: "rejected" },
-      { new: true }
-    );
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  const updated = await Property.findByIdAndUpdate(
+    req.params.id,
+    { status: "rejected" },
+    { new: true }
+  );
 
-/* =========================
-   GET APPROVED
-========================= */
-router.get("/properties/approved", async (req, res) => {
-  try {
-    const filter = { status: "approved" };
-
-    if (req.query.county) {
-      filter.county = { $regex: req.query.county, $options: "i" };
-    }
-
-    const data = await Property.find(filter).sort({ createdAt: -1 });
-
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json(updated);
 });
 
 export default router;
