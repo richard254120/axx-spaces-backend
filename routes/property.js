@@ -6,18 +6,16 @@ import fs from "fs";
 const router = express.Router();
 
 /* =========================
-   ENSURE UPLOADS FOLDER EXISTS
+   USE TEMP DIRECTORY (RENDER SAFE)
 ========================= */
-if (!fs.existsSync("uploads")) {
-  fs.mkdirSync("uploads");
-}
+const uploadDir = "/tmp"; // ✅ FIXED for production
 
 /* =========================
    MULTER STORAGE (SAFE)
 ========================= */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, uploadDir); // ✅ CHANGED
   },
   filename: (req, file, cb) => {
     const uniqueName = Date.now() + "-" + file.originalname;
@@ -43,7 +41,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 5 * 1024 * 1024,
   },
 });
 
@@ -83,7 +81,7 @@ router.post("/properties", (req, res) => {
         description: req.body.description,
         phone: req.body.phone,
         amenities,
-        image: req.file ? `/uploads/${req.file.filename}` : null,
+        image: req.file ? req.file.filename : null, // ✅ FIXED (no /uploads)
         status: "pending",
       });
 
