@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-
+import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
 
 dotenv.config();
@@ -32,6 +32,7 @@ app.use("/uploads", express.static("uploads"));
    ROUTES
 ========================= */
 app.use("/api", propertyRoutes);
+app.use("/api", authRoutes);
 
 /* =========================
    HEALTH CHECK
