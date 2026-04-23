@@ -17,17 +17,17 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 10);
 
     const user = new User({
       name,
       email,
-      password: hashedPassword,
+      password: hashed
     });
 
     await user.save();
 
-    res.status(201).json({ message: "User registered successfully ✔" });
+    res.status(201).json({ message: "Registered successfully ✔" });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -35,21 +35,22 @@ router.post("/register", async (req, res) => {
 });
 
 /* ======================
-   LOGIN
+   LOGIN (RESTORED SIMPLE)
 ====================== */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const match = await bcrypt.compare(password, user.password);
 
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
+    if (!match) {
+      return res.status(400).json({ message: "Wrong password" });
     }
 
     const token = jwt.sign(
@@ -59,7 +60,6 @@ router.post("/login", async (req, res) => {
     );
 
     res.json({
-      message: "Login successful ✔",
       token,
       user: {
         id: user._id,

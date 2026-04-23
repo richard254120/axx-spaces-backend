@@ -11,37 +11,32 @@ dotenv.config();
 const app = express();
 
 /* ======================
-   MIDDLEWARE
+   BASIC MIDDLEWARE
 ====================== */
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ======================
-   ROUTES
+   ROUTES (SIMPLE RESTORE)
 ====================== */
-app.use("/api/auth", authRoutes);
-app.use("/api/properties", propertyRoutes);
+app.use("/api", authRoutes);
+app.use("/api", propertyRoutes);
 
 /* ======================
-   HEALTH CHECK
+   TEST ROUTE
 ====================== */
 app.get("/", (req, res) => {
-  res.send("AXX Spaces Backend Running ✔");
+  res.send("Backend Running ✔");
 });
 
 /* ======================
-   DATABASE
+   DB CONNECTION
 ====================== */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => {
-    console.log("❌ DB Error:", err.message);
-  });
+  .catch(err => console.log("❌ DB Error:", err.message));
 
-/* ======================
-   START SERVER
-====================== */
 const PORT = process.env.PORT || 1000;
 
 app.listen(PORT, () => {
