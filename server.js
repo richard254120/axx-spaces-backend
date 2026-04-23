@@ -13,7 +13,10 @@ const app = express();
    CORS
 ========================= */
 app.use(cors({
-  origin: "*",
+  origin: [
+    "http://localhost:5173",
+    "https://axx-spaces-frontend.vercel.app"
+  ],
   methods: ["GET", "POST", "PATCH", "DELETE"],
 }));
 
