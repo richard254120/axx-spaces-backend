@@ -10,15 +10,23 @@ dotenv.config();
 const app = express();
 
 /* =========================
-   CORS FIX (DEPLOYMENT SAFE)
+   CORS
 ========================= */
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "PATCH", "DELETE"],
 }));
 
+/* =========================
+   BODY PARSER
+========================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+/* =========================
+   STATIC FILES (IMPORTANT)
+========================= */
+app.use("/uploads", express.static("uploads"));
 
 /* =========================
    ROUTES
@@ -29,16 +37,17 @@ app.use("/api", propertyRoutes);
    HEALTH CHECK
 ========================= */
 app.get("/", (req, res) => {
-  res.send("AXX Spaces Backend Running ✔");
+  res.send("Backend running ✔");
 });
 
 /* =========================
-   MONGO FIX (IMPORTANT)
+   DB CONNECTION
 ========================= */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => {
     console.log("❌ DB Error:", err.message);
+    process.exit(1);
   });
 
 const PORT = process.env.PORT || 1000;

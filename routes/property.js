@@ -1,43 +1,36 @@
 import express from "express";
 import Property from "../models/Property.js";
 import multer from "multer";
-import pkg from "multer-storage-cloudinary";
-import { v2 as cloudinary } from "cloudinary";
-
-const { CloudinaryStorage } = pkg;
+import path from "path";
 
 const router = express.Router();
 
 /* =========================
-   CLOUDINARY CONFIG
+   MULTER CONFIG (LOCAL STORAGE)
 ========================= */
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.CLOUD_API_KEY,
-  api_secret: process.env.CLOUD_API_SECRET,
-});
-
-/* =========================
-   FIXED CLOUDINARY STORAGE
-========================= */
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: async (req, file) => {
-    return {
-      folder: "axx-spaces",
-      allowed_formats: ["jpg", "jpeg", "png"],
-      public_id: Date.now() + "-" + file.originalname,
-    };
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
   },
 });
 
 const upload = multer({ storage });
 
 /* =========================
-   CREATE PROPERTY (UPLOAD FIXED)
+   CREATE PROPERTY
 ========================= */
 router.post("/properties", upload.single("image"), async (req, res) => {
   try {
+    let imageUrl = null;
+
+    // SAVE IMAGE LOCALLY
+    if (req.file) {
+      imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
     let amenities = [];
 
     if (req.body.amenities) {
@@ -53,39 +46,31 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       county: req.body.county,
       area: req.body.area,
       price: Number(req.body.price),
-      deposit: req.body.deposit,
       type: req.body.type,
       bedrooms: req.body.bedrooms,
       bathrooms: req.body.bathrooms,
       description: req.body.description,
       phone: req.body.phone,
-
-      lat: req.body.lat || null,
-      lng: req.body.lng || null,
-
       amenities,
-
-      // ✅ FIX: Cloudinary URL
-      image: req.file ? req.file.path : null,
-
+      image: imageUrl,
       status: "pending",
     });
 
     const saved = await newProperty.save();
 
     res.status(201).json({
-      message: "Property uploaded successfully ✔",
+      message: "Property submitted ✔",
       data: saved,
     });
 
   } catch (err) {
-    console.log("UPLOAD ERROR:", err);
+    console.error("UPLOAD ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   GET APPROVED
+   GET APPROVED PROPERTIES
 ========================= */
 router.get("/properties/approved", async (req, res) => {
   try {
@@ -96,44 +81,6 @@ router.get("/properties/approved", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-/* =========================
-   PENDING
-========================= */
-router.get("/properties/pending", async (req, res) => {
-  try {
-    const data = await Property.find({ status: "pending" });
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/* =========================
-   APPROVE
-========================= */
-router.patch("/properties/:id/approve", async (req, res) => {
-  const updated = await Property.findByIdAndUpdate(
-    req.params.id,
-    { status: "approved" },
-    { new: true }
-  );
-
-  res.json(updated);
-});
-
-/* =========================
-   REJECT
-========================= */
-router.patch("/properties/:id/reject", async (req, res) => {
-  const updated = await Property.findByIdAndUpdate(
-    req.params.id,
-    { status: "rejected" },
-    { new: true }
-  );
-
-  res.json(updated);
 });
 
 export default router;
