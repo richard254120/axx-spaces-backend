@@ -6,14 +6,14 @@ import User from "../models/User.js";
 const router = express.Router();
 
 /* ======================
-   REGISTER USER
+   REGISTER
 ====================== */
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const exists = await User.findOne({ email });
+    if (exists) {
       return res.status(400).json({ message: "User already exists" });
     }
 
@@ -27,7 +27,7 @@ router.post("/register", async (req, res) => {
 
     await user.save();
 
-    res.status(201).json({ message: "User registered successfully" });
+    res.status(201).json({ message: "User registered successfully ✔" });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -35,7 +35,7 @@ router.post("/register", async (req, res) => {
 });
 
 /* ======================
-   LOGIN USER
+   LOGIN
 ====================== */
 router.post("/login", async (req, res) => {
   try {
@@ -59,7 +59,7 @@ router.post("/login", async (req, res) => {
     );
 
     res.json({
-      message: "Login successful",
+      message: "Login successful ✔",
       token,
       user: {
         id: user._id,
