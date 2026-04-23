@@ -6,7 +6,7 @@ import path from "path";
 const router = express.Router();
 
 /* =========================
-   MULTER CONFIG (LOCAL STORAGE)
+   MULTER CONFIG
 ========================= */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -26,7 +26,6 @@ router.post("/properties", upload.single("image"), async (req, res) => {
   try {
     let imageUrl = null;
 
-    // SAVE IMAGE LOCALLY
     if (req.file) {
       imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
     }
@@ -64,13 +63,13 @@ router.post("/properties", upload.single("image"), async (req, res) => {
     });
 
   } catch (err) {
-    console.error("UPLOAD ERROR:", err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
 /* =========================
-   GET APPROVED PROPERTIES
+   GET APPROVED (PUBLIC)
 ========================= */
 router.get("/properties/approved", async (req, res) => {
   try {
@@ -78,6 +77,54 @@ router.get("/properties/approved", async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json(properties);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   GET PENDING (ADMIN)
+========================= */
+router.get("/properties/pending", async (req, res) => {
+  try {
+    const properties = await Property.find({ status: "pending" })
+      .sort({ createdAt: -1 });
+
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   APPROVE PROPERTY
+========================= */
+router.patch("/properties/:id/approve", async (req, res) => {
+  try {
+    const property = await Property.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    );
+
+    res.json({
+      message: "Approved ✔",
+      property,
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* =========================
+   DELETE PROPERTY
+========================= */
+router.delete("/properties/:id", async (req, res) => {
+  try {
+    await Property.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted ❌" });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -24,7 +24,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* =========================
-   STATIC FILES (IMPORTANT)
+   STATIC FILES
 ========================= */
 app.use("/uploads", express.static("uploads"));
 
