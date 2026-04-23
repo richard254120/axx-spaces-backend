@@ -3,39 +3,52 @@ import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 
-import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
 
 dotenv.config();
 
 const app = express();
 
-/* ======================
-   BASIC MIDDLEWARE
-====================== */
-app.use(cors({ origin: "*" }));
+/* =========================
+   CORS
+========================= */
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PATCH", "DELETE"],
+}));
+
+/* =========================
+   BODY PARSER
+========================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/* ======================
-   ROUTES (SIMPLE RESTORE)
-====================== */
-app.use("/api", authRoutes);
+/* =========================
+   STATIC FILES (FOR IMAGES)
+========================= */
+app.use("/uploads", express.static("uploads"));
+
+/* =========================
+   ROUTES
+========================= */
 app.use("/api", propertyRoutes);
 
-/* ======================
-   TEST ROUTE
-====================== */
+/* =========================
+   HEALTH CHECK
+========================= */
 app.get("/", (req, res) => {
-  res.send("Backend Running ✔");
+  res.send("Backend running ✔");
 });
 
-/* ======================
+/* =========================
    DB CONNECTION
-====================== */
+========================= */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.log("❌ DB Error:", err.message));
+  .catch(err => {
+    console.log("❌ DB Error:", err.message);
+    process.exit(1);
+  });
 
 const PORT = process.env.PORT || 1000;
 

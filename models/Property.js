@@ -1,21 +1,24 @@
 import mongoose from "mongoose";
 
-const propertySchema = new mongoose.Schema({
-  title: String,
-  county: String,
-  area: String,
-  price: Number,
-  type: String,
-  bedrooms: Number,
-  bathrooms: Number,
-  description: String,
-  phone: String,
-  amenities: [String],
-  image: String,
-  status: {
+const propertySchema = new mongoose.Schema(
+  {
+    title: String,
+    county: String,
+    area: String,
+    price: Number,
     type: String,
-    default: "pending",
+    bedrooms: String,
+    bathrooms: String,
+    description: String,
+    phone: String,
+    amenities: [String],
+    image: String,
+    status: {
+      type: String,
+      default: "pending",
+    },
   },
-}, { timestamps: true });
+  { timestamps: true }
+);
 
 export default mongoose.model("Property", propertySchema);
