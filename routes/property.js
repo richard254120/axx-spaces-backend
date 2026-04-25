@@ -65,6 +65,7 @@ router.post("/properties", upload.single("image"), async (req, res) => {
       county: req.body.county,
       area: req.body.area,
       price: Number(req.body.price),
+      deposit: Number(req.body.deposit),
       type: req.body.type,
       bedrooms: req.body.bedrooms,
       bathrooms: req.body.bathrooms,

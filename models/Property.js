@@ -6,6 +6,7 @@ const propertySchema = new mongoose.Schema(
     county: { type: String, required: true },
     area: { type: String, required: true },
     price: { type: Number, required: true },
+    deposit: { type: Number, required: true },
     type: { type: String, required: true },
     bedrooms: { type: String },
     bathrooms: { type: String },
