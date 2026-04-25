@@ -6,17 +6,24 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   phone: { type: String, required: true },
-  role: { type: String, default: 'landlord' },
-  createdAt: { type: Date, default: Date.now }
-});
+  isApproved: { type: Boolean, default: false } // Admin changes this
+}, { timestamps: true });
 
-// Hash password before saving
-userSchema.pre('save', async function(next) {
+/**
+ * ✅ FIX 2: PREVENT DOUBLE HASHING
+ * This runs before .save(). If you are just approving a user, 
+ * the password is NOT modified, so we skip hashing.
+ */
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
-const User = mongoose.model('User', userSchema);
-
-export default User;
+export default mongoose.model('User', userSchema);

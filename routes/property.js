@@ -35,10 +35,10 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       ...req.body,
       owner: req.user.id,
       image: req.file ? `/uploads/${req.file.filename}` : null,
-      status: 'pending'
+      status: 'pending' // Initial status is pending
     };
 
-    // Convert numbers
+    // Convert numbers (ensures MongoDB stores them as Numbers, not Strings)
     if (propertyData.price) propertyData.price = Number(propertyData.price);
     if (propertyData.deposit) propertyData.deposit = Number(propertyData.deposit);
     if (propertyData.bedrooms) propertyData.bedrooms = Number(propertyData.bedrooms);
@@ -59,7 +59,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
   }
 });
 
-// GET - My Properties
+// GET - My Properties (For Landlord Dashboard)
 router.get('/my-properties', auth, async (req, res) => {
   try {
     const properties = await Property.find({ owner: req.user.id })
@@ -89,7 +89,23 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// GET - Public Listings (Approved only)
+/**
+ * ✅ FIX 1: MATCHING THE FRONTEND ENDPOINT
+ * Your Listings.jsx calls API.get("/properties/approved")
+ * This route now explicitly handles that request.
+ */
+router.get('/approved', async (req, res) => {
+  try {
+    // IMPORTANT: Ensure your Admin Panel sets status to exactly 'approved' (lowercase)
+    const properties = await Property.find({ status: 'approved' })
+      .sort({ createdAt: -1 });
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET - Public Listings (General fallback)
 router.get('/', async (req, res) => {
   try {
     const properties = await Property.find({ status: 'approved' })
