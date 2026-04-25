@@ -2,8 +2,15 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import propertyRoutes from "./routes/property.js";
+import authRoutes from "./routes/auth.js";
+
+// Fix for ES modules __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -18,6 +25,7 @@ app.use(cors({
     "https://axx-spaces-frontend.vercel.app"
   ],
   methods: ["GET", "POST", "PATCH", "DELETE"],
+  credentials: true
 }));
 
 /* =========================
@@ -27,20 +35,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* =========================
-   STATIC FILES (FIXED)
+   STATIC FILES - UPLOADS
 ========================= */
-app.use("/uploads", express.static("/tmp")); // ✅ FIXED
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Create uploads folder if it doesn't exist
+import fs from "fs";
+if (!fs.existsSync(path.join(__dirname, "uploads"))) {
+  fs.mkdirSync(path.join(__dirname, "uploads"));
+}
 
 /* =========================
    ROUTES
 ========================= */
-app.use("/api", propertyRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/properties", propertyRoutes);
 
 /* =========================
    HEALTH CHECK
 ========================= */
 app.get("/", (req, res) => {
-  res.send("Backend running ✔");
+  res.send("Axx Spaces Backend is running ✔");
 });
 
 /* =========================

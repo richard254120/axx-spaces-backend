@@ -1,116 +1,99 @@
-import express from "express";
-import Property from "../models/Property.js";
-import multer from "multer";
-import fs from "fs";
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import auth from '../middleware/auth.js';
+import Property from '../models/Property.js';
 
 const router = express.Router();
 
-/* =========================
-   UPLOAD DIRECTORY
-========================= */
-const uploadDir = "uploads";
-
-// ensure folder exists
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
-
-/* =========================
-   MULTER CONFIG
-========================= */
+// Multer Setup
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
   },
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
-  },
-});
-
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
-    cb(null, true);
-  } else {
-    cb(new Error("Only images allowed"), false);
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '-'));
   }
-};
-
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-/* =========================
-   CREATE PROPERTY
-========================= */
-router.post("/properties", upload.single("image"), async (req, res) => {
-  try {
-    console.log("BODY:", req.body);
-    console.log("FILE:", req.file);
-
-    let amenities = [];
-
-    if (req.body.amenities) {
-      try {
-        amenities = JSON.parse(req.body.amenities);
-      } catch {
-        amenities = [];
-      }
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
     }
+  }
+});
 
-    const newProperty = new Property({
-      title: req.body.title,
-      county: req.body.county,
-      area: req.body.area,
-      price: Number(req.body.price),
-      deposit: Number(req.body.deposit),
-      type: req.body.type,
-      bedrooms: req.body.bedrooms,
-      bathrooms: req.body.bathrooms,
-      description: req.body.description,
-      phone: req.body.phone,
-      amenities,
+// POST - Upload Property
+router.post('/', auth, upload.single('image'), async (req, res) => {
+  try {
+    const propertyData = {
+      ...req.body,
+      owner: req.user.id,
       image: req.file ? `/uploads/${req.file.filename}` : null,
-      status: "pending",
-    });
+      status: 'pending'
+    };
 
-    const saved = await newProperty.save();
+    // Convert numbers
+    if (propertyData.price) propertyData.price = Number(propertyData.price);
+    if (propertyData.deposit) propertyData.deposit = Number(propertyData.deposit);
+    if (propertyData.bedrooms) propertyData.bedrooms = Number(propertyData.bedrooms);
+    if (propertyData.bathrooms) propertyData.bathrooms = Number(propertyData.bathrooms);
+    if (propertyData.lat) propertyData.lat = Number(propertyData.lat);
+    if (propertyData.lng) propertyData.lng = Number(propertyData.lng);
+
+    const property = new Property(propertyData);
+    await property.save();
 
     res.status(201).json({
-      message: "Property submitted ✔",
-      data: saved,
+      message: 'Property submitted successfully. Awaiting admin approval.',
+      property
     });
-
   } catch (err) {
-    console.log("UPLOAD ERROR:", err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-/* =========================
-   GET ALL PROPERTIES (IMPORTANT FIX)
-========================= */
-router.get("/properties", async (req, res) => {
+// GET - My Properties
+router.get('/my-properties', auth, async (req, res) => {
   try {
-    const properties = await Property.find()
+    const properties = await Property.find({ owner: req.user.id })
       .sort({ createdAt: -1 });
-
     res.json(properties);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/* =========================
-   GET APPROVED ONLY
-========================= */
-router.get("/properties/approved", async (req, res) => {
+// DELETE - Delete Property
+router.delete('/:id', auth, async (req, res) => {
   try {
-    const properties = await Property.find({ status: "approved" })
-      .sort({ createdAt: -1 });
+    const property = await Property.findOne({ 
+      _id: req.params.id, 
+      owner: req.user.id 
+    });
 
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found or not yours' });
+    }
+
+    await property.deleteOne();
+    res.json({ message: 'Property deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET - Public Listings (Approved only)
+router.get('/', async (req, res) => {
+  try {
+    const properties = await Property.find({ status: 'approved' })
+      .sort({ createdAt: -1 });
     res.json(properties);
   } catch (err) {
     res.status(500).json({ error: err.message });

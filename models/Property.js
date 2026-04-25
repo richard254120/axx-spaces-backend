@@ -1,25 +1,36 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const propertySchema = new mongoose.Schema(
-  {
-    title: { type: String, required: true },
-    county: { type: String, required: true },
-    area: { type: String, required: true },
-    price: { type: Number, required: true },
-    deposit: { type: Number, required: true },
-    type: { type: String, required: true },
-    bedrooms: { type: String },
-    bathrooms: { type: String },
-    description: { type: String },
-    phone: { type: String, required: true },
-    amenities: [String],
-    image: String,
-    status: {
-      type: String,
-      default: "pending",
-    },
+const propertySchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  county: { type: String, required: true },
+  area: { type: String, required: true },
+  price: { type: Number, required: true },
+  deposit: { type: Number },
+  type: { type: String, required: true },
+  bedrooms: { type: Number },
+  bathrooms: { type: Number },
+  amenities: [{ type: String }],
+  description: { type: String },
+  phone: { type: String, required: true },
+  image: { type: String },
+  lat: { type: Number },
+  lng: { type: Number },
+
+  status: { 
+    type: String, 
+    enum: ['pending', 'approved', 'rejected'], 
+    default: 'pending' 
   },
-  { timestamps: true }
-);
 
-export default mongoose.model("Property", propertySchema);
+  owner: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true 
+  },
+
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Property = mongoose.model('Property', propertySchema);
+
+export default Property;
