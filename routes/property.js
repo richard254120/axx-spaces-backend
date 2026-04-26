@@ -6,36 +6,32 @@ import multer from 'multer';
 
 const router = express.Router();
 
-// Cloudinary Setup
+// Cloudinary Config
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer (Memory storage - best for Cloudinary)
+// Multer Setup
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max per image
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only images allowed'));
-    }
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only images allowed'));
   }
 });
 
-// Upload Property with Multiple Images
+// Upload Property - Multiple Images
 router.post('/', auth, upload.array('images', 6), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "Please upload at least one image" });
     }
 
-    // Upload all images to Cloudinary
-    const uploadPromises = req.files.map(file => 
-      new Promise((resolve, reject) => {
+    const uploadPromises = req.files.map(file => {
+      return new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
           { folder: "axx-spaces/properties" },
           (error, result) => {
@@ -43,8 +39,8 @@ router.post('/', auth, upload.array('images', 6), async (req, res) => {
             else resolve(result.secure_url);
           }
         ).end(file.buffer);
-      })
-    );
+      });
+    });
 
     const imageUrls = await Promise.all(uploadPromises);
 
@@ -55,25 +51,28 @@ router.post('/', auth, upload.array('images', 6), async (req, res) => {
       status: 'pending'
     };
 
-    // Convert numbers safely
-    ['price', 'deposit', 'bedrooms', 'bathrooms', 'lat', 'lng'].forEach(field => {
-      if (propertyData[field]) propertyData[field] = Number(propertyData[field]);
-    });
+    // Convert numbers
+    if (propertyData.price) propertyData.price = Number(propertyData.price);
+    if (propertyData.deposit) propertyData.deposit = Number(propertyData.deposit);
+    if (propertyData.bedrooms) propertyData.bedrooms = Number(propertyData.bedrooms);
+    if (propertyData.bathrooms) propertyData.bathrooms = Number(propertyData.bathrooms);
+    if (propertyData.lat) propertyData.lat = Number(propertyData.lat);
+    if (propertyData.lng) propertyData.lng = Number(propertyData.lng);
 
     const property = new Property(propertyData);
     await property.save();
 
     res.status(201).json({
-      message: `Property uploaded successfully with ${imageUrls.length} images`,
+      message: `Property submitted with ${imageUrls.length} images. Awaiting approval.`,
       property
     });
   } catch (err) {
     console.error("Upload Error:", err);
-    res.status(500).json({ error: err.message || "Failed to upload property" });
+    res.status(500).json({ error: err.message || "Server error" });
   }
 });
 
-// Get My Properties
+// My Properties
 router.get('/my-properties', auth, async (req, res) => {
   try {
     const properties = await Property.find({ owner: req.user.id }).sort({ createdAt: -1 });
@@ -87,16 +86,16 @@ router.get('/my-properties', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   try {
     const property = await Property.findOne({ _id: req.params.id, owner: req.user.id });
-    if (!property) return res.status(404).json({ error: "Property not found" });
+    if (!property) return res.status(404).json({ error: 'Property not found' });
 
     await property.deleteOne();
-    res.json({ message: "Property deleted" });
+    res.json({ message: 'Property deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Public - Approved Properties
+// Public Approved Properties
 router.get('/', async (req, res) => {
   try {
     const properties = await Property.find({ status: 'approved' }).sort({ createdAt: -1 });
