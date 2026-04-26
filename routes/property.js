@@ -13,10 +13,10 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer Setup - Memory Storage for Cloudinary
+// Multer Setup
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per image
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -33,7 +33,7 @@ router.post('/', auth, upload.array('images', 6), async (req, res) => {
       return res.status(400).json({ error: "Please upload at least one image" });
     }
 
-    // Upload images to Cloudinary
+    // Upload to Cloudinary
     const uploadPromises = req.files.map(file => {
       return new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
@@ -55,7 +55,7 @@ router.post('/', auth, upload.array('images', 6), async (req, res) => {
       status: 'pending'
     };
 
-    // Convert numeric fields
+    // Convert numbers
     if (propertyData.price) propertyData.price = Number(propertyData.price);
     if (propertyData.deposit) propertyData.deposit = Number(propertyData.deposit);
     if (propertyData.bedrooms) propertyData.bedrooms = Number(propertyData.bedrooms);
@@ -67,12 +67,12 @@ router.post('/', auth, upload.array('images', 6), async (req, res) => {
     await property.save();
 
     res.status(201).json({
-      message: `Property submitted successfully with ${imageUrls.length} images. Awaiting admin approval.`,
+      message: `Property submitted with ${imageUrls.length} images. Awaiting approval.`,
       property
     });
   } catch (err) {
     console.error("Upload Error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || "Server error during upload" });
   }
 });
 
@@ -87,7 +87,7 @@ router.get('/my-properties', auth, async (req, res) => {
   }
 });
 
-// DELETE - Delete Property
+// DELETE Property
 router.delete('/:id', auth, async (req, res) => {
   try {
     const property = await Property.findOne({ 
@@ -95,9 +95,7 @@ router.delete('/:id', auth, async (req, res) => {
       owner: req.user.id 
     });
 
-    if (!property) {
-      return res.status(404).json({ error: 'Property not found or not yours' });
-    }
+    if (!property) return res.status(404).json({ error: 'Property not found' });
 
     await property.deleteOne();
     res.json({ message: 'Property deleted successfully' });
@@ -106,7 +104,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// GET - Public Approved Properties
+// GET - Approved Properties
 router.get('/', async (req, res) => {
   try {
     const properties = await Property.find({ status: 'approved' })
