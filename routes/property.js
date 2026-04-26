@@ -6,36 +6,36 @@ import multer from 'multer';
 
 const router = express.Router();
 
-// Cloudinary Configuration
+// Cloudinary Setup
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer Setup
-const upload = multer({ 
+// Multer (Memory storage - best for Cloudinary)
+const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max per image
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error('Only images allowed'));
     }
   }
 });
 
-// POST - Upload Property with Multiple Images
+// Upload Property with Multiple Images
 router.post('/', auth, upload.array('images', 6), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "Please upload at least one image" });
     }
 
-    // Upload to Cloudinary
-    const uploadPromises = req.files.map(file => {
-      return new Promise((resolve, reject) => {
+    // Upload all images to Cloudinary
+    const uploadPromises = req.files.map(file => 
+      new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
           { folder: "axx-spaces/properties" },
           (error, result) => {
@@ -43,8 +43,8 @@ router.post('/', auth, upload.array('images', 6), async (req, res) => {
             else resolve(result.secure_url);
           }
         ).end(file.buffer);
-      });
-    });
+      })
+    );
 
     const imageUrls = await Promise.all(uploadPromises);
 
@@ -55,60 +55,51 @@ router.post('/', auth, upload.array('images', 6), async (req, res) => {
       status: 'pending'
     };
 
-    // Convert numbers
-    if (propertyData.price) propertyData.price = Number(propertyData.price);
-    if (propertyData.deposit) propertyData.deposit = Number(propertyData.deposit);
-    if (propertyData.bedrooms) propertyData.bedrooms = Number(propertyData.bedrooms);
-    if (propertyData.bathrooms) propertyData.bathrooms = Number(propertyData.bathrooms);
-    if (propertyData.lat) propertyData.lat = Number(propertyData.lat);
-    if (propertyData.lng) propertyData.lng = Number(propertyData.lng);
+    // Convert numbers safely
+    ['price', 'deposit', 'bedrooms', 'bathrooms', 'lat', 'lng'].forEach(field => {
+      if (propertyData[field]) propertyData[field] = Number(propertyData[field]);
+    });
 
     const property = new Property(propertyData);
     await property.save();
 
     res.status(201).json({
-      message: `Property submitted with ${imageUrls.length} images. Awaiting approval.`,
+      message: `Property uploaded successfully with ${imageUrls.length} images`,
       property
     });
   } catch (err) {
     console.error("Upload Error:", err);
-    res.status(500).json({ error: err.message || "Server error during upload" });
+    res.status(500).json({ error: err.message || "Failed to upload property" });
   }
 });
 
-// GET - My Properties
+// Get My Properties
 router.get('/my-properties', auth, async (req, res) => {
   try {
-    const properties = await Property.find({ owner: req.user.id })
-      .sort({ createdAt: -1 });
+    const properties = await Property.find({ owner: req.user.id }).sort({ createdAt: -1 });
     res.json(properties);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// DELETE Property
+// Delete Property
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const property = await Property.findOne({ 
-      _id: req.params.id, 
-      owner: req.user.id 
-    });
-
-    if (!property) return res.status(404).json({ error: 'Property not found' });
+    const property = await Property.findOne({ _id: req.params.id, owner: req.user.id });
+    if (!property) return res.status(404).json({ error: "Property not found" });
 
     await property.deleteOne();
-    res.json({ message: 'Property deleted successfully' });
+    res.json({ message: "Property deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET - Approved Properties
+// Public - Approved Properties
 router.get('/', async (req, res) => {
   try {
-    const properties = await Property.find({ status: 'approved' })
-      .sort({ createdAt: -1 });
+    const properties = await Property.find({ status: 'approved' }).sort({ createdAt: -1 });
     res.json(properties);
   } catch (err) {
     res.status(500).json({ error: err.message });
