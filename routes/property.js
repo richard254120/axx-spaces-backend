@@ -1,65 +1,60 @@
 import express from 'express';
 import multer from 'multer';
-import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import path from 'path';
 import auth from '../middleware/auth.js';
 import Property from '../models/Property.js';
-import dotenv from 'dotenv';
 
-dotenv.config();
 const router = express.Router();
 
-// ✅ CLOUDINARY CONFIG
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:    process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-// ✅ CLOUDINARY STORAGE SETUP
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'axx_spaces_properties',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-    transformation: [{ width: 1200, height: 800, crop: 'limit' }] 
+// Multer Setup
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
   },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '-'));
+  }
 });
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // Increased to 10MB for multiple photos
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
 });
 
-// POST - Upload Property (Multiple Images)
-// Note: Frontend must use append('images', file) in a loop
-router.post('/', auth, upload.array('images', 10), async (req, res) => {
+// POST - Upload Property
+router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
-    // Collect all uploaded image URLs from Cloudinary
-    const imageUrls = req.files ? req.files.map(file => file.path) : [];
-
     const propertyData = {
       ...req.body,
       owner: req.user.id,
-      images: imageUrls, // ✅ Matches the new array field in Property.js
-      status: 'pending'
+      image: req.file ? `/uploads/${req.file.filename}` : null,
+      status: 'pending' // Initial status is pending
     };
 
-    // Convert strings to Numbers for MongoDB
-    const numericFields = ['price', 'deposit', 'bedrooms', 'bathrooms', 'lat', 'lng'];
-    numericFields.forEach(field => {
-      if (propertyData[field]) propertyData[field] = Number(propertyData[field]);
-    });
+    // Convert numbers (ensures MongoDB stores them as Numbers, not Strings)
+    if (propertyData.price) propertyData.price = Number(propertyData.price);
+    if (propertyData.deposit) propertyData.deposit = Number(propertyData.deposit);
+    if (propertyData.bedrooms) propertyData.bedrooms = Number(propertyData.bedrooms);
+    if (propertyData.bathrooms) propertyData.bathrooms = Number(propertyData.bathrooms);
+    if (propertyData.lat) propertyData.lat = Number(propertyData.lat);
+    if (propertyData.lng) propertyData.lng = Number(propertyData.lng);
 
     const property = new Property(propertyData);
     await property.save();
 
     res.status(201).json({
-      message: 'Property submitted successfully with cloud images. Awaiting approval.',
+      message: 'Property submitted successfully. Awaiting admin approval.',
       property
     });
   } catch (err) {
-    console.error("Upload Error:", err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -87,7 +82,6 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Property not found or not yours' });
     }
 
-    // Optional: Delete images from Cloudinary here if needed
     await property.deleteOne();
     res.json({ message: 'Property deleted successfully' });
   } catch (err) {
@@ -95,9 +89,14 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// GET - Public Approved Listings (Explicit Endpoint)
+/**
+ * ✅ FIX 1: MATCHING THE FRONTEND ENDPOINT
+ * Your Listings.jsx calls API.get("/properties/approved")
+ * This route now explicitly handles that request.
+ */
 router.get('/approved', async (req, res) => {
   try {
+    // IMPORTANT: Ensure your Admin Panel sets status to exactly 'approved' (lowercase)
     const properties = await Property.find({ status: 'approved' })
       .sort({ createdAt: -1 });
     res.json(properties);
@@ -106,7 +105,7 @@ router.get('/approved', async (req, res) => {
   }
 });
 
-// GET - Fallback Public Listings
+// GET - Public Listings (General fallback)
 router.get('/', async (req, res) => {
   try {
     const properties = await Property.find({ status: 'approved' })
