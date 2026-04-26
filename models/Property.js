@@ -12,25 +12,22 @@ const propertySchema = new mongoose.Schema({
   amenities: [{ type: String }],
   description: { type: String },
   phone: { type: String, required: true },
-  image: { type: String },
+  // ✅ UPDATED: Stores an array of Cloudinary URLs
+  images: [{ type: String }], 
   lat: { type: Number },
   lng: { type: Number },
-
   status: { 
     type: String, 
     enum: ['pending', 'approved', 'rejected'], 
     default: 'pending' 
   },
-
   owner: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true 
   },
-
   createdAt: { type: Date, default: Date.now }
 });
 
 const Property = mongoose.model('Property', propertySchema);
-
 export default Property;
