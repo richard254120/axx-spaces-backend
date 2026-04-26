@@ -1,23 +1,29 @@
 import express from 'express';
-import auth from '../middleware/auth.js';
 import Property from '../models/Property.js';
-import { v2 as cloudinary } from 'cloudinary';
-import multer from 'multer';
+import auth from '../middleware/auth.js'; 
+import upload from '../middleware/multer.js';
 
 const router = express.Router();
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+// 1. UPLOAD PROPERTY
+router.post('/', auth, upload.array('images', 5), async (req, res) => {
+  try {
+    const imageUrls = req.files.map(file => file.path);
+    const propertyData = {
+      ...req.body,
+      owner: req.user.id, 
+      images: imageUrls,
+      status: 'pending'   
+    };
+    const property = new Property(propertyData);
+    await property.save();
+    res.status(201).json(property);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
-
-// ✅ GET APPROVED PROPERTIES (The fix for renter view)
+// 2. GET APPROVED LISTINGS
 router.get('/approved', async (req, res) => {
   try {
     const properties = await Property.find({ status: 'approved' }).sort({ createdAt: -1 });
@@ -27,58 +33,31 @@ router.get('/approved', async (req, res) => {
   }
 });
 
-// ✅ POST NEW PROPERTY
-router.post('/', auth, upload.array('images', 6), async (req, res) => {
+// 3. GET LANDLORD'S PROPERTIES
+router.get('/my-properties', auth, async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: "Please upload at least one image" });
-    }
-
-    const uploadPromises = req.files.map((file) => {
-      return new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          { folder: "axx-spaces/properties" },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result.secure_url);
-          }
-        ).end(file.buffer);
-      });
-    });
-
-    const imageUrls = await Promise.all(uploadPromises);
-
-    const propertyData = {
-      ...req.body,
-      owner: req.user.id,
-      images: imageUrls,
-      status: 'pending'
-    };
-
-    // Ensure numeric types
-    const fields = ['price', 'deposit', 'bedrooms', 'bathrooms', 'lat', 'lng'];
-    fields.forEach(field => {
-      if (propertyData[field]) propertyData[field] = Number(propertyData[field]);
-    });
-
-    const property = new Property(propertyData);
-    await property.save();
-    res.status(201).json({ message: "Submitted for approval", property });
+    const properties = await Property.find({ owner: req.user.id }).sort({ createdAt: -1 });
+    res.json(properties);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ✅ DELETE PROPERTY
+// 4. DELETE PROPERTY
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const property = await Property.findOne({ _id: req.params.id, owner: req.user.id });
-    if (!property) return res.status(404).json({ error: 'Property not found' });
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ msg: 'Not found' });
+    if (property.owner.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'Unauthorized action' });
+    }
     await property.deleteOne();
-    res.json({ message: 'Property deleted' });
+    res.json({ msg: 'Property successfully deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// 🚨 THIS IS THE LINE NODE IS COMPLAINING ABOUT 🚨
+// It must be at the very bottom of the file
 export default router;
