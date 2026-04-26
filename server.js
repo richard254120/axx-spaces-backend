@@ -8,11 +8,16 @@ import { fileURLToPath } from "url";
 import propertyRoutes from "./routes/property.js";
 import authRoutes from "./routes/auth.js";
 
-// Fix for ES modules __dirname
+// === FORCE LOAD .env FILE ===
+dotenv.config({ path: "./.env" });
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
+console.log("=== CLOUDINARY CONFIG ===");
+console.log("CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME ? "✅ Loaded" : "❌ MISSING");
+console.log("API_KEY:", process.env.CLOUDINARY_API_KEY ? "✅ Loaded" : "❌ MISSING");
+console.log("API_SECRET:", process.env.CLOUDINARY_API_SECRET ? "✅ Loaded" : "❌ MISSING");
 
 const app = express();
 
@@ -28,18 +33,15 @@ app.use(cors({
   credentials: true
 }));
 
-/* =========================
-   BODY PARSER
-========================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* =========================
-   STATIC FILES - UPLOADS
+   STATIC FILES
 ========================= */
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Create uploads folder if it doesn't exist
+// Create uploads folder
 import fs from "fs";
 if (!fs.existsSync(path.join(__dirname, "uploads"))) {
   fs.mkdirSync(path.join(__dirname, "uploads"));
