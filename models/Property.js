@@ -12,22 +12,26 @@ const propertySchema = new mongoose.Schema({
   amenities: [{ type: String }],
   description: { type: String },
   phone: { type: String, required: true },
-  // ✅ Array for Cloudinary URLs
-  images: [{ type: String }],
+  
+  // ✅ FIXED — Support both single image and multiple images
+  image: { type: String }, // Single image (for backward compatibility)
+  images: [{ type: String }], // Multiple images (from Cloudinary)
+  
   lat: { type: Number },
   lng: { type: Number },
+  
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending'
   },
+  
   owner: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'User'
   },
+  
   createdAt: { type: Date, default: Date.now }
 });
 
-const Property = mongoose.model('Property', propertySchema);
-export default Property;
+export default mongoose.model('Property', propertySchema);
