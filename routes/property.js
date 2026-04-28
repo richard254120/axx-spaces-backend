@@ -6,11 +6,12 @@ import upload from '../middleware/multer.js';
 const router = express.Router();
 
 /* ═══════════════════════════════════════════════════════════════
-   1. UPLOAD PROPERTY (supports both auth & no-auth for now)
+   1. UPLOAD PROPERTY (✅ REQUIRES AUTH - owner ID saved)
 ═══════════════════════════════════════════════════════════════ */
-router.post('/', upload.array('images', 5), async (req, res) => {
+router.post('/', auth, upload.array('images', 5), async (req, res) => {
   try {
     console.log("📦 UPLOAD REQUEST RECEIVED");
+    console.log("User ID:", req.user.id);
     console.log("Body:", req.body);
     console.log("Files:", req.files);
 
@@ -48,15 +49,12 @@ router.post('/', upload.array('images', 5), async (req, res) => {
       image: imageUrls.length > 0 ? imageUrls[0] : null,
       lat: req.body.lat ? Number(req.body.lat) : null,
       lng: req.body.lng ? Number(req.body.lng) : null,
-      status: 'pending'
+      status: 'pending',
+      // ✅ IMPORTANT: Save owner ID from authenticated user
+      owner: req.user.id
     };
 
-    // If authenticated, add owner
-    if (req.user && req.user.id) {
-      propertyData.owner = req.user.id;
-    }
-
-    console.log("💾 Saving property:", propertyData);
+    console.log("💾 Saving property with owner:", propertyData.owner);
 
     const property = new Property(propertyData);
     await property.save();
@@ -129,9 +127,15 @@ router.get('/approved', async (req, res) => {
 ═══════════════════════════════════════════════════════════════ */
 router.get('/my-properties', auth, async (req, res) => {
   try {
+    console.log("📋 Fetching properties for user:", req.user.id);
+
     const properties = await Property.find({ owner: req.user.id }).sort({ createdAt: -1 });
+    
+    console.log(`✅ Found ${properties.length} properties for user`);
+
     res.json(properties);
   } catch (err) {
+    console.error("❌ GET MY PROPERTIES ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
