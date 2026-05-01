@@ -13,34 +13,24 @@ const propertySchema = new mongoose.Schema({
   description: { type: String },
   phone: { type: String, required: true },
   images: [String],
-  image: { type: String }, // backward compat
+  image: { type: String },
   lat: { type: Number },
   lng: { type: Number },
   
-  // ✅ Ownership & caretaker
+  // ✅ Ownership
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // ✅ NEW - caretaker who uploaded
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Caretaker who uploaded
   
-  // ✅ NEW - Three-tier approval system
+  // ✅ SIMPLE approval flow: pending → landlord_approved → admin_approved → live
   status: { 
     type: String, 
-    enum: ['pending', 'landlord_approved', 'admin_approved', 'rejected'], 
+    enum: ['pending', 'landlord_approved', 'admin_approved'], 
     default: 'pending' 
   },
   
-  // ✅ NEW - Approval trail
-  approvals: {
-    landlord: { 
-      approved: { type: Boolean, default: false },
-      approvedAt: { type: Date, default: null },
-      notes: { type: String }
-    },
-    admin: {
-      approved: { type: Boolean, default: false },
-      approvedAt: { type: Date, default: null },
-      notes: { type: String }
-    }
-  },
+  // ✅ Track approvals
+  landlordApprovedAt: { type: Date, default: null },
+  adminApprovedAt: { type: Date, default: null },
   
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

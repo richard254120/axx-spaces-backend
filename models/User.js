@@ -5,18 +5,19 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  phone: { type: String, required: true },
+  phone: { type: String, required: true, unique: true }, // ✅ Make phone unique
   
-  // ✅ NEW - Role system
+  // ✅ Role system
   role: { type: String, enum: ['landlord', 'caretaker', 'admin'], default: 'landlord' },
   
-  // ✅ NEW - For caretakers: who they work for
+  // ✅ For caretakers: who they work for
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   
-  // ✅ NEW - For landlords: list of caretakers they've hired
+  // ✅ For landlords: list of caretakers they've hired
   caretakers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   
-  isApproved: { type: Boolean, default: false } // Admin changes this
+  isApproved: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {
