@@ -5,21 +5,15 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  phone: { type: String, required: true, unique: true }, // ✅ Make phone unique
-  
-  // ✅ Role system
-  role: { type: String, enum: ['landlord', 'caretaker', 'admin'], default: 'landlord' },
-  
-  // ✅ For caretakers: who they work for
-  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  
-  // ✅ For landlords: list of caretakers they've hired
-  caretakers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  
-  isApproved: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
+  phone: { type: String, required: true },
+  isApproved: { type: Boolean, default: false } // Admin changes this
 }, { timestamps: true });
 
+/**
+ * ✅ FIX 2: PREVENT DOUBLE HASHING
+ * This runs before .save(). If you are just approving a user, 
+ * the password is NOT modified, so we skip hashing.
+ */
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   
@@ -32,4 +26,4 @@ userSchema.pre('save', async function (next) {
   }
 });
 
-export default mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);  
