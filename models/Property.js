@@ -3,35 +3,47 @@ import mongoose from 'mongoose';
 const propertySchema = new mongoose.Schema({
   title: { type: String, required: true },
   county: { type: String, required: true },
-  area: { type: String, required: true },
+  area: { type: String },
   price: { type: Number, required: true },
   deposit: { type: Number },
-  type: { type: String, required: true },
+  type: { type: String },
   bedrooms: { type: Number },
   bathrooms: { type: Number },
-  amenities: [{ type: String }],
+  amenities: [String],
   description: { type: String },
   phone: { type: String, required: true },
-  
-  // ✅ FIXED — Support both single image and multiple images
-  image: { type: String }, // Single image (for backward compatibility)
-  images: [{ type: String }], // Multiple images (from Cloudinary)
-  
+  images: [String],
+  image: { type: String }, // backward compat
   lat: { type: Number },
   lng: { type: Number },
   
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
+  // ✅ Ownership & caretaker
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // ✅ NEW - caretaker who uploaded
+  
+  // ✅ NEW - Three-tier approval system
+  status: { 
+    type: String, 
+    enum: ['pending', 'landlord_approved', 'admin_approved', 'rejected'], 
+    default: 'pending' 
   },
   
-  owner: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+  // ✅ NEW - Approval trail
+  approvals: {
+    landlord: { 
+      approved: { type: Boolean, default: false },
+      approvedAt: { type: Date, default: null },
+      notes: { type: String }
+    },
+    admin: {
+      approved: { type: Boolean, default: false },
+      approvedAt: { type: Date, default: null },
+      notes: { type: String }
+    }
   },
   
-  createdAt: { type: Date, default: Date.now }
-});
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
 
 export default mongoose.model('Property', propertySchema);
