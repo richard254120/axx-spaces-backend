@@ -13,27 +13,40 @@ const propertySchema = new mongoose.Schema({
   description: { type: String },
   phone: { type: String, required: true },
   images: [String],
-  image: { type: String },
+  image: { type: String }, // backward compat
   lat: { type: Number },
   lng: { type: Number },
   
-  // ✅ Ownership
+  // Ownership & caretaker
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Caretaker who uploaded
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   
-  // ✅ SIMPLE approval flow: pending → landlord_approved → admin_approved → live
+  // Three-tier approval system
   status: { 
     type: String, 
-    enum: ['pending', 'landlord_approved', 'admin_approved'], 
+    enum: ['pending', 'landlord_approved', 'admin_approved', 'rejected'], 
     default: 'pending' 
   },
   
-  // ✅ Track approvals
-  landlordApprovedAt: { type: Date, default: null },
-  adminApprovedAt: { type: Date, default: null },
+  // Approval trail
+  approvals: {
+    landlord: { 
+      approved: { type: Boolean, default: false },
+      approvedAt: { type: Date, default: null },
+      notes: { type: String }
+    },
+    admin: {
+      approved: { type: Boolean, default: false },
+      approvedAt: { type: Date, default: null },
+      notes: { type: String }
+    }
+  },
   
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
-export default mongoose.model('Property', propertySchema);
+// Safe model registration - prevents OverwriteModelError
+const Property = mongoose.models.Property || mongoose.model('Property', propertySchema);
+
+export default Property;
