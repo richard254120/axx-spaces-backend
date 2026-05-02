@@ -12,41 +12,29 @@ const propertySchema = new mongoose.Schema({
   amenities: [String],
   description: { type: String },
   phone: { type: String, required: true },
+  
+  // ✅ IMAGES - Always array
   images: [String],
-  image: { type: String }, // backward compat
+  image: { type: String }, // backward compat - first image
+  
   lat: { type: Number },
   lng: { type: Number },
   
-  // Ownership & caretaker
+  // ✅ Simple ownership (no caretaker)
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   
-  // Three-tier approval system
+  // ✅ Simple status
   status: { 
     type: String, 
-    enum: ['pending', 'landlord_approved', 'admin_approved', 'rejected'], 
+    enum: ['pending', 'approved', 'rejected'], 
     default: 'pending' 
-  },
-  
-  // Approval trail
-  approvals: {
-    landlord: { 
-      approved: { type: Boolean, default: false },
-      approvedAt: { type: Date, default: null },
-      notes: { type: String }
-    },
-    admin: {
-      approved: { type: Boolean, default: false },
-      approvedAt: { type: Date, default: null },
-      notes: { type: String }
-    }
   },
   
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
-// Safe model registration - prevents OverwriteModelError
+// Safe model registration
 const Property = mongoose.models.Property || mongoose.model('Property', propertySchema);
 
 export default Property;
