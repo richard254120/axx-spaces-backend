@@ -6,104 +6,81 @@ import upload from '../middleware/multer.js';
 const router = express.Router();
 
 /* ═══════════════════════════════════════════════════════════════
-   1. UPLOAD PROPERTY
+   1. CREATE PROPERTY - FULLY SECURED
 ═══════════════════════════════════════════════════════════════ */
-router.post('/', upload.array('images', 5), async (req, res) => {
+router.post('/', auth, upload.array('images', 5), async (req, res) => {
   try {
-    console.log("📦 UPLOAD REQUEST RECEIVED");
+    console.log("📦 Secured Upload Request Received");
 
+    const allowedFields = [
+      'title', 'county', 'area', 'price', 'deposit', 'type',
+      'bedrooms', 'bathrooms', 'description', 'phone',
+      'amenities', 'lat', 'lng', 'size', 'floor', 'yearBuilt',
+      'furnishing', 'parking', 'petPolicy', 'utilitiesIncluded'
+    ];
+
+    const propertyData = {};
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        propertyData[field] = req.body[field];
+      }
+    });
+
+    // Force Security Fields
+    propertyData.owner = req.user.id;
+    propertyData.status = 'pending';
+    propertyData.bookingStatus = 'available';
+
+    // Handle Images
     const imageUrls = req.files ? req.files.map(file => file.path) : [];
+    propertyData.images = imageUrls;
+    propertyData.image = imageUrls.length > 0 ? imageUrls[0] : null;
 
-    let amenities = [];
+    // Amenities
     if (req.body.amenities) {
       try {
-        amenities = typeof req.body.amenities === 'string' 
+        propertyData.amenities = typeof req.body.amenities === 'string' 
           ? JSON.parse(req.body.amenities) 
           : req.body.amenities;
       } catch (e) {
-        amenities = [];
+        propertyData.amenities = [];
       }
-    }
-
-    const propertyData = {
-      title: req.body.title,
-      county: req.body.county,
-      area: req.body.area,
-      price: Number(req.body.price),
-      deposit: req.body.deposit ? Number(req.body.deposit) : null,
-      type: req.body.type,
-      bedrooms: req.body.bedrooms,
-      bathrooms: req.body.bathrooms,
-      amenities: amenities,
-      description: req.body.description,
-      phone: req.body.phone,
-      images: imageUrls,
-      image: imageUrls.length > 0 ? imageUrls[0] : null,
-      lat: req.body.lat ? Number(req.body.lat) : null,
-      lng: req.body.lng ? Number(req.body.lng) : null,
-      status: 'pending',
-      bookingStatus: 'available' // ✅ NEW
-    };
-
-    if (req.user && req.user.id) {
-      propertyData.owner = req.user.id;
     }
 
     const property = new Property(propertyData);
     await property.save();
 
-    console.log("✅ Property saved:", property._id);
+    console.log("✅ Property saved securely:", property._id);
 
     res.status(201).json({
-      message: "Property submitted ✔",
+      message: "Property submitted for approval",
       data: property
     });
 
   } catch (err) {
-    console.error("❌ UPLOAD ERROR:", err);
-    res.status(500).json({ 
-      error: err.message,
-      details: err.stack 
-    });
+    console.error("❌ Upload Error:", err);
+    res.status(500).json({ error: err.message || "Failed to create property" });
   }
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   2. GET ALL APPROVED LISTINGS (Hide booked properties)
+   2. GET ALL APPROVED LISTINGS
 ═══════════════════════════════════════════════════════════════ */
 router.get('/approved', async (req, res) => {
   try {
     const query = { 
       status: 'approved',
-      bookingStatus: { $ne: 'booked' } // ✅ Hide booked properties
+      bookingStatus: { $ne: 'booked' }
     };
 
-    if (req.query.county) {
-      query.county = req.query.county;
-    }
-
-    if (req.query.area) {
-      query.area = new RegExp(req.query.area, 'i');
-    }
-
-    if (req.query.type) {
-      query.type = req.query.type;
-    }
-
-    if (req.query.price) {
-      query.price = { $lte: Number(req.query.price) };
-    }
-
-    if (req.query.bedrooms) {
-      query.bedrooms = req.query.bedrooms;
-    }
-
-    console.log("🔍 Approved listings query:", query);
+    if (req.query.county) query.county = req.query.county;
+    if (req.query.area) query.area = new RegExp(req.query.area, 'i');
+    if (req.query.type) query.type = req.query.type;
+    if (req.query.price) query.price = { $lte: Number(req.query.price) };
+    if (req.query.bedrooms) query.bedrooms = req.query.bedrooms;
 
     const properties = await Property.find(query).sort({ createdAt: -1 });
-
-    console.log(`✅ Found ${properties.length} approved properties`);
-
     res.json(properties);
 
   } catch (err) {
@@ -113,7 +90,7 @@ router.get('/approved', async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   3. GET LANDLORD'S PROPERTIES (All statuses)
+   3. GET LANDLORD'S PROPERTIES
 ═══════════════════════════════════════════════════════════════ */
 router.get('/my-properties', auth, async (req, res) => {
   try {
@@ -125,7 +102,7 @@ router.get('/my-properties', auth, async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   4. GET LANDLORD'S AVAILABLE PROPERTIES (for booking tab)
+   4. GET LANDLORD'S AVAILABLE PROPERTIES
 ═══════════════════════════════════════════════════════════════ */
 router.get('/my-available', auth, async (req, res) => {
   try {
@@ -192,8 +169,7 @@ router.get('/:id', async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   8. ✅ REQUEST BOOKING (Tenant submits booking request)
-   POST /properties/:id/request-booking
+   8. REQUEST BOOKING
 ═══════════════════════════════════════════════════════════════ */
 router.post('/:id/request-booking', auth, async (req, res) => {
   try {
@@ -208,12 +184,10 @@ router.post('/:id/request-booking', auth, async (req, res) => {
       return res.status(404).json({ error: 'Property not found' });
     }
 
-    // Check if property is available
     if (property.bookingStatus !== 'available') {
       return res.status(400).json({ error: 'Property is not available for booking' });
     }
 
-    // Add booking request
     const bookingRequest = {
       tenant: req.user.id,
       tenantName,
@@ -226,10 +200,8 @@ router.post('/:id/request-booking', auth, async (req, res) => {
     };
 
     property.bookingRequests.push(bookingRequest);
-    property.bookingStatus = 'pending_booking'; // ✅ Change status
+    property.bookingStatus = 'pending_booking';
     await property.save();
-
-    console.log("✅ Booking request created for property:", property._id);
 
     res.status(201).json({
       message: 'Booking request sent successfully!',
@@ -243,35 +215,26 @@ router.post('/:id/request-booking', auth, async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   9. ✅ ACCEPT BOOKING REQUEST (Landlord accepts)
-   POST /properties/:id/accept-booking/:requestId
+   9. ACCEPT BOOKING REQUEST
 ═══════════════════════════════════════════════════════════════ */
 router.post('/:id/accept-booking/:requestId', auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-    if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
+    if (!property) return res.status(404).json({ error: 'Property not found' });
 
-    // Check ownership
     if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Unauthorized - not your property' });
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Find booking request
     const bookingRequest = property.bookingRequests.find(
       br => br._id.toString() === req.params.requestId
     );
 
-    if (!bookingRequest) {
-      return res.status(404).json({ error: 'Booking request not found' });
-    }
+    if (!bookingRequest) return res.status(404).json({ error: 'Booking request not found' });
 
-    // Update booking request status
     bookingRequest.status = 'accepted';
     bookingRequest.respondedAt = new Date();
 
-    // Set current booking
     property.currentBooking = {
       tenant: bookingRequest.tenant,
       tenantName: bookingRequest.tenantName,
@@ -281,16 +244,10 @@ router.post('/:id/accept-booking/:requestId', auth, async (req, res) => {
       expectedMoveInDate: bookingRequest.preferredMoveInDate
     };
 
-    // Update property status
     property.bookingStatus = 'booked';
     await property.save();
 
-    console.log("✅ Booking accepted for property:", property._id);
-
-    res.json({
-      message: 'Booking accepted successfully!',
-      data: property
-    });
+    res.json({ message: 'Booking accepted successfully!', data: property });
 
   } catch (err) {
     console.error("❌ Accept booking error:", err);
@@ -299,38 +256,28 @@ router.post('/:id/accept-booking/:requestId', auth, async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   10. ✅ REJECT BOOKING REQUEST (Landlord rejects)
-   POST /properties/:id/reject-booking/:requestId
+   10. REJECT BOOKING REQUEST
 ═══════════════════════════════════════════════════════════════ */
 router.post('/:id/reject-booking/:requestId', auth, async (req, res) => {
   try {
     const { rejectionReason } = req.body;
-    
     const property = await Property.findById(req.params.id);
-    if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
+    if (!property) return res.status(404).json({ error: 'Property not found' });
 
-    // Check ownership
     if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Unauthorized - not your property' });
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Find booking request
     const bookingRequest = property.bookingRequests.find(
       br => br._id.toString() === req.params.requestId
     );
 
-    if (!bookingRequest) {
-      return res.status(404).json({ error: 'Booking request not found' });
-    }
+    if (!bookingRequest) return res.status(404).json({ error: 'Booking request not found' });
 
-    // Update booking request status
     bookingRequest.status = 'rejected';
     bookingRequest.respondedAt = new Date();
     bookingRequest.rejectionReason = rejectionReason || '';
 
-    // If no other pending requests, set status back to available
     const pendingRequests = property.bookingRequests.filter(br => br.status === 'pending');
     if (pendingRequests.length === 0) {
       property.bookingStatus = 'available';
@@ -338,12 +285,7 @@ router.post('/:id/reject-booking/:requestId', auth, async (req, res) => {
 
     await property.save();
 
-    console.log("✅ Booking rejected for property:", property._id);
-
-    res.json({
-      message: 'Booking rejected',
-      data: property
-    });
+    res.json({ message: 'Booking rejected', data: property });
 
   } catch (err) {
     console.error("❌ Reject booking error:", err);
@@ -352,34 +294,24 @@ router.post('/:id/reject-booking/:requestId', auth, async (req, res) => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   11. ✅ MARK AS AVAILABLE (Landlord un-books property)
-   POST /properties/:id/mark-available
+   11. MARK PROPERTY AS AVAILABLE
 ═══════════════════════════════════════════════════════════════ */
 router.post('/:id/mark-available', auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-    if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
+    if (!property) return res.status(404).json({ error: 'Property not found' });
 
-    // Check ownership
     if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Unauthorized - not your property' });
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Clear booking
     property.currentBooking = undefined;
     property.bookingStatus = 'available';
-    property.bookingRequests = []; // Clear all requests
+    property.bookingRequests = [];
 
     await property.save();
 
-    console.log("✅ Property marked as available:", property._id);
-
-    res.json({
-      message: 'Property marked as available',
-      data: property
-    });
+    res.json({ message: 'Property marked as available', data: property });
 
   } catch (err) {
     console.error("❌ Mark available error:", err);
@@ -393,18 +325,16 @@ router.post('/:id/mark-available', auth, async (req, res) => {
 router.patch('/:id', auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-    if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
+    if (!property) return res.status(404).json({ error: 'Property not found' });
 
     if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Unauthorized - not your property' });
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
     const updateFields = [
       'title', 'county', 'area', 'price', 'deposit',
       'type', 'bedrooms', 'bathrooms', 'amenities',
-      'description', 'phone', 'lat', 'lng', 'status'
+      'description', 'phone', 'lat', 'lng'
     ];
 
     updateFields.forEach(field => {
@@ -427,12 +357,10 @@ router.patch('/:id', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-    if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
+    if (!property) return res.status(404).json({ error: 'Property not found' });
 
     if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Unauthorized - not your property' });
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
     await property.deleteOne();
