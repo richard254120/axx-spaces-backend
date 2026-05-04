@@ -1,8 +1,8 @@
-const express = require("express");
-const Property = require("../models/Property");
-const { auth } = require("../middleware/auth");
-const upload = require("../config/multer");
-const cloudinary = require("cloudinary").v2;
+import express from "express";
+import Property from "../models/Property.js"; // Ensure .js extension is present
+import { auth } from "../middleware/auth.js";
+import upload from "../config/multer.js";
+import { v2 as cloudinary } from "cloudinary";
 
 const router = express.Router();
 
@@ -17,11 +17,13 @@ router.post("/create", auth, upload.array("images", 10), async (req, res) => {
 
     // Upload images to Cloudinary
     const imageUrls = [];
-    for (const file of req.files) {
-      const result = await cloudinary.uploader.upload(file.path, {
-        folder: "axx-spaces/properties",
-      });
-      imageUrls.push(result.secure_url);
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const result = await cloudinary.uploader.upload(file.path, {
+          folder: "axx-spaces/properties",
+        });
+        imageUrls.push(result.secure_url);
+      }
     }
 
     const property = new Property({
@@ -132,12 +134,10 @@ router.put("/:id/mark-booked", auth, async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
-    // Check if user is the owner
     if (property.owner.toString() !== req.user.id) {
       return res.status(403).json({ error: "Unauthorized: Not the property owner" });
     }
 
-    // Check if all units are already booked
     if (property.bookedUnits >= property.totalUnits) {
       return res.status(400).json({
         error: "All units are already booked",
@@ -146,10 +146,7 @@ router.put("/:id/mark-booked", auth, async (req, res) => {
       });
     }
 
-    // Increment booked units
     property.bookedUnits += 1;
-    property.availableUnits = property.totalUnits - property.bookedUnits;
-
     await property.save();
 
     res.json({
@@ -172,12 +169,10 @@ router.put("/:id/unmark-booked", auth, async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
-    // Check if user is the owner
     if (property.owner.toString() !== req.user.id) {
       return res.status(403).json({ error: "Unauthorized: Not the property owner" });
     }
 
-    // Check if there are booked units to unbook
     if (property.bookedUnits <= 0) {
       return res.status(400).json({
         error: "No booked units to unmark",
@@ -185,10 +180,7 @@ router.put("/:id/unmark-booked", auth, async (req, res) => {
       });
     }
 
-    // Decrement booked units
     property.bookedUnits -= 1;
-    property.availableUnits = property.totalUnits - property.bookedUnits;
-
     await property.save();
 
     res.json({
@@ -202,7 +194,7 @@ router.put("/:id/unmark-booked", auth, async (req, res) => {
   }
 });
 
-// ============ DELETE PROPERTY (ONLY IF NOT BOOKED) ============
+// ============ DELETE PROPERTY ============
 router.delete("/:id", auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
@@ -211,12 +203,10 @@ router.delete("/:id", auth, async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
-    // Check if user is the owner
     if (property.owner.toString() !== req.user.id) {
       return res.status(403).json({ error: "Unauthorized: Not the property owner" });
     }
 
-    // Prevent deletion if property has booked units
     if (property.bookedUnits > 0) {
       return res.status(400).json({
         error: "Cannot delete property with booked units. Unmark booked units first.",
@@ -226,12 +216,12 @@ router.delete("/:id", auth, async (req, res) => {
 
     // Delete images from Cloudinary
     for (const imageUrl of property.images) {
-      const publicId = imageUrl.split("/").pop().split(".")[0];
-      await cloudinary.uploader.destroy(`axx-spaces/properties/${publicId}`);
+      const parts = imageUrl.split("/");
+      const fileName = parts.pop().split(".")[0]; 
+      await cloudinary.uploader.destroy(`axx-spaces/properties/${fileName}`);
     }
 
     await Property.findByIdAndDelete(req.params.id);
-
     res.json({ success: true, message: "Property deleted successfully" });
   } catch (error) {
     console.error("Error deleting property:", error);
@@ -248,12 +238,10 @@ router.put("/:id", auth, async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
-    // Check if user is the owner
     if (property.owner.toString() !== req.user.id) {
       return res.status(403).json({ error: "Unauthorized: Not the property owner" });
     }
 
-    // Update allowed fields
     const { title, description, location, price, bedrooms, bathrooms, amenities } = req.body;
 
     if (title) property.title = title;
@@ -262,10 +250,9 @@ router.put("/:id", auth, async (req, res) => {
     if (price) property.price = parseFloat(price);
     if (bedrooms) property.bedrooms = parseInt(bedrooms);
     if (bathrooms) property.bathrooms = parseInt(bathrooms);
-    if (amenities) property.amenities = JSON.parse(amenities);
+    if (amenities) property.amenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
 
     await property.save();
-
     res.json({ success: true, property });
   } catch (error) {
     console.error("Error updating property:", error);
@@ -273,4 +260,4 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router; // CRITICAL: This was missing!
