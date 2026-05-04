@@ -1,5 +1,5 @@
 import express from "express";
-import Property from "../models/Property.js"; // Ensure .js extension is present
+import Property from "../models/Property.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import { v2 as cloudinary } from "cloudinary";
@@ -15,16 +15,8 @@ router.post("/create", auth, upload.array("images", 10), async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Upload images to Cloudinary
-    const imageUrls = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const result = await cloudinary.uploader.upload(file.path, {
-          folder: "axx-spaces/properties",
-        });
-        imageUrls.push(result.secure_url);
-      }
-    }
+    // When using CloudinaryStorage in multer, req.files[i].path is already the Cloudinary URL
+    const imageUrls = req.files ? req.files.map(file => file.path) : [];
 
     const property = new Property({
       title,
@@ -33,7 +25,7 @@ router.post("/create", auth, upload.array("images", 10), async (req, res) => {
       price: parseFloat(price),
       bedrooms: parseInt(bedrooms),
       bathrooms: parseInt(bathrooms),
-      amenities: amenities ? JSON.parse(amenities) : [],
+      amenities: amenities ? (typeof amenities === 'string' ? JSON.parse(amenities) : amenities) : [],
       images: imageUrls,
       owner: req.user.id,
       totalUnits: parseInt(totalUnits) || 1,
@@ -41,9 +33,9 @@ router.post("/create", auth, upload.array("images", 10), async (req, res) => {
     });
 
     await property.save();
-    res.json({ success: true, property });
+    res.status(201).json({ success: true, property });
   } catch (error) {
-    console.error("Error creating property:", error);
+    console.error("❌ Error creating property:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -54,29 +46,8 @@ router.get("/", async (req, res) => {
     const properties = await Property.find({ status: "approved" })
       .populate("owner", "name phone")
       .sort({ createdAt: -1 });
-
     res.json(properties);
   } catch (error) {
-    console.error("Error fetching properties:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ GET SINGLE PROPERTY ============
-router.get("/:id", async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id).populate(
-      "owner",
-      "name phone email"
-    );
-
-    if (!property) {
-      return res.status(404).json({ error: "Property not found" });
-    }
-
-    res.json(property);
-  } catch (error) {
-    console.error("Error fetching property:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -84,112 +55,23 @@ router.get("/:id", async (req, res) => {
 // ============ GET LANDLORD'S PROPERTIES ============
 router.get("/my-properties/all", auth, async (req, res) => {
   try {
-    const properties = await Property.find({ owner: req.user.id }).sort({
-      createdAt: -1,
-    });
-
+    const properties = await Property.find({ owner: req.user.id }).sort({ createdAt: -1 });
     res.json(properties);
   } catch (error) {
-    console.error("Error fetching user properties:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ============ GET LANDLORD'S ACTIVE (NON-BOOKED) PROPERTIES ============
-router.get("/my-properties/active", auth, async (req, res) => {
-  try {
-    const properties = await Property.find({
-      owner: req.user.id,
-      bookedUnits: 0,
-    }).sort({ createdAt: -1 });
-
-    res.json(properties);
-  } catch (error) {
-    console.error("Error fetching active properties:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ GET LANDLORD'S BOOKED PROPERTIES ============
-router.get("/my-properties/booked", auth, async (req, res) => {
-  try {
-    const properties = await Property.find({
-      owner: req.user.id,
-      $expr: { $gt: ["$bookedUnits", 0] },
-    }).sort({ createdAt: -1 });
-
-    res.json(properties);
-  } catch (error) {
-    console.error("Error fetching booked properties:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ MARK PROPERTY AS BOOKED ============
+// ============ MARK/UNMARK BOOKED ============
 router.put("/:id/mark-booked", auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
+    if (!property || property.owner.toString() !== req.user.id) return res.status(404).json({ error: "Unauthorized or not found" });
 
-    if (!property) {
-      return res.status(404).json({ error: "Property not found" });
-    }
-
-    if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: "Unauthorized: Not the property owner" });
-    }
-
-    if (property.bookedUnits >= property.totalUnits) {
-      return res.status(400).json({
-        error: "All units are already booked",
-        bookedUnits: property.bookedUnits,
-        totalUnits: property.totalUnits,
-      });
-    }
-
-    property.bookedUnits += 1;
+    property.bookedUnits = Math.min(property.totalUnits, (property.bookedUnits || 0) + 1);
     await property.save();
-
-    res.json({
-      success: true,
-      message: "Property marked as booked",
-      property,
-    });
+    res.json({ success: true, property });
   } catch (error) {
-    console.error("Error marking property as booked:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ UNMARK PROPERTY AS BOOKED ============
-router.put("/:id/unmark-booked", auth, async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id);
-
-    if (!property) {
-      return res.status(404).json({ error: "Property not found" });
-    }
-
-    if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: "Unauthorized: Not the property owner" });
-    }
-
-    if (property.bookedUnits <= 0) {
-      return res.status(400).json({
-        error: "No booked units to unmark",
-        bookedUnits: property.bookedUnits,
-      });
-    }
-
-    property.bookedUnits -= 1;
-    await property.save();
-
-    res.json({
-      success: true,
-      message: "Booked status removed",
-      property,
-    });
-  } catch (error) {
-    console.error("Error unmarking booked property:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -198,66 +80,21 @@ router.put("/:id/unmark-booked", auth, async (req, res) => {
 router.delete("/:id", auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
+    if (!property || property.owner.toString() !== req.user.id) return res.status(403).json({ error: "Unauthorized" });
 
-    if (!property) {
-      return res.status(404).json({ error: "Property not found" });
-    }
-
-    if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: "Unauthorized: Not the property owner" });
-    }
-
-    if (property.bookedUnits > 0) {
-      return res.status(400).json({
-        error: "Cannot delete property with booked units. Unmark booked units first.",
-        bookedUnits: property.bookedUnits,
-      });
-    }
-
-    // Delete images from Cloudinary
-    for (const imageUrl of property.images) {
-      const parts = imageUrl.split("/");
-      const fileName = parts.pop().split(".")[0]; 
-      await cloudinary.uploader.destroy(`axx-spaces/properties/${fileName}`);
+    // Clean up images from Cloudinary
+    if (property.images && property.images.length > 0) {
+      for (const url of property.images) {
+        const publicId = url.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`axx-spaces/${publicId}`);
+      }
     }
 
     await Property.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "Property deleted successfully" });
+    res.json({ success: true, message: "Property deleted" });
   } catch (error) {
-    console.error("Error deleting property:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ============ UPDATE PROPERTY ============
-router.put("/:id", auth, async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id);
-
-    if (!property) {
-      return res.status(404).json({ error: "Property not found" });
-    }
-
-    if (property.owner.toString() !== req.user.id) {
-      return res.status(403).json({ error: "Unauthorized: Not the property owner" });
-    }
-
-    const { title, description, location, price, bedrooms, bathrooms, amenities } = req.body;
-
-    if (title) property.title = title;
-    if (description) property.description = description;
-    if (location) property.location = location;
-    if (price) property.price = parseFloat(price);
-    if (bedrooms) property.bedrooms = parseInt(bedrooms);
-    if (bathrooms) property.bathrooms = parseInt(bathrooms);
-    if (amenities) property.amenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
-
-    await property.save();
-    res.json({ success: true, property });
-  } catch (error) {
-    console.error("Error updating property:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-export default router; // CRITICAL: This was missing!
+export default router;
