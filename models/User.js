@@ -4,16 +4,36 @@ import bcrypt from 'bcryptjs';
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  phone: { type: String, required: true },
-  isApproved: { type: Boolean, default: false } // Admin changes this
+  password: { type: String, required: true, select: false }, // Never return password by default
+  phone: { type: String, required: true, unique: true },
+
+  // Important fields
+  role: { 
+    type: String, 
+    enum: ['landlord', 'caretaker', 'admin'], 
+    default: 'landlord',
+    immutable: true   // Prevents changing role after creation
+  },
+
+  isApproved: { 
+    type: Boolean, 
+    default: false 
+  },
+
+  // For landlords who invite caretakers
+  caretakers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+
+  assignedTo: {  // For caretakers
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
+
 }, { timestamps: true });
 
-/**
- * ✅ FIX 2: PREVENT DOUBLE HASHING
- * This runs before .save(). If you are just approving a user, 
- * the password is NOT modified, so we skip hashing.
- */
+// Prevent double hashing
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   
@@ -26,4 +46,5 @@ userSchema.pre('save', async function (next) {
   }
 });
 
-export default mongoose.model('User', userSchema);  
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+export default User;

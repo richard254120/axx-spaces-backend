@@ -1,75 +1,94 @@
 import mongoose from 'mongoose';
 
 const propertySchema = new mongoose.Schema({
-  title: { type: String, required: true, trim: true },
-  county: { type: String, required: true },
-  area: { type: String },
-  price: { type: Number, required: true },
-  deposit: { type: Number },
-  type: { type: String },
-  bedrooms: { type: Number },
-  bathrooms: { type: Number },
+  title: { 
+    type: String, 
+    required: true 
+  },
+  location: { // Added to match your route logic
+    type: String, 
+    required: true 
+  },
+  county: { 
+    type: String 
+  },
+  area: { 
+    type: String 
+  },
+  price: { 
+    type: Number, 
+    required: true 
+  },
+  deposit: { 
+    type: Number 
+  },
+  type: { 
+    type: String 
+  },
+  bedrooms: { 
+    type: Number 
+  },
+  bathrooms: { 
+    type: Number 
+  },
   amenities: [String],
-  description: { type: String },
-  phone: { type: String, required: true },
-
-  // Images
+  description: { 
+    type: String 
+  },
+  phone: { 
+    type: String 
+  },
   images: [String],
-  image: String,
+  image: { 
+    type: String 
+  }, 
+  lat: { type: Number },
+  lng: { type: Number },
 
-  // Location
-  lat: Number,
-  lng: Number,
+  // Unit Management (Required for the 'mark-booked' route)
+  totalUnits: { 
+    type: Number, 
+    default: 1 
+  },
+  bookedUnits: { 
+    type: Number, 
+    default: 0 
+  },
 
-  // ✅ NEW ADDITIONAL FIELDS
-  size: String,
-  floor: String,
-  yearBuilt: String,
-  furnishing: String,
-  parking: String,
-  petPolicy: String,
-  utilitiesIncluded: String,
-
-  // Ownership & Status
+  // Ownership
   owner: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true 
   },
+  uploadedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  },
+
+  // Approval system
   status: { 
     type: String, 
-    enum: ['pending', 'approved', 'rejected'], 
+    enum: ['pending', 'landlord_approved', 'admin_approved', 'rejected'], 
     default: 'pending' 
   },
-  bookingStatus: { 
-    type: String, 
-    enum: ['available', 'pending_booking', 'booked'], 
-    default: 'available' 
-  },
 
-  bookingRequests: [{
-    tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    tenantName: String,
-    tenantPhone: String,
-    tenantEmail: String,
-    preferredMoveInDate: Date,
-    requestMessage: String,
-    status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
-    requestedAt: { type: Date, default: Date.now },
-    respondedAt: Date,
-    rejectionReason: String
-  }],
-
-  currentBooking: {
-    tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    tenantName: String,
-    tenantPhone: String,
-    tenantEmail: String,
-    bookedAt: Date,
-    expectedMoveInDate: Date
-  },
-
-}, { timestamps: true });
+  approvals: {
+    landlord: { 
+      approved: { type: Boolean, default: false },
+      approvedAt: { type: Date, default: null },
+      notes: { type: String }
+    },
+    admin: {
+      approved: { type: Boolean, default: false },
+      approvedAt: { type: Date, default: null },
+      notes: { type: String }
+    }
+  }
+}, { 
+  timestamps: true 
+});
 
 const Property = mongoose.models.Property || mongoose.model('Property', propertySchema);
+
 export default Property;

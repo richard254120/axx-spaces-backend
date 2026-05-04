@@ -1,88 +1,48 @@
-import mongoose from 'mongoose';
+// middleware/auth.js
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
-const propertySchema = new mongoose.Schema({
-  title: { 
-    type: String, 
-    required: true 
-  },
-  county: { 
-    type: String, 
-    required: true 
-  },
-  area: { 
-    type: String 
-  },
-  price: { 
-    type: Number, 
-    required: true 
-  },
-  deposit: { 
-    type: Number 
-  },
-  type: { 
-    type: String 
-  },
-  bedrooms: { 
-    type: Number 
-  },
-  bathrooms: { 
-    type: Number 
-  },
-  amenities: [String],
-  description: { 
-    type: String 
-  },
-  phone: { 
-    type: String, 
-    required: true 
-  },
-  images: [String],
-  image: { 
-    type: String 
-  }, // backward compatibility
-  lat: { 
-    type: Number 
-  },
-  lng: { 
-    type: Number 
-  },
+export const auth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
 
-  // Ownership & caretaker
-  owner: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
-  },
-  uploadedBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User' 
-  },
-
-  // Three-tier approval system
-  status: { 
-    type: String, 
-    enum: ['pending', 'landlord_approved', 'admin_approved', 'rejected'], 
-    default: 'pending' 
-  },
-
-  // Approval trail
-  approvals: {
-    landlord: { 
-      approved: { type: Boolean, default: false },
-      approvedAt: { type: Date, default: null },
-      notes: { type: String }
-    },
-    admin: {
-      approved: { type: Boolean, default: false },
-      approvedAt: { type: Date, default: null },
-      notes: { type: String }
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        success: false,
+        error: "No token provided. Please login." 
+      });
     }
+
+    const token = authHeader.split(' ')[1];
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Get user from database
+    const user = await User.findById(decoded.id).select('-password');
+
+    if (!user) {
+      return res.status(401).json({ 
+        success: false,
+        error: "User not found" 
+      });
+    }
+
+    // Attach user to request
+    req.user = user;
+    req.token = token;
+
+    next();
+  } catch (err) {
+    console.error("Auth Middleware Error:", err.message);
+    
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ success: false, error: "Token expired. Please login again." });
+    }
+
+    res.status(401).json({ 
+      success: false,
+      error: "Invalid token. Please login again." 
+    });
   }
-}, { 
-  timestamps: true 
-});
-
-// Safe model registration to prevent OverwriteModelError
-const Property = mongoose.models.Property || mongoose.model('Property', propertySchema);
-
-export default Property;
+};
