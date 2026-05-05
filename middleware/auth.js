@@ -1,48 +1,18 @@
-// middleware/auth.js
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import jwt from "jsonwebtoken";
 
-export const auth = async (req, res, next) => {
+export const auth = (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = req.headers.authorization?.split(" ")[1];
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        success: false,
-        error: "No token provided. Please login." 
-      });
+    if (!token) {
+      return res.status(401).json({ error: "🔐 No token provided" });
     }
 
-    const token = authHeader.split(' ')[1];
-
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Get user from database
-    const user = await User.findById(decoded.id).select('-password');
-
-    if (!user) {
-      return res.status(401).json({ 
-        success: false,
-        error: "User not found" 
-      });
-    }
-
-    // Attach user to request
-    req.user = user;
-    req.token = token;
-
+    req.user = decoded;
     next();
-  } catch (err) {
-    console.error("Auth Middleware Error:", err.message);
-    
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ success: false, error: "Token expired. Please login again." });
-    }
-
-    res.status(401).json({ 
-      success: false,
-      error: "Invalid token. Please login again." 
-    });
+  } catch (error) {
+    console.error("❌ Auth error:", error.message);
+    return res.status(401).json({ error: "🔐 Invalid or expired token" });
   }
 };

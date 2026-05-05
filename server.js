@@ -2,98 +2,134 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs";
-import { v2 as cloudinary } from "cloudinary";
 
-// Import Routes
-import propertyRoutes from "./routes/property.js";
 import authRoutes from "./routes/auth.js";
+import propertyRoutes from "./routes/property.js";
+import { auth } from "./middleware/auth.js";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 
-// ====================== CLOUDINARY CONFIG ======================
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-// ====================== MIDDLEWARE ======================
+// ============ MIDDLEWARE ============
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://axx-spaces-frontend.vercel.app",
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  credentials: true
+  origin: ["http://localhost:3000", "http://localhost:5173", "http://localhost:5000", process.env.FRONTEND_URL],
+  credentials: true,
 }));
 
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Static uploads folder
-const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-app.use("/uploads", express.static(uploadsDir));
+console.log("✅ Middleware configured");
 
-// ====================== ROUTES ======================
+// ============ MONGODB CONNECTION ============
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1);
+  });
+
+// ============ HEALTH CHECK ============
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "✅ Server running",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
+// ============ TEST ENDPOINTS (OPTIONAL - for debugging) ============
+app.get("/api/test/auth", (req, res) => {
+  res.json({ message: "✅ Auth routes working" });
+});
+
+app.get("/api/test/properties", (req, res) => {
+  res.json({ message: "✅ Property routes working" });
+});
+
+// ============ ROUTES ============
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertyRoutes);
 
-// Health Check
-app.get("/", (req, res) => {
-  res.json({
-    status: "online",
-    message: "Axx Spaces API is running ✅",
-    environment: process.env.NODE_ENV || "development",
-    timestamp: new Date().toISOString()
-  });
-});
-
-// ====================== DATABASE CONNECTION ======================
-const connectDB = async () => {
-  try {
-    if (!process.env.MONGO_URI) {
-      throw new Error("MONGO_URI is not defined in .env file");
-    }
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ MongoDB Connected Successfully");
-  } catch (err) {
-    console.error("❌ MongoDB Connection Failed:", err.message);
-    process.exit(1);
-  }
-};
-
-connectDB();
-
-// ====================== GLOBAL ERROR HANDLER ======================
+// ============ ERROR HANDLING MIDDLEWARE ============
 app.use((err, req, res, next) => {
-  console.error("🔥 Server Error:", err.stack);
+  console.error("❌ Error:", {
+    message: err.message,
+    stack: err.stack,
+    status: err.status || 500,
+  });
+
+  // Multer errors
+  if (err.name === "MulterError") {
+    if (err.code === "FILE_TOO_LARGE") {
+      return res.status(400).json({ error: "❌ File is too large (max 8MB)" });
+    }
+    if (err.code === "LIMIT_FILE_COUNT") {
+      return res.status(400).json({ error: "❌ Too many files (max 10)" });
+    }
+    return res.status(400).json({ error: `❌ Upload error: ${err.message}` });
+  }
+
+  // Custom errors
+  if (err.message && err.message.includes("Only image files")) {
+    return res.status(400).json({ error: "❌ Only image files are allowed" });
+  }
+
   res.status(err.status || 500).json({
-    success: false,
-    error: err.message || "Internal Server Error",
+    error: err.message || "❌ Internal server error",
   });
 });
 
-// ====================== START SERVER ======================
-const PORT = process.env.PORT || 1000;
-app.listen(PORT, () => {
-  console.log(`
-  🚀 Server is running on port ${PORT}
-  📍 Local: http://localhost:${PORT}
-  🔗 Auth: http://localhost:${PORT}/api/auth
-  🏠 Properties: http://localhost:${PORT}/api/properties
-  `);
+// ============ 404 HANDLER ============
+app.use((req, res) => {
+  console.warn("⚠️ 404 - Route not found:", req.method, req.path);
+  res.status(404).json({ error: "❌ Endpoint not found" });
+});
+
+// ============ START SERVER ============
+const PORT = process.env.PORT || 5000;
+
+const server = app.listen(PORT, () => {
+  console.log("\n");
+  console.log("╔════════════════════════════════════════╗");
+  console.log("║       🚀 AXX SPACES SERVER STARTED     ║");
+  console.log("╚════════════════════════════════════════╝");
+  console.log(`📍 Port: ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`☁️  Cloudinary: Configured`);
+  console.log(`📦 Database: MongoDB`);
+  console.log(`\n📌 API Endpoints:`);
+  console.log(`   - GET    /api/health`);
+  console.log(`   - POST   /api/auth/register`);
+  console.log(`   - POST   /api/auth/login`);
+  console.log(`   - POST   /api/auth/forgot-password`);
+  console.log(`   - POST   /api/auth/reset-password`);
+  console.log(`   - POST   /api/properties/create`);
+  console.log(`   - GET    /api/properties`);
+  console.log(`   - GET    /api/properties/:id`);
+  console.log(`   - GET    /api/properties/my-properties/active`);
+  console.log(`   - GET    /api/properties/my-properties/booked`);
+  console.log(`   - PUT    /api/properties/:id/mark-booked`);
+  console.log(`   - PUT    /api/properties/:id/unmark-booked`);
+  console.log(`   - DELETE /api/properties/:id`);
+  console.log(`\n`);
+});
+
+// ============ GRACEFUL SHUTDOWN ============
+process.on("SIGTERM", () => {
+  console.log("\n⚠️  SIGTERM received, shutting down gracefully...");
+  server.close(() => {
+    console.log("✅ Server closed");
+    mongoose.connection.close(false, () => {
+      console.log("✅ MongoDB connection closed");
+      process.exit(0);
+    });
+  });
 });
 
 export default app;
