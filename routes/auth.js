@@ -8,70 +8,116 @@ import { auth } from "../middleware/auth.js";
 const router = express.Router();
 
 // ============ NODEMAILER CONFIG ============
-const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS, // Accept both
-  },
-});
+let transporter = null;
 
-// Test email connection
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ Email config error:", error.message);
-  } else {
-    console.log("✅ Email service ready");
-  }
-});
+if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error("⚠️ Email config warning:", error.message);
+    } else {
+      console.log("✅ Email service ready");
+    }
+  });
+} else {
+  console.warn("⚠️ Email credentials not found - email functionality disabled");
+}
 
 // ============ REGISTER ============
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
 
-    console.log("📝 Register attempt:", { name, email, phone });
+    console.log("\n📝 REGISTER REQUEST RECEIVED");
+    console.log("📦 Payload:", { name, email, password: "***", phone });
 
     // Validation
     if (!name || !email || !password || !phone) {
+      console.log("❌ Missing required fields");
       return res.status(400).json({ error: "❌ All fields are required" });
     }
 
+    console.log("✅ All required fields present");
+
     if (password.length < 6) {
+      console.log("❌ Password too short");
       return res.status(400).json({ error: "❌ Password must be at least 6 characters" });
     }
 
+    console.log("✅ Password validation passed");
+
     // Check if user exists
+    console.log("🔍 Checking if email already exists:", email);
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
+      console.log("❌ Email already registered");
       return res.status(400).json({ error: "❌ Email already registered" });
     }
+    console.log("✅ Email is unique");
 
+    console.log("🔍 Checking if phone already exists:", phone);
     const existingPhone = await User.findOne({ phone });
     if (existingPhone) {
+      console.log("❌ Phone already registered");
       return res.status(400).json({ error: "❌ Phone number already registered" });
     }
+    console.log("✅ Phone is unique");
 
     // Hash password
+    console.log("🔐 Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 10);
+    console.log("✅ Password hashed");
+
+    // Create user object
+    console.log("👤 Creating user object...");
+    const userObj = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+      phone: phone.trim(),
+    };
+    console.log("📋 User object:", { ...userObj, password: "***" });
 
     // Create user
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      phone,
-    });
+    const user = new User(userObj);
+    console.log("📝 User instance created");
 
+    // Validate before save
+    console.log("✔️ Validating user schema...");
+    try {
+      await user.validate();
+      console.log("✅ User validation passed");
+    } catch (validateError) {
+      console.error("❌ VALIDATION ERROR:", validateError.message);
+      console.error("❌ VALIDATION DETAILS:", validateError.errors);
+      return res.status(400).json({ 
+        error: `Validation failed: ${validateError.message}`,
+        details: Object.keys(validateError.errors || {})
+      });
+    }
+
+    // Save user
+    console.log("💾 Saving user to MongoDB...");
     await user.save();
-    console.log("✅ User created:", user._id);
+    console.log("✅ User saved:", user._id);
 
     // Generate JWT
+    console.log("🔑 Generating JWT token...");
     const token = jwt.sign(
       { id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
+    console.log("✅ JWT token generated");
+
+    console.log("✅ REGISTRATION SUCCESSFUL\n");
 
     res.status(201).json({
       success: true,
@@ -85,8 +131,19 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Register error:", error);
-    res.status(500).json({ error: error.message || "Registration failed" });
+    console.error("\n❌ REGISTER ERROR");
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error details:", error);
+    if (error.errors) {
+      console.error("Field errors:", error.errors);
+    }
+    console.error("\n");
+    
+    res.status(500).json({ 
+      error: error.message || "Registration failed",
+      type: error.name
+    });
   }
 });
 
@@ -102,7 +159,7 @@ router.post("/login", async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(401).json({ error: "❌ Invalid email or password" });
     }
@@ -153,14 +210,18 @@ router.post("/forgot-password", async (req, res) => {
       return res.status(404).json({ error: "❌ User not found" });
     }
 
-    // Create reset token
+    if (!transporter) {
+      return res.status(500).json({ 
+        error: "❌ Email service not configured" 
+      });
+    }
+
     const resetToken = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // Send email
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     
     await transporter.sendMail({
@@ -198,16 +259,13 @@ router.post("/reset-password", async (req, res) => {
       return res.status(400).json({ error: "❌ Password must be at least 6 characters" });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Find user
     const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(404).json({ error: "❌ User not found" });
     }
 
-    // Update password
     user.password = await bcrypt.hash(password, 10);
     await user.save();
 
