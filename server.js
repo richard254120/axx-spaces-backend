@@ -16,13 +16,10 @@ const allowedOrigins = [
   "http://localhost:1000",
   "http://localhost:5000",
   process.env.FRONTEND_URL,
+  "https://axx-spaces.vercel.app",
   "https://axx-spaces-frontend.onrender.com",
-  "https://axx-spaces.vercel.app"
 ].filter(Boolean);
 
-console.log("🌍 Allowed Origins:", allowedOrigins);
-
-// ============ CORS ============
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -39,13 +36,11 @@ app.use(
   })
 );
 
-// ============ MIDDLEWARE ============
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 console.log("✅ Middleware configured");
 
-// ============ MONGODB ============
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
@@ -54,7 +49,6 @@ mongoose
     process.exit(1);
   });
 
-// ============ HEALTH CHECK ============
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
@@ -63,23 +57,18 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// ============ ROUTES ============
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertyRoutes);
 
-// ============ 404 ============
 app.use((req, res) => {
-  console.warn("⚠️  404:", req.method, req.path);
   res.status(404).json({ error: "Route not found" });
 });
 
-// ============ ERROR HANDLER ============
 app.use((err, req, res, next) => {
   console.error("❌ Error:", err.message);
   res.status(500).json({ error: err.message || "Server error" });
 });
 
-// ============ START SERVER ============
 const PORT = process.env.PORT || 1000;
 
 app.listen(PORT, () => {

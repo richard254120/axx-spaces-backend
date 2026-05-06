@@ -7,7 +7,6 @@ import { auth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// ============ NODEMAILER CONFIG ============
 let transporter = null;
 
 if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
@@ -27,97 +26,50 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
     }
   });
 } else {
-  console.warn("⚠️ Email credentials not found - email functionality disabled");
+  console.warn("⚠️ Email credentials not configured");
 }
 
-// ============ REGISTER ============
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
 
-    console.log("\n📝 REGISTER REQUEST RECEIVED");
-    console.log("📦 Payload:", { name, email, password: "***", phone });
+    console.log("📝 Register attempt:", { name, email, phone });
 
-    // Validation
     if (!name || !email || !password || !phone) {
-      console.log("❌ Missing required fields");
       return res.status(400).json({ error: "❌ All fields are required" });
     }
 
-    console.log("✅ All required fields present");
-
     if (password.length < 6) {
-      console.log("❌ Password too short");
       return res.status(400).json({ error: "❌ Password must be at least 6 characters" });
     }
 
-    console.log("✅ Password validation passed");
-
-    // Check if user exists
-    console.log("🔍 Checking if email already exists:", email);
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
-      console.log("❌ Email already registered");
       return res.status(400).json({ error: "❌ Email already registered" });
     }
-    console.log("✅ Email is unique");
 
-    console.log("🔍 Checking if phone already exists:", phone);
     const existingPhone = await User.findOne({ phone });
     if (existingPhone) {
-      console.log("❌ Phone already registered");
       return res.status(400).json({ error: "❌ Phone number already registered" });
     }
-    console.log("✅ Phone is unique");
 
-    // Hash password
-    console.log("🔐 Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 10);
-    console.log("✅ Password hashed");
 
-    // Create user object
-    console.log("👤 Creating user object...");
-    const userObj = {
+    const user = new User({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
       phone: phone.trim(),
-    };
-    console.log("📋 User object:", { ...userObj, password: "***" });
+    });
 
-    // Create user
-    const user = new User(userObj);
-    console.log("📝 User instance created");
-
-    // Validate before save
-    console.log("✔️ Validating user schema...");
-    try {
-      await user.validate();
-      console.log("✅ User validation passed");
-    } catch (validateError) {
-      console.error("❌ VALIDATION ERROR:", validateError.message);
-      console.error("❌ VALIDATION DETAILS:", validateError.errors);
-      return res.status(400).json({ 
-        error: `Validation failed: ${validateError.message}`,
-        details: Object.keys(validateError.errors || {})
-      });
-    }
-
-    // Save user
-    console.log("💾 Saving user to MongoDB...");
     await user.save();
-    console.log("✅ User saved:", user._id);
+    console.log("✅ User created:", user._id);
 
-    // Generate JWT
-    console.log("🔑 Generating JWT token...");
     const token = jwt.sign(
       { id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
-    console.log("✅ JWT token generated");
-
-    console.log("✅ REGISTRATION SUCCESSFUL\n");
 
     res.status(201).json({
       success: true,
@@ -131,23 +83,11 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("\n❌ REGISTER ERROR");
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    console.error("Error details:", error);
-    if (error.errors) {
-      console.error("Field errors:", error.errors);
-    }
-    console.error("\n");
-    
-    res.status(500).json({ 
-      error: error.message || "Registration failed",
-      type: error.name
-    });
+    console.error("❌ Register error:", error);
+    res.status(500).json({ error: error.message || "Registration failed" });
   }
 });
 
-// ============ LOGIN ============
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -158,13 +98,11 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "❌ Email and password required" });
     }
 
-    // Find user
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(401).json({ error: "❌ Invalid email or password" });
     }
 
-    // Check password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ error: "❌ Invalid email or password" });
@@ -172,7 +110,6 @@ router.post("/login", async (req, res) => {
 
     console.log("✅ Login successful:", user._id);
 
-    // Generate JWT
     const token = jwt.sign(
       { id: user._id, email: user.email },
       process.env.JWT_SECRET,
@@ -196,7 +133,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ============ FORGOT PASSWORD ============
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -211,9 +147,7 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     if (!transporter) {
-      return res.status(500).json({ 
-        error: "❌ Email service not configured" 
-      });
+      return res.status(500).json({ error: "❌ Email service not configured" });
     }
 
     const resetToken = jwt.sign(
@@ -228,25 +162,19 @@ router.post("/forgot-password", async (req, res) => {
       from: process.env.EMAIL_USER,
       to: email,
       subject: "🔐 Axx Spaces - Password Reset",
-      html: `
-        <h2>Password Reset Request</h2>
-        <p>Click the link below to reset your password (expires in 1 hour):</p>
-        <a href="${resetLink}" style="background: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-        <p>Or copy this link: ${resetLink}</p>
-      `,
+      html: `<h2>Password Reset</h2><p><a href="${resetLink}">Reset Password</a></p>`,
     });
 
     res.json({
       success: true,
-      message: "✅ Password reset link sent to your email",
+      message: "✅ Password reset link sent",
     });
   } catch (error) {
     console.error("❌ Forgot password error:", error);
-    res.status(500).json({ error: error.message || "Failed to send reset email" });
+    res.status(500).json({ error: error.message || "Failed to send email" });
   }
 });
 
-// ============ RESET PASSWORD ============
 router.post("/reset-password", async (req, res) => {
   try {
     const { token, password } = req.body;
@@ -279,7 +207,6 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
-// ============ GET CURRENT USER ============
 router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
