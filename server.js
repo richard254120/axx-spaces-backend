@@ -13,26 +13,29 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://localhost:1000",
   "http://localhost:5000",
   process.env.FRONTEND_URL,
-  "https://axx-spaces-frontend.onrender.com"
+  "https://axx-spaces-frontend.onrender.com",
+  "https://axx-spaces.vercel.app"
 ].filter(Boolean);
 
-// ============ CORS FIX ============
+console.log("🌍 Allowed Origins:", allowedOrigins);
+
+// ============ CORS ============
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow REST tools like Postman
       if (!origin) return callback(null, true);
-
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-
       console.log("❌ Blocked by CORS:", origin);
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -66,6 +69,7 @@ app.use("/api/properties", propertyRoutes);
 
 // ============ 404 ============
 app.use((req, res) => {
+  console.warn("⚠️  404:", req.method, req.path);
   res.status(404).json({ error: "Route not found" });
 });
 
@@ -76,7 +80,7 @@ app.use((err, req, res, next) => {
 });
 
 // ============ START SERVER ============
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 1000;
 
 app.listen(PORT, () => {
   console.log("==================================");
@@ -86,4 +90,8 @@ app.listen(PORT, () => {
   console.log("🌍 Environment:", process.env.NODE_ENV || "development");
   console.log("☁️ Cloudinary: Configured");
   console.log("📦 Database: MongoDB");
+  console.log(`🔗 API: http://localhost:${PORT}/api`);
+  console.log("==================================\n");
 });
+
+export default app;
