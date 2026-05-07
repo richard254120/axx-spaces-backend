@@ -20,61 +20,32 @@ const propertySchema = new mongoose.Schema(
       required: [true, "Please provide price"],
     },
 
-    // ✅ FIX 7: Added missing fields that the frontend sends
-    deposit: {
-      type: Number,
-      default: 0,
-    },
-    furnished: {
-      type: Boolean,
-      default: false,
-    },
+    deposit: { type: Number, default: 0 },
+    furnished: { type: Boolean, default: false },
     leaseType: {
       type: String,
       enum: ["monthly", "6months", "yearly"],
       default: "monthly",
     },
-    availableFrom: {
-      type: Date,
-    },
-    rules: {
-      type: String,
-      default: "",
-    },
+    availableFrom: { type: Date },
+    rules: { type: String, default: "" },
 
-    bedrooms: {
-      type: Number,
-      required: [true, "Please provide bedrooms"],
-    },
-    bathrooms: {
-      type: Number,
-      required: [true, "Please provide bathrooms"],
-    },
+    bedrooms: { type: Number, required: true },
+    bathrooms: { type: Number, required: true },
     amenities: [String],
     images: [String],
 
-    // BOOKED TRACKING FIELDS
-    totalUnits: {
-      type: Number,
-      required: true,
-      default: 1,
-    },
-    bookedUnits: {
-      type: Number,
-      default: 0,
-    },
-    availableUnits: {
-      type: Number,
-      default: function () {
-        return this.totalUnits - this.bookedUnits;
-      },
-    },
+    // BOOKING SYSTEM
+    totalUnits: { type: Number, required: true, default: 1, min: 1 },
+    bookedUnits: { type: Number, default: 0, min: 0 },
 
-    // OWNERSHIP & STATUS
+    // Computed field
+    availableUnits: { type: Number, default: 0 },
+
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Please provide owner"],
+      required: true,
     },
     status: {
       type: String,
@@ -85,9 +56,9 @@ const propertySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Recalculate availableUnits before every save
+// ✅ Always keep availableUnits accurate
 propertySchema.pre("save", function (next) {
-  this.availableUnits = this.totalUnits - this.bookedUnits;
+  this.availableUnits = Math.max(0, this.totalUnits - this.bookedUnits);
   next();
 });
 
