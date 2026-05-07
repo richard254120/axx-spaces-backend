@@ -9,7 +9,7 @@ const propertySchema = new mongoose.Schema(
     description: {
       type: String,
       required: [true, "Please provide description"],
-      minlength: 50,
+      // minlength removed - no restriction
     },
     location: {
       type: String,
@@ -29,6 +29,22 @@ const propertySchema = new mongoose.Schema(
     },
     availableFrom: { type: Date },
     rules: { type: String, default: "" },
+
+    // ✅ NEW FIELDS FROM UPLOAD.JSX
+    propertyType: {
+      type: String,
+      required: true,
+    },
+    county: {
+      type: String,
+      required: true,
+    },
+    lat: {
+      type: Number,
+    },
+    lng: {
+      type: Number,
+    },
 
     bedrooms: { type: Number, required: true },
     bathrooms: { type: Number, required: true },

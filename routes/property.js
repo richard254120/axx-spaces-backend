@@ -12,12 +12,18 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
     const {
       title, description, location, price, bedrooms, bathrooms,
       amenities, totalUnits,
-      // ✅ FIX 4: Accept the fields the frontend sends but the old route ignored
       deposit, furnished, leaseType, availableFrom, rules,
+      // ✅ NEW FIELDS FROM YOUR LATEST UPLOAD.JSX
+      propertyType, county, lat, lng, bookedUnits, initiallyBooked
     } = req.body;
 
     if (!title || !description || !location || !price || bedrooms === undefined || bathrooms === undefined) {
       return res.status(400).json({ error: "❌ Missing required fields" });
+    }
+
+    // ✅ Added validation for new required fields
+    if (!propertyType || !county) {
+      return res.status(400).json({ error: "❌ Property Type and County are required" });
     }
 
     if (!req.files || req.files.length === 0) {
@@ -37,18 +43,31 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
       images: imageUrls,
       owner: req.user.id,
       totalUnits: parseInt(totalUnits) || 1,
-      bookedUnits: 0,
       status: "pending",
-      // ✅ FIX 5: Save the extra fields with proper type coercion
+
+      // ✅ NEW FIELDS SAVED
+      propertyType,
+      county,
+      lat: lat ? parseFloat(lat) : undefined,
+      lng: lng ? parseFloat(lng) : undefined,
       deposit: deposit ? parseFloat(deposit) : undefined,
-      furnished: furnished === "true",          // string "true" → boolean true
+      furnished: furnished === "true",
       leaseType: leaseType || "monthly",
       availableFrom: availableFrom || undefined,
       rules: rules || "",
+
+      // ✅ Handle initial booking status
+      bookedUnits: initiallyBooked === "true" || initiallyBooked === true 
+                    ? parseInt(bookedUnits) || 0 
+                    : 0,
     });
 
     await property.save();
-    res.status(201).json({ success: true, message: "✅ Property uploaded successfully!", property });
+    res.status(201).json({ 
+      success: true, 
+      message: "✅ Property uploaded successfully! Pending admin approval.", 
+      property 
+    });
   } catch (error) {
     console.error("Create property error:", error);
     res.status(500).json({ error: error.message || "Failed to create property" });
@@ -64,7 +83,7 @@ router.get("/", async (req, res) => {
       .populate("owner", "name phone email")
       .sort({ createdAt: -1 });
 
-    // ✅ FIX: Always calculate availableUnits on the fly
+    // ✅ Always calculate availableUnits on the fly
     const processed = properties.map(p => ({
       ...p.toObject(),
       availableUnits: Math.max(0, (p.totalUnits || 1) - (p.bookedUnits || 0))
@@ -114,7 +133,6 @@ router.patch("/:id/status", auth, async (req, res) => {
 });
 
 // ============ GET LANDLORD'S OWN PROPERTIES ============
-// ✅ FIX 6: This MUST be defined before /:id — otherwise Express matches "my-properties" as an :id param
 router.get("/my-properties/all", auth, async (req, res) => {
   try {
     const properties = await Property.find({ owner: req.user.id }).sort({ createdAt: -1 });
