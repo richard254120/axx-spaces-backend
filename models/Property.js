@@ -19,6 +19,29 @@ const propertySchema = new mongoose.Schema(
       type: Number,
       required: [true, "Please provide price"],
     },
+
+    // ✅ FIX 7: Added missing fields that the frontend sends
+    deposit: {
+      type: Number,
+      default: 0,
+    },
+    furnished: {
+      type: Boolean,
+      default: false,
+    },
+    leaseType: {
+      type: String,
+      enum: ["monthly", "6months", "yearly"],
+      default: "monthly",
+    },
+    availableFrom: {
+      type: Date,
+    },
+    rules: {
+      type: String,
+      default: "",
+    },
+
     bedrooms: {
       type: Number,
       required: [true, "Please provide bedrooms"],
@@ -29,7 +52,7 @@ const propertySchema = new mongoose.Schema(
     },
     amenities: [String],
     images: [String],
-    
+
     // BOOKED TRACKING FIELDS
     totalUnits: {
       type: Number,
@@ -46,7 +69,7 @@ const propertySchema = new mongoose.Schema(
         return this.totalUnits - this.bookedUnits;
       },
     },
-    
+
     // OWNERSHIP & STATUS
     owner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -58,16 +81,11 @@ const propertySchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
-    
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
   },
   { timestamps: true }
 );
 
-// Middleware to calculate availableUnits before saving
+// Recalculate availableUnits before every save
 propertySchema.pre("save", function (next) {
   this.availableUnits = this.totalUnits - this.bookedUnits;
   next();
