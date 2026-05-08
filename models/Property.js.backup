@@ -9,6 +9,7 @@ const propertySchema = new mongoose.Schema(
     description: {
       type: String,
       required: [true, "Please provide description"],
+      // minlength removed - no restriction
     },
     location: {
       type: String,
@@ -29,6 +30,7 @@ const propertySchema = new mongoose.Schema(
     availableFrom: { type: Date },
     rules: { type: String, default: "" },
 
+    // ✅ NEW FIELDS FROM UPLOAD.JSX
     propertyType: {
       type: String,
       required: true,
@@ -52,6 +54,8 @@ const propertySchema = new mongoose.Schema(
     // BOOKING SYSTEM
     totalUnits: { type: Number, required: true, default: 1, min: 1 },
     bookedUnits: { type: Number, default: 0, min: 0 },
+
+    // Computed field
     availableUnits: { type: Number, default: 0 },
 
     owner: {
@@ -64,52 +68,16 @@ const propertySchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
-
-    // ✅ NEW FIELDS FOR MONETIZATION (ADDED, NOT REMOVING ANYTHING)
-    isFeatured: {
-      type: Boolean,
-      default: false,
-      index: true, // Index for faster queries
-    },
-    promotionEndDate: {
-      type: Date,
-      default: null,
-    },
-    promotionTier: {
-      type: String,
-      enum: ["none", "boost-7days", "boost-30days", "premium-30days"],
-      default: "none",
-    },
-    promotionStartDate: {
-      type: Date,
-      default: null,
-    },
-    views: {
-      type: Number,
-      default: 0,
-    },
-    inquiries: {
-      type: Number,
-      default: 0,
-    },
   },
   { timestamps: true }
 );
 
-// ✅ Keep availableUnits accurate & auto-unfeature expired promotions
+// ✅ Always keep availableUnits accurate
 propertySchema.pre("save", function (next) {
   this.availableUnits = Math.max(0, this.totalUnits - this.bookedUnits);
-  
-  // Auto-unfeature if promotion expired
-  if (this.isFeatured && this.promotionEndDate && new Date() > this.promotionEndDate) {
-    this.isFeatured = false;
-    this.promotionTier = "none";
-  }
-  
   next();
 });
 
-const Property =
-  mongoose.models.Property || mongoose.model("Property", propertySchema);
+const Property = mongoose.models.Property || mongoose.model("Property", propertySchema);
 
 export default Property;

@@ -30,38 +30,6 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-
-    // ✅ NEW FIELDS FOR MONETIZATION (ADDED, NOT REPLACING)
-    walletBalance: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    paymentHistory: [
-      {
-        transactionId: String,
-        amount: Number,
-        plan: String,
-        propertyId: mongoose.Schema.Types.ObjectId,
-        status: {
-          type: String,
-          enum: ["pending", "success", "failed", "cancelled"],
-          default: "pending",
-        },
-        date: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
-    promotedListings: [
-      {
-        propertyId: mongoose.Schema.Types.ObjectId,
-        tier: String,
-        startDate: Date,
-        endDate: Date,
-      },
-    ],
   },
   { timestamps: true }
 );

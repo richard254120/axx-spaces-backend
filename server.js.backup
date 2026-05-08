@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
-import paymentRoutes from "./routes/payment.js"; // ✅ ADD THIS LINE
 
 dotenv.config();
 
@@ -13,9 +12,9 @@ const app = express();
 
 // ============ CORS - ALLOW ALL ORIGINS FOR TESTING ============
 app.use(cors({
-  origin: "*",
+  origin: "*", // Allow all origins temporarily
   credentials: false,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
@@ -42,10 +41,8 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// ============ ROUTES ============
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertyRoutes);
-app.use("/api/payment", paymentRoutes); // ✅ ADD THIS LINE
 
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
@@ -66,7 +63,6 @@ app.listen(PORT, () => {
   console.log("🌍 Environment:", process.env.NODE_ENV || "development");
   console.log("☁️ Cloudinary: Configured");
   console.log("📦 Database: MongoDB");
-  console.log("💳 Payment: Ready (Mpesa integration available)");
   console.log(`🔗 API: http://localhost:${PORT}/api`);
   console.log("==================================\n");
 });
