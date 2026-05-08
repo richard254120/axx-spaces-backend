@@ -1,26 +1,53 @@
-{
-  "name": "axx-spaces-backend",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+console.log("☁️ Cloudinary configured successfully");
+
+// Cloudinary Storage Setup
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "axx-spaces/properties",     // Better organized folder
+    resource_type: "image",              // Since you're only uploading images
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [{ width: 1200, height: 800, crop: "limit" }], // Optional: resize
+    public_id: (req, file) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
+      return `property-${uniqueSuffix}`;
+    },
   },
-  "dependencies": {
-    "bcrypt": "^5.1.0",
-    "cloudinary": "^1.40.0",
-    "cors": "^2.8.5",
-    "debug": "^4.4.3",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^7.5.3",
-    "multer": "^1.4.5-lts.1",
-    "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^6.9.7"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
+});
+
+// File Filter
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("❌ Only image files are allowed!"), false);
   }
-}
+};
+
+// Multer Upload Configuration
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 8 * 1024 * 1024, // 8MB
+    files: 10,                 // Max 10 files per request (optional)
+  },
+});
+
+console.log("✅ Multer + Cloudinary setup completed");
+
+export default upload;
