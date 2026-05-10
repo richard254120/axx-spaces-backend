@@ -26,12 +26,39 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-    createdAt: {
-      type: Date,
-      default: Date.now,
+    // ✅ ROLE IDENTIFICATION
+    role: {
+      type: String,
+      enum: ["user", "mover", "admin"],
+      default: "user",
     },
 
-    // ✅ NEW FIELDS FOR MONETIZATION (ADDED, NOT REPLACING)
+    // ✅ MOVER SPECIFIC FIELDS
+    isApproved: {
+      type: Boolean,
+      default: false, // New movers must be approved by you
+    },
+    county: {
+      type: String,
+      trim: true,
+    },
+    experienceYears: {
+      type: Number,
+      default: 0,
+    },
+    vehicleType: {
+      type: String, // e.g., "Pickup", "3-Ton Truck", "Closed Van"
+    },
+    services: {
+      type: [String], // Array of services like ["Packing", "Storage"]
+      default: [],
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+
+    // ✅ EXISTING MONETIZATION FIELDS (PRESERVED)
     walletBalance: {
       type: Number,
       default: 0,
@@ -67,5 +94,4 @@ const userSchema = new mongoose.Schema(
 );
 
 const User = mongoose.models.User || mongoose.model("User", userSchema);
-
 export default User;

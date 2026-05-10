@@ -5,7 +5,8 @@ import mongoose from "mongoose";
 
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
-import paymentRoutes from "./routes/payment.js";   // ← Must be here
+import paymentRoutes from "./routes/payment.js";
+import moverRoutes from "./routes/moverRoutes.js"; // ← 1. Import Mover Routes
 
 dotenv.config();
 
@@ -27,7 +28,8 @@ mongoose.connect(process.env.MONGO_URI)
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertyRoutes);
-app.use("/api/payment", paymentRoutes);   // ← This must exist
+app.use("/api/payment", paymentRoutes);   
+app.use("/api/movers", moverRoutes);      // ← 2. Register Mover Routes
 
 app.get("/api/health", (req, res) => res.json({ status: "OK" }));
 
@@ -42,5 +44,5 @@ app.listen(PORT, () => {
   console.log("🚀 AXX SPACES SERVER STARTED");
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
-  console.log("💳 Payment Route: Ready");
+  console.log("🚚 Mover Routes: Ready"); // Updated Log
 });
