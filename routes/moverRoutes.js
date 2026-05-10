@@ -1,30 +1,29 @@
 import express from "express";
 import { 
-  getMoversByCounty, 
+  getAllMovers, // Renamed from getMoversByCounty to match the controller I gave you
   updateMoverProfile, 
   getMoverStats 
 } from "../controllers/moverController.js";
-import { protect } from "../middleware/authMiddleware.js"; // Ensure this matches your middleware file name
+
+// ✅ FIXED: Matching your actual filename (auth.js) and exported function (auth)
+import { auth } from "../middleware/auth.js"; 
 
 const router = express.Router();
 
 /**
  * PUBLIC ROUTES
- * These are used by renters searching for movers on the "Find a Mover" page.
  */
-router.get("/", getMoversByCounty);
+router.get("/", getAllMovers);
 
 
 /**
  * PRIVATE ROUTES (Protected by JWT)
- * These are used by the Mover Dashboard.
- * The 'protect' middleware ensures only logged-in users with a valid token access these.
  */
 
-// Updates business details (County, Description, etc.)
-router.put("/profile", protect, updateMoverProfile);
+// Updates business details
+router.put("/profile", auth, updateMoverProfile);
 
-// Fetches earnings and job counts for the dashboard cards
-router.get("/stats", protect, getMoverStats);
+// Fetches earnings and job counts
+router.get("/stats", auth, getMoverStats);
 
 export default router;
