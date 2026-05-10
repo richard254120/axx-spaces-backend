@@ -29,21 +29,27 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
   console.warn("⚠️ Email credentials not configured");
 }
 
+// ✅ UPDATED REGISTRATION ROUTE
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    // Destructure all possible fields from the frontend
+    const { 
+      name, email, password, phone, 
+      role, county, experience, services 
+    } = req.body;
 
-    console.log("📝 Register attempt:", { name, email, phone });
+    console.log("📝 Register attempt:", { name, email, role });
 
     if (!name || !email || !password || !phone) {
-      return res.status(400).json({ error: "❌ All fields are required" });
+      return res.status(400).json({ error: "❌ All basic fields are required" });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ error: "❌ Password must be at least 6 characters" });
     }
 
-    const existingEmail = await User.findOne({ email });
+    // Check for duplicates
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
     if (existingEmail) {
       return res.status(400).json({ error: "❌ Email already registered" });
     }
@@ -55,15 +61,22 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Create user with standard AND mover fields
     const user = new User({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
       phone: phone.trim(),
+      // New Logic
+      role: role || "user",
+      isApproved: role === "mover" ? false : true, // Movers need admin approval
+      county: county || "",
+      experienceYears: experience || 0,
+      services: services || [],
     });
 
     await user.save();
-    console.log("✅ User created:", user._id);
+    console.log("✅ User created:", user._id, "Role:", user.role);
 
     const token = jwt.sign(
       { id: user._id, email: user.email },
@@ -80,6 +93,8 @@ router.post("/register", async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        role: user.role,
+        isApproved: user.isApproved
       },
     });
   } catch (error) {
@@ -88,6 +103,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
+// ✅ UPDATED LOGIN ROUTE (Includes Role in response)
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -125,6 +141,8 @@ router.post("/login", async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        role: user.role, // Added so frontend knows where to redirect
+        isApproved: user.isApproved
       },
     });
   } catch (error) {
@@ -133,29 +151,19 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// ... (forgot-password, reset-password, and /me routes stay the same)
+
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: "❌ Email required" });
-    }
+    if (!email) return res.status(400).json({ error: "❌ Email required" });
 
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: "❌ User not found" });
-    }
+    if (!user) return res.status(404).json({ error: "❌ User not found" });
 
-    if (!transporter) {
-      return res.status(500).json({ error: "❌ Email service not configured" });
-    }
+    if (!transporter) return res.status(500).json({ error: "❌ Email service not configured" });
 
-    const resetToken = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
-
+    const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     
     await transporter.sendMail({
@@ -165,44 +173,26 @@ router.post("/forgot-password", async (req, res) => {
       html: `<h2>Password Reset</h2><p><a href="${resetLink}">Reset Password</a></p>`,
     });
 
-    res.json({
-      success: true,
-      message: "✅ Password reset link sent",
-    });
+    res.json({ success: true, message: "✅ Password reset link sent" });
   } catch (error) {
-    console.error("❌ Forgot password error:", error);
-    res.status(500).json({ error: error.message || "Failed to send email" });
+    res.status(500).json({ error: error.message });
   }
 });
 
 router.post("/reset-password", async (req, res) => {
   try {
     const { token, password } = req.body;
-
-    if (!token || !password) {
-      return res.status(400).json({ error: "❌ Token and password required" });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ error: "❌ Password must be at least 6 characters" });
-    }
+    if (!token || !password) return res.status(400).json({ error: "❌ Token and password required" });
+    if (password.length < 6) return res.status(400).json({ error: "❌ Password must be at least 6 characters" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const user = await User.findById(decoded.id);
-    if (!user) {
-      return res.status(404).json({ error: "❌ User not found" });
-    }
+    if (!user) return res.status(404).json({ error: "❌ User not found" });
 
     user.password = await bcrypt.hash(password, 10);
     await user.save();
-
-    res.json({
-      success: true,
-      message: "✅ Password reset successful",
-    });
+    res.json({ success: true, message: "✅ Password reset successful" });
   } catch (error) {
-    console.error("❌ Reset password error:", error);
     res.status(400).json({ error: "❌ Invalid or expired token" });
   }
 });
@@ -212,7 +202,6 @@ router.get("/me", auth, async (req, res) => {
     const user = await User.findById(req.user.id).select("-password");
     res.json(user);
   } catch (error) {
-    console.error("❌ Get user error:", error);
     res.status(500).json({ error: error.message });
   }
 });
