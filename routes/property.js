@@ -6,22 +6,21 @@ import upload from "../config/multer.js";
 const router = express.Router();
 
 // ============ CREATE PROPERTY ============
-// ✅ FIX 3: Handle both POST /create AND POST / so either URL works
+// ✅ Now compatible with your auth middleware that provides req.user object
 router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res) => {
   try {
     const {
       title, description, location, price, bedrooms, bathrooms,
       amenities, totalUnits,
       deposit, furnished, leaseType, availableFrom, rules,
-      // ✅ NEW FIELDS FROM YOUR LATEST UPLOAD.JSX
       propertyType, county, lat, lng, bookedUnits, initiallyBooked
     } = req.body;
 
+    // ✅ VALIDATION
     if (!title || !description || !location || !price || bedrooms === undefined || bathrooms === undefined) {
       return res.status(400).json({ error: "❌ Missing required fields" });
     }
 
-    // ✅ Added validation for new required fields
     if (!propertyType || !county) {
       return res.status(400).json({ error: "❌ Property Type and County are required" });
     }
@@ -30,8 +29,21 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
       return res.status(400).json({ error: "❌ Please upload at least one image" });
     }
 
+    // ✅ PARSE AMENITIES
+    let parsedAmenities = [];
+    try {
+      parsedAmenities = amenities ? JSON.parse(amenities) : [];
+    } catch (e) {
+      parsedAmenities = Array.isArray(amenities) ? amenities : [];
+    }
+
+    if (parsedAmenities.length === 0) {
+      return res.status(400).json({ error: "❌ Please select at least one amenity" });
+    }
+
     const imageUrls = req.files.map((file) => file.path);
 
+    // ✅ CREATE PROPERTY WITH req.user._id (from your auth middleware)
     const property = new Property({
       title,
       description,
@@ -39,13 +51,11 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
       price: parseFloat(price),
       bedrooms: parseInt(bedrooms),
       bathrooms: parseInt(bathrooms),
-      amenities: amenities ? JSON.parse(amenities) : [],
+      amenities: parsedAmenities,
       images: imageUrls,
-      owner: req.user.id,
+      owner: req.user._id,  // ✅ Your auth middleware provides req.user with _id
       totalUnits: parseInt(totalUnits) || 1,
       status: "pending",
-
-      // ✅ NEW FIELDS SAVED
       propertyType,
       county,
       lat: lat ? parseFloat(lat) : undefined,
@@ -55,21 +65,32 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
       leaseType: leaseType || "monthly",
       availableFrom: availableFrom || undefined,
       rules: rules || "",
-
-      // ✅ Handle initial booking status
       bookedUnits: initiallyBooked === "true" || initiallyBooked === true 
                     ? parseInt(bookedUnits) || 0 
                     : 0,
     });
 
     await property.save();
+
+    console.log("✅ Property created:", {
+      id: property._id,
+      title: property.title,
+      owner: property.owner,
+      status: property.status,
+    });
+
     res.status(201).json({ 
       success: true, 
       message: "✅ Property uploaded successfully! Pending admin approval.", 
-      property 
+      property: {
+        _id: property._id,
+        title: property.title,
+        status: property.status,
+        createdAt: property.createdAt,
+      }
     });
   } catch (error) {
-    console.error("Create property error:", error);
+    console.error("❌ Create property error:", error);
     res.status(500).json({ error: error.message || "Failed to create property" });
   }
 });
@@ -83,7 +104,6 @@ router.get("/", async (req, res) => {
       .populate("owner", "name phone email")
       .sort({ createdAt: -1 });
 
-    // ✅ Always calculate availableUnits on the fly
     const processed = properties.map(p => ({
       ...p.toObject(),
       availableUnits: Math.max(0, (p.totalUnits || 1) - (p.bookedUnits || 0))
@@ -91,6 +111,7 @@ router.get("/", async (req, res) => {
 
     res.json(processed);
   } catch (error) {
+    console.error("❌ Get properties error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch properties" });
   }
 });
@@ -106,6 +127,7 @@ router.get("/admin/pending", auth, async (req, res) => {
       .sort("-createdAt");
     res.json(properties);
   } catch (error) {
+    console.error("❌ Get pending properties error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -128,6 +150,7 @@ router.patch("/:id/status", auth, async (req, res) => {
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
     res.json({ success: true, message: `✅ Property ${status}`, property });
   } catch (error) {
+    console.error("❌ Update status error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -135,9 +158,10 @@ router.patch("/:id/status", auth, async (req, res) => {
 // ============ GET LANDLORD'S OWN PROPERTIES ============
 router.get("/my-properties/all", auth, async (req, res) => {
   try {
-    const properties = await Property.find({ owner: req.user.id }).sort({ createdAt: -1 });
+    const properties = await Property.find({ owner: req.user._id }).sort({ createdAt: -1 });
     res.json(properties);
   } catch (error) {
+    console.error("❌ Get my properties error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch properties" });
   }
 });
@@ -149,6 +173,7 @@ router.get("/:id", async (req, res) => {
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
     res.json(property);
   } catch (error) {
+    console.error("❌ Get single property error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch property" });
   }
 });
@@ -159,7 +184,11 @@ router.patch("/:id/book", auth, async (req, res) => {
     const { change } = req.body; // +1 or -1
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
-    if (property.owner.toString() !== req.user.id) return res.status(403).json({ error: "❌ Unauthorized" });
+    
+    // ✅ Check if user owns the property
+    if (property.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: "❌ Unauthorized" });
+    }
 
     const newBooked = (property.bookedUnits || 0) + change;
     if (newBooked < 0) return res.status(400).json({ error: "❌ Cannot have negative booked units" });
@@ -169,6 +198,7 @@ router.patch("/:id/book", auth, async (req, res) => {
     await property.save();
     res.json({ success: true, message: "✅ Booking updated", property });
   } catch (error) {
+    console.error("❌ Book property error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -178,12 +208,18 @@ router.delete("/:id", auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
-    if (property.owner.toString() !== req.user.id) return res.status(403).json({ error: "❌ Unauthorized" });
+    
+    // ✅ Check if user owns the property
+    if (property.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: "❌ Unauthorized" });
+    }
+    
     if (property.bookedUnits > 0) return res.status(400).json({ error: "❌ Cannot delete property with active bookings." });
 
     await Property.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: "✅ Property deleted successfully" });
   } catch (error) {
+    console.error("❌ Delete property error:", error);
     res.status(500).json({ error: error.message });
   }
 });
