@@ -6,54 +6,68 @@ import { auth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// ✅ POST /auth/register - Register new user (landlord or mover)
+/**
+ * @route   POST /api/auth/register
+ * @desc    Register a new user (Landlord or Mover)
+ * @access  Public
+ */
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, phone, role, county, services, vehicleType, experience } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      phone, 
+      role, 
+      county, 
+      services, 
+      vehicleType, 
+      experience 
+    } = req.body;
 
-    // ✅ Validate required fields
+    // 1. Validate required fields
     if (!name || !email || !password || !phone) {
       return res.status(400).json({ error: "Name, email, password, and phone are required" });
     }
 
-    // ✅ Check if user already exists
+    // 2. Check for existing user
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ error: "Email already registered" });
     }
 
-    // ✅ Hash password
+    // 3. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ Create user object
+    // 4. Create base user object
     const newUser = new User({
       name,
       email,
       password: hashedPassword,
       phone,
-      role: role || "landlord",
+      role: role || "landlord", // Default to landlord if not specified
     });
 
-    // ✅ Add mover-specific fields if registering as mover
+    // 5. Add Mover-specific fields if applicable
     if (role === "mover") {
       newUser.county = county || "";
       newUser.services = services || [];
       newUser.vehicleType = vehicleType || "";
       newUser.experienceYears = experience || 0;
+      newUser.isApproved = false; // Movers require admin approval
     }
 
-    // ✅ Save user to database
+    // 6. Save to Database
     await newUser.save();
 
-    // ✅ Generate JWT token
+    // 7. Generate JWT
     const token = jwt.sign(
       { userId: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // ✅ Return token and user data
-    res.json({
+    res.status(201).json({
       token,
       user: {
         _id: newUser._id,
@@ -61,10 +75,7 @@ router.post("/register", async (req, res) => {
         email: newUser.email,
         phone: newUser.phone,
         role: newUser.role,
-        county: newUser.county,
-        services: newUser.services,
-        vehicleType: newUser.vehicleType,
-        experienceYears: newUser.experienceYears,
+        isApproved: newUser.isApproved
       },
     });
 
@@ -74,36 +85,39 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// ✅ POST /auth/login - Login user
+/**
+ * @route   POST /api/auth/login
+ * @desc    Authenticate user & get token
+ * @access  Public
+ */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // ✅ Validate required fields
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    // ✅ Find user by email
-    const user = await User.findOne({ email });
+    // 🛡️ CRITICAL FIX: Explicitly select password because 'select: false' is in the model
+    const user = await User.findOne({ email }).select("+password");
+
     if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // ✅ Check password
+    // Verify Password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // ✅ Generate JWT token
+    // Generate JWT
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // ✅ Return token and user data
     res.json({
       token,
       user: {
@@ -112,22 +126,24 @@ router.post("/login", async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        county: user.county,
-        services: user.services,
-        vehicleType: user.vehicleType,
-        experienceYears: user.experienceYears,
+        isApproved: user.isApproved
       },
     });
 
   } catch (err) {
     console.error("❌ Login error:", err);
-    res.status(500).json({ error: "Login failed" });
+    res.status(500).json({ error: "Server error during login" });
   }
 });
 
-// ✅ GET /auth/me - Get current user (protected route)
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get current user profile
+ * @access  Private
+ */
 router.get("/me", auth, async (req, res) => {
   try {
+    // req.userId comes from your auth middleware
     const user = await User.findById(req.userId);
     
     if (!user) {
@@ -141,39 +157,14 @@ router.get("/me", auth, async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        county: user.county,
-        services: user.services,
-        vehicleType: user.vehicleType,
-        experienceYears: user.experienceYears,
+        isApproved: user.isApproved,
+        walletBalance: user.walletBalance
       },
     });
 
   } catch (err) {
-    console.error("❌ Get user error:", err);
-    res.status(500).json({ error: "Failed to get user" });
-  }
-});
-
-// ✅ POST /auth/forgot-password - Forgot password
-router.post("/forgot-password", async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // TODO: Send reset email (implement nodemailer)
-    res.json({ message: "Password reset email sent" });
-
-  } catch (err) {
-    console.error("❌ Forgot password error:", err);
-    res.status(500).json({ error: "Failed to process request" });
+    console.error("❌ Profile fetch error:", err);
+    res.status(500).json({ error: "Failed to fetch user profile" });
   }
 });
 
