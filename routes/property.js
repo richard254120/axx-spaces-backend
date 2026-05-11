@@ -6,8 +6,9 @@ import upload from "../config/multer.js";
 const router = express.Router();
 
 // ====================== CREATE PROPERTY ======================
-router.post("/", auth, upload.array("images", 10), async (req, res) => {
+router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res) => {
   try {
+    // ✅ Strong check for user (this fixes "user does no longer exist")
     if (!req.user || !req.user._id) {
       return res.status(401).json({ 
         error: "User does not exist or invalid token. Please login again." 
@@ -16,11 +17,12 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
 
     const {
       title, description, location, price, bedrooms, bathrooms,
-      amenities, totalUnits = 1, deposit, furnished, leaseType,
+      amenities, totalUnits, deposit, furnished, leaseType,
       availableFrom, rules, propertyType, county, lat, lng,
-      bookedUnits = 0, initiallyBooked = false
+      bookedUnits, initiallyBooked
     } = req.body;
 
+    // Validation
     if (!title || !description || !location || !price || !propertyType || !county) {
       return res.status(400).json({ error: "❌ Missing required fields" });
     }
@@ -29,20 +31,19 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
       return res.status(400).json({ error: "❌ Please upload at least one image" });
     }
 
+    // Parse amenities
     let parsedAmenities = [];
     try {
-      parsedAmenities = amenities 
-        ? (typeof amenities === "string" ? JSON.parse(amenities) : amenities) 
-        : [];
+      parsedAmenities = amenities ? JSON.parse(amenities) : [];
     } catch (e) {
-      parsedAmenities = [];
+      parsedAmenities = Array.isArray(amenities) ? amenities : [];
     }
 
     if (parsedAmenities.length === 0) {
       return res.status(400).json({ error: "❌ Please select at least one amenity" });
     }
 
-    const imageUrls = req.files.map(file => file.path || file.secure_url);
+    const imageUrls = req.files.map((file) => file.path || file.secure_url);
 
     const property = new Property({
       title,
@@ -53,7 +54,7 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
       bathrooms: parseInt(bathrooms),
       amenities: parsedAmenities,
       images: imageUrls,
-      owner: req.user._id,
+      owner: req.user._id,           // This line is critical
       totalUnits: parseInt(totalUnits) || 1,
       status: "pending",
       propertyType,
@@ -65,12 +66,14 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
       leaseType: leaseType || "monthly",
       availableFrom: availableFrom || undefined,
       rules: rules || "",
-      bookedUnits: initiallyBooked ? parseInt(bookedUnits) || 0 : 0,
+      bookedUnits: initiallyBooked === "true" || initiallyBooked === true 
+                    ? parseInt(bookedUnits) || 0 
+                    : 0,
     });
 
     await property.save();
 
-    console.log(`✅ Property created | ID: ${property._id} | Owner: ${req.user._id}`);
+    console.log(`✅ Property created successfully | Owner: ${req.user._id}`);
 
     res.status(201).json({ 
       success: true, 
@@ -78,7 +81,8 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
       property: {
         _id: property._id,
         title: property.title,
-        status: property.status
+        status: property.status,
+        createdAt: property.createdAt,
       }
     });
 
@@ -88,7 +92,8 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
   }
 });
 
-// ====================== PUBLIC ROUTES ======================
+// ====================== YOUR OTHER ROUTES (UNTOUCHED) ======================
+
 router.get("/", async (req, res) => {
   try {
     const properties = await Property.find({ status: "approved" })
@@ -107,11 +112,9 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ====================== LANDLORD ROUTES ======================
 router.get("/my-properties/all", auth, async (req, res) => {
   try {
-    const properties = await Property.find({ owner: req.user._id })
-      .sort({ createdAt: -1 });
+    const properties = await Property.find({ owner: req.user._id }).sort({ createdAt: -1 });
     res.json(properties);
   } catch (error) {
     console.error("❌ Get my properties error:", error);
@@ -119,7 +122,6 @@ router.get("/my-properties/all", auth, async (req, res) => {
   }
 });
 
-// ====================== ADMIN ROUTES ======================
 router.get("/admin/pending", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -168,9 +170,8 @@ router.patch("/:id/book", auth, async (req, res) => {
     }
 
     const newBooked = (property.bookedUnits || 0) + change;
-    if (newBooked < 0 || newBooked > (property.totalUnits || 1)) {
-      return res.status(400).json({ error: "❌ Invalid booked units value" });
-    }
+    if (newBooked < 0) return res.status(400).json({ error: "❌ Cannot have negative booked units" });
+    if (newBooked > (property.totalUnits || 1)) return res.status(400).json({ error: "❌ Cannot book more than total units" });
 
     property.bookedUnits = newBooked;
     await property.save();
@@ -190,9 +191,7 @@ router.delete("/:id", auth, async (req, res) => {
       return res.status(403).json({ error: "❌ Unauthorized" });
     }
     
-    if (property.bookedUnits > 0) {
-      return res.status(400).json({ error: "❌ Cannot delete property with active bookings." });
-    }
+    if (property.bookedUnits > 0) return res.status(400).json({ error: "❌ Cannot delete property with active bookings." });
 
     await Property.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: "✅ Property deleted successfully" });
