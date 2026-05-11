@@ -29,14 +29,15 @@ const userSchema = new mongoose.Schema(
     // ✅ ROLE IDENTIFICATION
     role: {
       type: String,
-      enum: ["user", "mover", "admin"],
+      // ADDED "landlord" TO THE LIST BELOW
+      enum: ["user", "mover", "admin", "landlord"], 
       default: "user",
     },
 
     // ✅ MOVER SPECIFIC FIELDS
     isApproved: {
       type: Boolean,
-      default: false, // New movers must be approved by you
+      default: false, 
     },
     county: {
       type: String,
@@ -47,10 +48,10 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
     vehicleType: {
-      type: String, // e.g., "Pickup", "3-Ton Truck", "Closed Van"
+      type: String, 
     },
     services: {
-      type: [String], // Array of services like ["Packing", "Storage"]
+      type: [String], 
       default: [],
     },
     description: {
@@ -58,7 +59,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // ✅ EXISTING MONETIZATION FIELDS (PRESERVED)
+    // ✅ EXISTING MONETIZATION FIELDS
     walletBalance: {
       type: Number,
       default: 0,
