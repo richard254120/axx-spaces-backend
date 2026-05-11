@@ -3,50 +3,34 @@ import User from "../models/User.js";
 
 export const auth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = req.headers.authorization?.split(" ")[1];
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ 
-        error: "🔐 Access denied. No token provided." 
-      });
+    if (!token) {
+      return res.status(401).json({ error: "🔐 Access denied. No token provided." });
     }
 
-    const token = authHeader.split(" ")[1];
-
-    // Verify token
+    // 1. Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Fetch user (exclude sensitive fields)
-    const user = await User.findById(decoded.id || decoded._id)
-      .select("-password");
+    // ✅ FIX: Use decoded.userId (not decoded.id) because JWT is created with userId
+    const user = await User.findById(decoded.userId).select("-password");
 
     if (!user) {
-      return res.status(404).json({ 
-        error: "👤 User no longer exists. Please login again." 
-      });
+      return res.status(404).json({ error: "👤 User no longer exists." });
     }
 
-    // Attach user to request
+    // 3. Attach the full user object to the request
     req.user = user;
-
+    req.userId = decoded.userId;  // Also attach userId for compatibility
+    
     next();
   } catch (error) {
-    console.error("❌ Auth middleware error:", error.message);
-
+    console.error("❌ Auth error:", error.message);
+    
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ 
-        error: "🔐 Session expired. Please login again." 
-      });
+      return res.status(401).json({ error: "🔐 Session expired. Please login again." });
     }
-
-    if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({ 
-        error: "🔐 Invalid token." 
-      });
-    }
-
-    return res.status(401).json({ 
-      error: "🔐 Authentication failed." 
-    });
+    
+    return res.status(401).json({ error: "🔐 Invalid token." });
   }
 };

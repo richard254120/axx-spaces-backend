@@ -60,7 +60,7 @@ router.post("/register", async (req, res) => {
     // 6. Save to Database
     await newUser.save();
 
-    // 7. Generate JWT
+    // 7. Generate JWT with userId (IMPORTANT!)
     const token = jwt.sign(
       { userId: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
@@ -111,7 +111,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // Generate JWT
+    // Generate JWT with userId (IMPORTANT!)
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -143,22 +143,20 @@ router.post("/login", async (req, res) => {
  */
 router.get("/me", auth, async (req, res) => {
   try {
-    // req.userId comes from your auth middleware
-    const user = await User.findById(req.userId);
-    
-    if (!user) {
+    // req.user comes from auth middleware - it's the full user object
+    if (!req.user) {
       return res.status(404).json({ error: "User not found" });
     }
 
     res.json({
       user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isApproved: user.isApproved,
-        walletBalance: user.walletBalance
+        _id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        phone: req.user.phone,
+        role: req.user.role,
+        isApproved: req.user.isApproved,
+        walletBalance: req.user.walletBalance
       },
     });
 
