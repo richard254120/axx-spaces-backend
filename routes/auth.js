@@ -6,91 +6,174 @@ import { auth } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// ✅ POST /auth/register - Register new user (landlord or mover)
 router.post("/register", async (req, res) => {
   try {
-    const { 
-      name, email, password, phone, 
-      role, county, experience, vehicleType, services 
-    } = req.body;
+    const { name, email, password, phone, role, county, services, vehicleType, experience } = req.body;
 
-    console.log("📝 Registering:", { email, role });
-
-    // 1. Basic Validation
+    // ✅ Validate required fields
     if (!name || !email || !password || !phone) {
-      return res.status(400).json({ error: "❌ Basic fields are required" });
+      return res.status(400).json({ error: "Name, email, password, and phone are required" });
     }
 
-    // 2. Check Duplicates
-    const existingUser = await User.findOne({ $or: [{ email: email.toLowerCase() }, { phone }] });
+    // ✅ Check if user already exists
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: "❌ Email or Phone already exists" });
+      return res.status(400).json({ error: "Email already registered" });
     }
 
-    // 3. Hash Password
+    // ✅ Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Create User with ALL fields from your model
-    const user = new User({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
+    // ✅ Create user object
+    const newUser = new User({
+      name,
+      email,
       password: hashedPassword,
-      phone: phone.trim(),
-      role: role || "user",
-      // Mover-specific data logic
-      isApproved: role === "mover" ? false : true,
-      county: county || "",
-      experienceYears: experience || 0,
-      vehicleType: vehicleType || "Pickup",
-      services: services || [],
+      phone,
+      role: role || "landlord",
     });
 
-    await user.save();
-    console.log("✅ User Saved with Role:", user.role);
+    // ✅ Add mover-specific fields if registering as mover
+    if (role === "mover") {
+      newUser.county = county || "";
+      newUser.services = services || [];
+      newUser.vehicleType = vehicleType || "";
+      newUser.experienceYears = experience || 0;
+    }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    // ✅ Save user to database
+    await newUser.save();
 
-    res.status(201).json({
-      success: true,
+    // ✅ Generate JWT token
+    const token = jwt.sign(
+      { userId: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // ✅ Return token and user data
+    res.json({
       token,
       user: {
-        id: user._id,
-        name: user.name,
-        role: user.role,
-        isApproved: user.isApproved
-      }
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        county: newUser.county,
+        services: newUser.services,
+        vehicleType: newUser.vehicleType,
+        experienceYears: newUser.experienceYears,
+      },
     });
-  } catch (error) {
-    console.error("❌ Register error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+
+  } catch (err) {
+    console.error("❌ Registration error:", err);
+    res.status(500).json({ error: err.message || "Registration failed" });
   }
 });
 
-// LOGIN ROUTE
+// ✅ POST /auth/login - Login user
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    // Explicitly select password and role for validation
-    const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
-    
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: "❌ Invalid credentials" });
+
+    // ✅ Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    // ✅ Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
+    // ✅ Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // ✅ Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // ✅ Return token and user data
     res.json({
-      success: true,
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
+        email: user.email,
+        phone: user.phone,
         role: user.role,
-        isApproved: user.isApproved
-      }
+        county: user.county,
+        services: user.services,
+        vehicleType: user.vehicleType,
+        experienceYears: user.experienceYears,
+      },
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+
+  } catch (err) {
+    console.error("❌ Login error:", err);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+// ✅ GET /auth/me - Get current user (protected route)
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        county: user.county,
+        services: user.services,
+        vehicleType: user.vehicleType,
+        experienceYears: user.experienceYears,
+      },
+    });
+
+  } catch (err) {
+    console.error("❌ Get user error:", err);
+    res.status(500).json({ error: "Failed to get user" });
+  }
+});
+
+// ✅ POST /auth/forgot-password - Forgot password
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // TODO: Send reset email (implement nodemailer)
+    res.json({ message: "Password reset email sent" });
+
+  } catch (err) {
+    console.error("❌ Forgot password error:", err);
+    res.status(500).json({ error: "Failed to process request" });
   }
 });
 
