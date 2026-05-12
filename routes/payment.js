@@ -1,11 +1,76 @@
 import express from "express";
+import axios from "axios";
 import { auth } from "../middleware/auth.js";
 import User from "../models/User.js";
 import Property from "../models/Property.js";
 
 const router = express.Router();
 
-// ✅ Initiate Mpesa Payment
+// ====================== SANDBOX M-PESA CONFIG (FOR TESTING) ======================
+const MPESA_SHORTCODE = "174379";
+const MPESA_PASSKEY = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
+
+// Get M-Pesa Access Token
+const getAccessToken = async () => {
+  const authString = Buffer.from(
+    `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
+  ).toString("base64");
+
+  const response = await axios.get(
+    "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+    { headers: { Authorization: `Basic ${authString}` } }
+  );
+  return response.data.access_token;
+};
+
+// ====================== STK PUSH - FOR TESTING ======================
+router.post("/stkpush", auth, async (req, res) => {
+  try {
+    const { phone, amount, propertyId, plan } = req.body;
+
+    if (!phone || !amount) {
+      return res.status(400).json({ error: "❌ Phone and amount are required" });
+    }
+
+    const token = await getAccessToken();
+    const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+    const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString("base64");
+
+    const payload = {
+      BusinessShortCode: MPESA_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerBuyGoodsOnline",
+      Amount: Math.round(Number(amount)),
+      PartyA: phone.replace(/\s+/g, ""),
+      PartyB: MPESA_SHORTCODE,
+      PhoneNumber: phone.replace(/\s+/g, ""),
+      CallBackURL: "https://yourdomain.com/api/payment/callback",
+      AccountReference: `AX${propertyId || Date.now()}`,
+      TransactionDesc: plan || "Axx Spaces Test Payment",
+    };
+
+    const mpesaResponse = await axios.post(
+      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      payload,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    res.json({
+      success: true,
+      message: "✅ Test M-Pesa prompt sent! Use phone 254708374149 and PIN 123456",
+      checkoutRequestID: mpesaResponse.data.CheckoutRequestID
+    });
+
+  } catch (error) {
+    console.error("STK Push Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to send M-Pesa prompt" });
+  }
+});
+
+// ====================== YOUR ORIGINAL ROUTES ======================
+
+// Initiate Mpesa Payment
 router.post("/initiate-mpesa", auth, async (req, res) => {
   try {
     const { phone, amount, propertyId, plan } = req.body;
@@ -14,10 +79,6 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
 
     if (!phone || !amount) {
       return res.status(400).json({ error: "❌ Phone and amount required" });
-    }
-
-    if (amount < 100) {
-      return res.status(400).json({ error: "❌ Amount must be at least 100 KES" });
     }
 
     let formattedPhone = phone.toString().replace(/\D/g, "");
@@ -39,8 +100,6 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
       },
     });
 
-    console.log("✅ Transaction recorded:", transactionId);
-
     res.json({
       success: true,
       transactionId,
@@ -53,7 +112,7 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
   }
 });
 
-// ✅ Verify Mpesa Payment
+// Verify Mpesa Payment
 router.post("/verify-mpesa", auth, async (req, res) => {
   try {
     const { transactionId } = req.body;
@@ -85,21 +144,10 @@ router.post("/verify-mpesa", auth, async (req, res) => {
       if (property && property.owner.toString() === req.user.id) {
         property.isFeatured = true;
         property.promotionStartDate = new Date();
-
-        const durationDays =
-          payment.plan === "boost-7days"
-            ? 7
-            : payment.plan === "premium-30days"
-            ? 30
-            : 30;
-
-        property.promotionEndDate = new Date(
-          Date.now() + durationDays * 24 * 60 * 60 * 1000
-        );
+        const durationDays = payment.plan === "boost-7days" ? 7 : 30;
+        property.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
         property.promotionTier = payment.plan;
-
         await property.save();
-        console.log("✅ Property featured:", payment.propertyId);
       }
     }
 
@@ -116,7 +164,7 @@ router.post("/verify-mpesa", auth, async (req, res) => {
   }
 });
 
-// ✅ Get Wallet Balance
+// Get Wallet Balance
 router.get("/wallet", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -130,7 +178,7 @@ router.get("/wallet", auth, async (req, res) => {
   }
 });
 
-// ✅ Get Featured Properties (Public)
+// Get Featured Properties
 router.get("/featured", async (req, res) => {
   try {
     const featured = await Property.find({
@@ -153,7 +201,7 @@ router.get("/featured", async (req, res) => {
   }
 });
 
-// ✅ Cancel Payment
+// Cancel Payment
 router.post("/cancel/:transactionId", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
