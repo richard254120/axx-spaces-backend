@@ -2,6 +2,7 @@ import express from "express";
 import Property from "../models/Property.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
+import { sendNewPropertyNotification } from "../utils/mailer.js"; // ✅ ADDED
 
 const router = express.Router();
 
@@ -72,6 +73,8 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
     });
 
     await property.save();
+
+    sendNewPropertyNotification(property, req.user); // ✅ ADDED
 
     console.log(`✅ Property created successfully | Owner: ${req.user._id}`);
 
