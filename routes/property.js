@@ -1,15 +1,15 @@
 import express from "express";
 import Property from "../models/Property.js";
+import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
-import { sendNewPropertyNotification } from "../utils/mailer.js"; // ✅ ADDED
+import { sendNewPropertyNotification } from "../utils/mailer.js";
 
 const router = express.Router();
 
 // ====================== CREATE PROPERTY ======================
 router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res) => {
   try {
-    // ✅ Strong check for user (this fixes "user does no longer exist")
     if (!req.user || !req.user._id) {
       return res.status(401).json({ 
         error: "User does not exist or invalid token. Please login again." 
@@ -23,7 +23,6 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
       bookedUnits, initiallyBooked
     } = req.body;
 
-    // Validation
     if (!title || !description || !location || !price || !propertyType || !county) {
       return res.status(400).json({ error: "❌ Missing required fields" });
     }
@@ -32,7 +31,6 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
       return res.status(400).json({ error: "❌ Please upload at least one image" });
     }
 
-    // Parse amenities
     let parsedAmenities = [];
     try {
       parsedAmenities = amenities ? JSON.parse(amenities) : [];
@@ -55,7 +53,7 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
       bathrooms: parseInt(bathrooms),
       amenities: parsedAmenities,
       images: imageUrls,
-      owner: req.user._id,           // This line is critical
+      owner: req.user._id,
       totalUnits: parseInt(totalUnits) || 1,
       status: "pending",
       propertyType,
@@ -74,7 +72,14 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
 
     await property.save();
 
-    sendNewPropertyNotification(property, req.user); // ✅ ADDED
+    // ✅ Fetch full user from DB so we have name, email, phone
+    try {
+      const fullUser = await User.findById(req.user._id).select("name email phone");
+      console.log("📧 Sending email for property:", property.title, "| Owner:", fullUser?.email);
+      sendNewPropertyNotification(property, fullUser || req.user);
+    } catch (emailErr) {
+      console.error("❌ Email setup error:", emailErr.message);
+    }
 
     console.log(`✅ Property created successfully | Owner: ${req.user._id}`);
 
