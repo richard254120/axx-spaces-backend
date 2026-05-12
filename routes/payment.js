@@ -6,24 +6,31 @@ import Property from "../models/Property.js";
 
 const router = express.Router();
 
-// ====================== SANDBOX M-PESA CONFIG (FOR TESTING) ======================
-const MPESA_SHORTCODE = "174379";
-const MPESA_PASSKEY = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
+// ====================== M-PESA CONFIGURATION ======================
+const MPESA_SHORTCODE = process.env.MPESA_SHORTCODE || "174379";
+const MPESA_PASSKEY = process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
 
-// Get M-Pesa Access Token
+/**
+ * Generates the M-Pesa Access Token using Consumer Key and Secret
+ */
 const getAccessToken = async () => {
-  const authString = Buffer.from(
-    `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
-  ).toString("base64");
+  try {
+    const authString = Buffer.from(
+      `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
+    ).toString("base64");
 
-  const response = await axios.get(
-    "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-    { headers: { Authorization: `Basic ${authString}` } }
-  );
-  return response.data.access_token;
+    const response = await axios.get(
+      "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+      { headers: { Authorization: `Basic ${authString}` } }
+    );
+    return response.data.access_token;
+  } catch (error) {
+    console.error("Access Token Error:", error.response?.data || error.message);
+    throw new Error("Failed to authenticate with M-Pesa");
+  }
 };
 
-// ====================== STK PUSH - FOR TESTING ======================
+// ====================== NEW: STK PUSH (INITIATION) ======================
 router.post("/stkpush", auth, async (req, res) => {
   try {
     const { phone, amount, propertyId, plan } = req.body;
@@ -40,14 +47,14 @@ router.post("/stkpush", auth, async (req, res) => {
       BusinessShortCode: MPESA_SHORTCODE,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: "CustomerBuyGoodsOnline",
+      TransactionType: "CustomerPayBillOnline",
       Amount: Math.round(Number(amount)),
       PartyA: phone.replace(/\s+/g, ""),
       PartyB: MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
-      CallBackURL: "https://yourdomain.com/api/payment/callback",
-      AccountReference: `AX${propertyId || Date.now()}`,
-      TransactionDesc: plan || "Axx Spaces Test Payment",
+      CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`, 
+      AccountReference: `AX${propertyId || "Wallet"}`,
+      TransactionDesc: plan || "Axx Spaces Payment",
     };
 
     const mpesaResponse = await axios.post(
@@ -56,41 +63,11 @@ router.post("/stkpush", auth, async (req, res) => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    res.json({
-      success: true,
-      message: "✅ Test M-Pesa prompt sent! Use phone 254708374149 and PIN 123456",
-      checkoutRequestID: mpesaResponse.data.CheckoutRequestID
-    });
-
-  } catch (error) {
-    console.error("STK Push Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to send M-Pesa prompt" });
-  }
-});
-
-// ====================== YOUR ORIGINAL ROUTES ======================
-
-// Initiate Mpesa Payment
-router.post("/initiate-mpesa", auth, async (req, res) => {
-  try {
-    const { phone, amount, propertyId, plan } = req.body;
-
-    console.log("💳 Payment initiated:", { phone, amount, plan, propertyId });
-
-    if (!phone || !amount) {
-      return res.status(400).json({ error: "❌ Phone and amount required" });
-    }
-
-    let formattedPhone = phone.toString().replace(/\D/g, "");
-    if (formattedPhone.startsWith("0")) formattedPhone = formattedPhone.substring(1);
-    if (!formattedPhone.startsWith("254")) formattedPhone = "254" + formattedPhone;
-
-    const transactionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
+    // Save initial pending transaction to history
     await User.findByIdAndUpdate(req.user.id, {
       $push: {
         paymentHistory: {
-          transactionId,
+          transactionId: mpesaResponse.data.CheckoutRequestID,
           amount,
           plan,
           propertyId: propertyId || null,
@@ -102,69 +79,75 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
 
     res.json({
       success: true,
-      transactionId,
-      message: "💳 Payment initiated. Please enter your Mpesa PIN.",
-      phone: formattedPhone.slice(-9),
+      message: "✅ M-Pesa prompt sent! Enter PIN 123456 on your phone.",
+      checkoutRequestID: mpesaResponse.data.CheckoutRequestID
     });
-  } catch (err) {
-    console.error("❌ Payment error:", err);
-    res.status(500).json({ error: err.message || "Failed to initiate payment" });
+
+  } catch (error) {
+    console.error("STK Push Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to send M-Pesa prompt" });
   }
 });
 
-// Verify Mpesa Payment
-router.post("/verify-mpesa", auth, async (req, res) => {
+// ====================== NEW: CALLBACK ROUTE (DATABASE UPDATES) ======================
+router.post("/callback", async (req, res) => {
   try {
-    const { transactionId } = req.body;
+    const { Body } = req.body;
+    if (!Body.stkCallback) return res.status(400).send("Invalid Callback");
 
-    if (!transactionId) {
-      return res.status(400).json({ error: "❌ Transaction ID required" });
-    }
+    const { ResultCode, ResultDesc, CheckoutRequestID, CallbackMetadata } = Body.stkCallback;
 
-    const user = await User.findById(req.user.id);
-    const payment = user.paymentHistory.find((p) => p.transactionId === transactionId);
+    console.log(`📩 M-Pesa Callback: ${CheckoutRequestID} - ${ResultDesc}`);
 
-    if (!payment) {
-      return res.status(404).json({ error: "❌ Payment not found" });
-    }
+    if (ResultCode === 0) {
+      // Extract payment details from metadata
+      const amount = CallbackMetadata.Item.find(item => item.Name === 'Amount').Value;
+      const receipt = CallbackMetadata.Item.find(item => item.Name === 'MpesaReceiptNumber').Value;
 
-    if (payment.status === "success") {
-      return res.json({
-        success: true,
-        message: "✅ Payment already confirmed",
-        balance: user.walletBalance || 0,
-      });
-    }
+      // Find the user with the matching CheckoutRequestID
+      const user = await User.findOne({ "paymentHistory.transactionId": CheckoutRequestID });
 
-    payment.status = "success";
-    user.walletBalance = (user.walletBalance || 0) + payment.amount;
+      if (user) {
+        const payment = user.paymentHistory.find(p => p.transactionId === CheckoutRequestID);
+        
+        payment.status = "success";
+        payment.mpesaReceipt = receipt;
+        user.walletBalance = (user.walletBalance || 0) + amount;
 
-    if (payment.propertyId) {
-      const property = await Property.findById(payment.propertyId);
-      if (property && property.owner.toString() === req.user.id) {
-        property.isFeatured = true;
-        property.promotionStartDate = new Date();
-        const durationDays = payment.plan === "boost-7days" ? 7 : 30;
-        property.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
-        property.promotionTier = payment.plan;
-        await property.save();
+        // If payment was for a property boost, update the property
+        if (payment.propertyId) {
+          const property = await Property.findById(payment.propertyId);
+          if (property) {
+            property.isFeatured = true;
+            property.promotionStartDate = new Date();
+            const durationDays = payment.plan === "boost-7days" ? 7 : 30;
+            property.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+            property.promotionTier = payment.plan;
+            await property.save();
+          }
+        }
+        await user.save();
+        console.log("✅ Database updated: Payment Successful");
       }
+    } else {
+      // Mark as failed in DB
+      await User.updateOne(
+        { "paymentHistory.transactionId": CheckoutRequestID },
+        { $set: { "paymentHistory.$.status": "failed" } }
+      );
+      console.log("❌ Payment Failed/Cancelled by User");
     }
 
-    await user.save();
-
-    res.json({
-      success: true,
-      message: "✅ Payment confirmed! Your boost is now active.",
-      balance: user.walletBalance,
-    });
+    res.status(200).json("Success");
   } catch (err) {
-    console.error("❌ Verification error:", err);
-    res.status(500).json({ error: err.message || "Failed to verify payment" });
+    console.error("❌ Callback Processing Error:", err);
+    res.status(500).json("Error");
   }
 });
 
-// Get Wallet Balance
+// ====================== ORIGINAL ROUTES ======================
+
+// Get Wallet Balance & History
 router.get("/wallet", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -178,7 +161,7 @@ router.get("/wallet", auth, async (req, res) => {
   }
 });
 
-// Get Featured Properties
+// Get Featured Properties (Sorted by newest promotion)
 router.get("/featured", async (req, res) => {
   try {
     const featured = await Property.find({
@@ -201,7 +184,7 @@ router.get("/featured", async (req, res) => {
   }
 });
 
-// Cancel Payment
+// Cancel a Pending Payment Manually
 router.post("/cancel/:transactionId", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -209,21 +192,13 @@ router.post("/cancel/:transactionId", auth, async (req, res) => {
       (p) => p.transactionId === req.params.transactionId
     );
 
-    if (!payment) {
-      return res.status(404).json({ error: "❌ Payment not found" });
-    }
-
-    if (payment.status !== "pending") {
-      return res.status(400).json({ error: "❌ Can only cancel pending payments" });
-    }
+    if (!payment) return res.status(404).json({ error: "❌ Payment not found" });
+    if (payment.status !== "pending") return res.status(400).json({ error: "❌ Only pending payments can be cancelled" });
 
     payment.status = "cancelled";
     await user.save();
 
-    res.json({
-      success: true,
-      message: "✅ Payment cancelled",
-    });
+    res.json({ success: true, message: "✅ Payment marked as cancelled" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
