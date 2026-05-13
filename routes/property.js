@@ -3,7 +3,7 @@ import Property from "../models/Property.js";
 import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
-import { sendNewPropertyNotification } from "../utils/mailer.js";
+import { sendPropertyEmail } from "../server.js"; // ✅ Import from server.js
 
 const router = express.Router();
 
@@ -72,14 +72,9 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
 
     await property.save();
 
-    // ✅ Fetch full user from DB so we have name, email, phone
-    try {
-      const fullUser = await User.findById(req.user._id).select("name email phone");
-      console.log("📧 Sending email for property:", property.title, "| Owner:", fullUser?.email);
-      sendNewPropertyNotification(property, fullUser || req.user);
-    } catch (emailErr) {
-      console.error("❌ Email setup error:", emailErr.message);
-    }
+    // ✅ Fetch full user and send email
+    const fullUser = await User.findById(req.user._id).select("name email phone");
+    sendPropertyEmail(property, fullUser || req.user);
 
     console.log(`✅ Property created successfully | Owner: ${req.user._id}`);
 

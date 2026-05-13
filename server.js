@@ -2,11 +2,12 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import nodemailer from "nodemailer";
 
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
 import paymentRoutes from "./routes/payment.js";
-import moverRoutes from "./routes/moverRoutes.js"; // ← 1. Import Mover Routes
+import moverRoutes from "./routes/moverRoutes.js";
 
 dotenv.config();
 
@@ -18,6 +19,55 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 console.log("✅ Middleware configured");
 
+// ====================== MAILER SETUP ======================
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
+
+// ✅ Export so property.js can use it
+export const sendPropertyEmail = async (property, owner) => {
+  try {
+    await transporter.sendMail({
+      from: `"Axx Spaces" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER,
+      subject: `🏠 New Property Submitted — ${property.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #1f2937; padding: 20px; text-align: center;">
+            <h1 style="color: #fbbf24; margin: 0;">🏠 New Property Submitted</h1>
+          </div>
+          <div style="background: white; padding: 24px; border: 1px solid #e5e7eb;">
+            <table style="width: 100%; font-size: 14px;">
+              <tr><td style="color: #6b7280; padding: 8px 0;">Title</td><td style="font-weight:bold;">${property.title}</td></tr>
+              <tr><td style="color: #6b7280; padding: 8px 0;">County</td><td>${property.county}</td></tr>
+              <tr><td style="color: #6b7280; padding: 8px 0;">Location</td><td>${property.location || "N/A"}</td></tr>
+              <tr><td style="color: #6b7280; padding: 8px 0;">Type</td><td>${property.propertyType || "N/A"}</td></tr>
+              <tr><td style="color: #6b7280; padding: 8px 0;">Price</td><td style="color:#22c55e;font-weight:bold;">KSh ${Number(property.price).toLocaleString()} / month</td></tr>
+              <tr><td style="color: #6b7280; padding: 8px 0;">Landlord</td><td>${owner?.name || "N/A"}</td></tr>
+              <tr><td style="color: #6b7280; padding: 8px 0;">Email</td><td>${owner?.email || "N/A"}</td></tr>
+              <tr><td style="color: #6b7280; padding: 8px 0;">Phone</td><td>${owner?.phone || "N/A"}</td></tr>
+              <tr><td style="color: #6b7280; padding: 8px 0;">Submitted</td><td>${new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</td></tr>
+            </table>
+            <div style="margin-top: 24px; text-align: center;">
+              <a href="${process.env.FRONTEND_URL}/dashboard" style="background:#fbbf24;color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
+                ✅ Review &amp; Approve Property
+              </a>
+            </div>
+          </div>
+        </div>
+      `,
+    });
+    console.log(`✅ Email sent for property: ${property.title}`);
+  } catch (err) {
+    console.error("❌ Email failed:", err.message);
+  }
+};
+
+// ====================== DATABASE ======================
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => {
@@ -25,11 +75,11 @@ mongoose.connect(process.env.MONGO_URI)
     process.exit(1);
   });
 
-// Routes
+// ====================== ROUTES ======================
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertyRoutes);
-app.use("/api/payment", paymentRoutes);   
-app.use("/api/movers", moverRoutes);      // ← 2. Register Mover Routes
+app.use("/api/payment", paymentRoutes);
+app.use("/api/movers", moverRoutes);
 
 app.get("/api/health", (req, res) => res.json({ status: "OK" }));
 
@@ -44,5 +94,6 @@ app.listen(PORT, () => {
   console.log("🚀 AXX SPACES SERVER STARTED");
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
-  console.log("🚚 Mover Routes: Ready"); // Updated Log
+  console.log("🚚 Mover Routes: Ready");
+  console.log(`📧 Email User: ${process.env.EMAIL_USER}`);
 });
