@@ -20,20 +20,38 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 console.log("✅ Middleware configured");
 
 // ====================== MAILER SETUP ======================
+const ADMIN_EMAIL = "ogudarichard254@gmail.com";
+const EMAIL_PASS = "uzqbcuzrzhttzeyl";
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "ogudarichard254@gmail.com",
-    pass: "uzqbcuzrzhttzeyl",
+    user: ADMIN_EMAIL,
+    pass: EMAIL_PASS,
   },
+});
+
+// ✅ Test email route - open in browser to confirm Render can send emails
+app.get("/api/test-email", async (req, res) => {
+  try {
+    await transporter.sendMail({
+      from: ADMIN_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: "✅ Test from Render - Axx Spaces",
+      text: "If you see this, Render email is working!",
+    });
+    res.json({ success: true, message: "✅ Email sent! Check your Gmail inbox." });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // ✅ Export so property.js can use it
 export const sendPropertyEmail = async (property, owner) => {
   try {
     await transporter.sendMail({
-      from: `"Axx Spaces" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER,
+      from: `"Axx Spaces" <${ADMIN_EMAIL}>`,
+      to: ADMIN_EMAIL,
       subject: `🏠 New Property Submitted — ${property.title}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -53,7 +71,7 @@ export const sendPropertyEmail = async (property, owner) => {
               <tr><td style="color: #6b7280; padding: 8px 0;">Submitted</td><td>${new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</td></tr>
             </table>
             <div style="margin-top: 24px; text-align: center;">
-              <a href="${process.env.FRONTEND_URL}/dashboard" style="background:#fbbf24;color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
+              <a href="https://axx-spaces.vercel.app/dashboard" style="background:#fbbf24;color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
                 ✅ Review &amp; Approve Property
               </a>
             </div>
@@ -95,5 +113,5 @@ app.listen(PORT, () => {
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
   console.log("🚚 Mover Routes: Ready");
-  console.log(`📧 Email User: ${process.env.EMAIL_USER}`);
+  console.log(`📧 Email configured for: ${ADMIN_EMAIL}`);
 });
