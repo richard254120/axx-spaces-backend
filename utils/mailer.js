@@ -1,25 +1,24 @@
 import nodemailer from "nodemailer";
-import dotenv from "dotenv";
-dotenv.config();
 
-const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE, // "gmail"
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-});
-
-/**
- * Sends an email notification to the admin when a new property is submitted.
- * @param {Object} property - The saved property object
- * @param {Object} owner - The landlord user object (from req.user)
- */
 export const sendNewPropertyNotification = async (property, owner) => {
   try {
+    console.log("📧 EMAIL ENV CHECK:", {
+      service: process.env.EMAIL_SERVICE,
+      user: process.env.EMAIL_USER,
+      passLength: process.env.EMAIL_PASSWORD?.length,
+    });
+
+    const transporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
     await transporter.sendMail({
       from: `"Axx Spaces" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER, // notify yourself (admin)
+      to: process.env.EMAIL_USER,
       subject: `🏠 New Property Submitted — ${property.title}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 24px; border-radius: 10px;">
@@ -29,7 +28,6 @@ export const sendNewPropertyNotification = async (property, owner) => {
           </div>
 
           <div style="background: white; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb;">
-            
             <h2 style="color: #1f2937; font-size: 18px; margin: 0 0 16px;">Property Details</h2>
             
             <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -80,21 +78,21 @@ export const sendNewPropertyNotification = async (property, owner) => {
             <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
               <tr style="border-bottom: 1px solid #f3f4f6;">
                 <td style="padding: 10px 0; color: #6b7280; width: 140px;">Name</td>
-                <td style="padding: 10px 0; color: #1f2937; font-weight: bold;">${owner.name || "N/A"}</td>
+                <td style="padding: 10px 0; color: #1f2937; font-weight: bold;">${owner?.name || "N/A"}</td>
               </tr>
               <tr style="border-bottom: 1px solid #f3f4f6;">
                 <td style="padding: 10px 0; color: #6b7280;">Email</td>
-                <td style="padding: 10px 0; color: #1f2937;">${owner.email || "N/A"}</td>
+                <td style="padding: 10px 0; color: #1f2937;">${owner?.email || "N/A"}</td>
               </tr>
               <tr>
                 <td style="padding: 10px 0; color: #6b7280;">Phone</td>
-                <td style="padding: 10px 0; color: #1f2937;">${owner.phone || "N/A"}</td>
+                <td style="padding: 10px 0; color: #1f2937;">${owner?.phone || "N/A"}</td>
               </tr>
             </table>
 
             <div style="margin-top: 28px; text-align: center;">
               <a 
-                href="${process.env.FRONTEND_URL}/admin" 
+                href="${process.env.FRONTEND_URL}/dashboard" 
                 style="background: #fbbf24; color: #000; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;"
               >
                 ✅ Review &amp; Approve Property
@@ -110,9 +108,9 @@ export const sendNewPropertyNotification = async (property, owner) => {
       `,
     });
 
-    console.log(`📧 Admin notified about new property: ${property.title}`);
+    console.log(`✅ Email sent successfully for property: ${property.title}`);
   } catch (err) {
-    // Don't crash the request if email fails — just log it
     console.error("❌ Failed to send email notification:", err.message);
+    console.error("❌ Email error details:", err);
   }
 };
