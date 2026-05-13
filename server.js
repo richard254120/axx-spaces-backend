@@ -22,16 +22,23 @@ console.log("✅ Middleware configured");
 // ====================== RESEND EMAIL SETUP ======================
 const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
 
+// ✅ All 3 admin emails in one array
+const ADMIN_EMAILS = [
+  "ogudarichard254@gmail.com",
+  "lucyleemaish@gmail.com",
+  "kenfredmugo1@gmail.com",
+];
+
 // ✅ Test email route
 app.get("/api/test-email", async (req, res) => {
   try {
     await resend.emails.send({
       from: "onboarding@resend.dev",
-      to: "ogudarichard254@gmail.com",
+      to: ADMIN_EMAILS,
       subject: "✅ Test from Render - Axx Spaces",
       html: "<p>If you see this, <strong>Render email is working!</strong></p>",
     });
-    res.json({ success: true, message: "✅ Email sent! Check your Gmail inbox." });
+    res.json({ success: true, message: "✅ Email sent to all admins!" });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }
@@ -42,9 +49,7 @@ export const sendPropertyEmail = async (property, owner) => {
   try {
     await resend.emails.send({
       from: "onboarding@resend.dev",
-      to: "ogudarichard254@gmail.com",
-      to: "lucyleemaish@gmail.com",
-      to: "kenfredmugo1@gmail.com",
+      to: ADMIN_EMAILS,
       subject: `🏠 New Property Submitted — ${property.title}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -152,5 +157,5 @@ app.listen(PORT, () => {
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
   console.log("🚚 Mover Routes: Ready");
-  console.log("📧 Email: Resend configured");
+  console.log("📧 Email: Resend configured for 3 admins");
 });
