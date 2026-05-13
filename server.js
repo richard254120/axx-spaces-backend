@@ -43,6 +43,8 @@ export const sendPropertyEmail = async (property, owner) => {
     await resend.emails.send({
       from: "onboarding@resend.dev",
       to: "ogudarichard254@gmail.com",
+      to: "lucyleemaish@gmail.com",
+      to: "kenfredmugo1@gmail.com",
       subject: `🏠 New Property Submitted — ${property.title}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
