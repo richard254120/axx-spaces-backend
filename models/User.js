@@ -29,15 +29,14 @@ const userSchema = new mongoose.Schema(
     // ✅ ROLE IDENTIFICATION
     role: {
       type: String,
-      // ADDED "landlord" TO THE LIST BELOW
-      enum: ["user", "mover", "admin", "landlord"], 
+      enum: ["user", "mover", "admin", "landlord"],
       default: "user",
     },
 
     // ✅ MOVER SPECIFIC FIELDS
     isApproved: {
       type: Boolean,
-      default: false, 
+      default: false,
     },
     county: {
       type: String,
@@ -48,10 +47,10 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
     vehicleType: {
-      type: String, 
+      type: String,
     },
     services: {
-      type: [String], 
+      type: [String],
       default: [],
     },
     description: {
@@ -90,6 +89,14 @@ const userSchema = new mongoose.Schema(
         endDate: Date,
       },
     ],
+
+    // ✅ PASSWORD RESET FIELDS
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpiry: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
