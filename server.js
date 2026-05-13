@@ -22,23 +22,102 @@ console.log("✅ Middleware configured");
 // ====================== RESEND EMAIL SETUP ======================
 const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
 
-// ✅ All 3 admin emails in one array
 const ADMIN_EMAILS = [
   "ogudarichard254@gmail.com",
   "lucyleemaish@gmail.com",
   "kenfredmugo1@gmail.com",
 ];
 
+const getEmailHtml = (property, owner) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="background: #1f2937; padding: 20px; text-align: center;">
+      <h1 style="color: #fbbf24; margin: 0;">🏠 New Property Submitted</h1>
+      <p style="color: #94a3b8; margin: 6px 0 0;">Axx Spaces Admin Notification</p>
+    </div>
+    <div style="background: white; padding: 24px; border: 1px solid #e5e7eb;">
+      <h2 style="color: #1f2937; font-size: 16px;">Property Details</h2>
+      <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0; width: 130px;">Title</td>
+          <td style="font-weight:bold;">${property.title}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0;">County</td>
+          <td>${property.county}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0;">Location</td>
+          <td>${property.location || "N/A"}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0;">Type</td>
+          <td>${property.propertyType || "N/A"}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0;">Price</td>
+          <td style="color:#22c55e;font-weight:bold;">KSh ${Number(property.price).toLocaleString()} / month</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0;">Bedrooms</td>
+          <td>${property.bedrooms || "N/A"}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0;">Status</td>
+          <td><span style="background:#fef3c7;color:#d97706;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:bold;">⏳ PENDING</span></td>
+        </tr>
+        <tr>
+          <td style="color: #6b7280; padding: 8px 0;">Submitted</td>
+          <td>${new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</td>
+        </tr>
+      </table>
+
+      <h2 style="color: #1f2937; font-size: 16px; margin-top: 20px;">Landlord Details</h2>
+      <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0; width: 130px;">Name</td>
+          <td style="font-weight:bold;">${owner?.name || "N/A"}</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #f3f4f6;">
+          <td style="color: #6b7280; padding: 8px 0;">Email</td>
+          <td>${owner?.email || "N/A"}</td>
+        </tr>
+        <tr>
+          <td style="color: #6b7280; padding: 8px 0;">Phone</td>
+          <td>${owner?.phone || "N/A"}</td>
+        </tr>
+      </table>
+
+      <div style="margin-top: 28px; text-align: center;">
+        <a href="https://axx-spaces.vercel.app/dashboard" 
+          style="background:#fbbf24;color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+          ✅ Review &amp; Approve Property
+        </a>
+      </div>
+      <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:20px;">
+        Property ID: ${property._id}
+      </p>
+    </div>
+  </div>
+`;
+
 // ✅ Test email route
 app.get("/api/test-email", async (req, res) => {
   try {
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: ADMIN_EMAILS,
-      subject: "✅ Test from Render - Axx Spaces",
-      html: "<p>If you see this, <strong>Render email is working!</strong></p>",
-    });
-    res.json({ success: true, message: "✅ Email sent to all admins!" });
+    // ✅ Send one by one so unverified emails don't block others
+    for (const email of ADMIN_EMAILS) {
+      try {
+        await resend.emails.send({
+          from: "onboarding@resend.dev",
+          to: email,
+          subject: "✅ Test from Render - Axx Spaces",
+          html: "<p>If you see this, <strong>Render email is working!</strong></p>",
+        });
+        console.log(`✅ Test email sent to: ${email}`);
+      } catch (err) {
+        console.error(`❌ Failed to send to ${email}:`, err.message);
+      }
+    }
+    res.json({ success: true, message: "✅ Emails sent to all admins!" });
   } catch (err) {
     res.json({ success: false, error: err.message });
   }
@@ -46,86 +125,19 @@ app.get("/api/test-email", async (req, res) => {
 
 // ✅ Export so property.js can use it
 export const sendPropertyEmail = async (property, owner) => {
-  try {
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: ADMIN_EMAILS,
-      subject: `🏠 New Property Submitted — ${property.title}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #1f2937; padding: 20px; text-align: center;">
-            <h1 style="color: #fbbf24; margin: 0;">🏠 New Property Submitted</h1>
-            <p style="color: #94a3b8; margin: 6px 0 0;">Axx Spaces Admin Notification</p>
-          </div>
-          <div style="background: white; padding: 24px; border: 1px solid #e5e7eb;">
-            <h2 style="color: #1f2937; font-size: 16px;">Property Details</h2>
-            <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0; width: 130px;">Title</td>
-                <td style="font-weight:bold;">${property.title}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0;">County</td>
-                <td>${property.county}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0;">Location</td>
-                <td>${property.location || "N/A"}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0;">Type</td>
-                <td>${property.propertyType || "N/A"}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0;">Price</td>
-                <td style="color:#22c55e;font-weight:bold;">KSh ${Number(property.price).toLocaleString()} / month</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0;">Bedrooms</td>
-                <td>${property.bedrooms || "N/A"}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0;">Status</td>
-                <td><span style="background:#fef3c7;color:#d97706;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:bold;">⏳ PENDING</span></td>
-              </tr>
-              <tr>
-                <td style="color: #6b7280; padding: 8px 0;">Submitted</td>
-                <td>${new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</td>
-              </tr>
-            </table>
-
-            <h2 style="color: #1f2937; font-size: 16px; margin-top: 20px;">Landlord Details</h2>
-            <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0; width: 130px;">Name</td>
-                <td style="font-weight:bold;">${owner?.name || "N/A"}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="color: #6b7280; padding: 8px 0;">Email</td>
-                <td>${owner?.email || "N/A"}</td>
-              </tr>
-              <tr>
-                <td style="color: #6b7280; padding: 8px 0;">Phone</td>
-                <td>${owner?.phone || "N/A"}</td>
-              </tr>
-            </table>
-
-            <div style="margin-top: 28px; text-align: center;">
-              <a href="https://axx-spaces.vercel.app/dashboard" 
-                style="background:#fbbf24;color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
-                ✅ Review &amp; Approve Property
-              </a>
-            </div>
-            <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:20px;">
-              Property ID: ${property._id}
-            </p>
-          </div>
-        </div>
-      `,
-    });
-    console.log(`✅ Email sent via Resend for: ${property.title}`);
-  } catch (err) {
-    console.error("❌ Resend email failed:", err.message);
+  // ✅ Send one by one so unverified emails don't block others
+  for (const email of ADMIN_EMAILS) {
+    try {
+      await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: email,
+        subject: `🏠 New Property Submitted — ${property.title}`,
+        html: getEmailHtml(property, owner),
+      });
+      console.log(`✅ Email sent to: ${email}`);
+    } catch (err) {
+      console.error(`❌ Failed to send to ${email}:`, err.message);
+    }
   }
 };
 
