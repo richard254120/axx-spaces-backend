@@ -23,15 +23,18 @@ console.log("✅ Middleware configured");
 const ADMIN_EMAIL = "ogudarichard254@gmail.com";
 const EMAIL_PASS = "uzqbcuzrzhttzeyl";
 
+// ✅ Using port 465 with SSL instead of default SMTP (bypasses Render port blocking)
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // SSL
   auth: {
     user: ADMIN_EMAIL,
     pass: EMAIL_PASS,
   },
 });
 
-// ✅ Test email route - open in browser to confirm Render can send emails
+// ✅ Test email route
 app.get("/api/test-email", async (req, res) => {
   try {
     await transporter.sendMail({
