@@ -3,7 +3,7 @@ import Property from "../models/Property.js";
 import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
-import { sendPropertyEmail } from "../server.js";
+import { sendPropertyEmail } from "../utils/email.js";
 
 const router = express.Router();
 
