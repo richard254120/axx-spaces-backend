@@ -2,7 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import { Resend } from "resend";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";   // ← Added
 
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
@@ -13,141 +15,45 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({ origin: "*", credentials: true }));
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+// ====================== SECURITY MIDDLEWARE ======================
 
-console.log("✅ Middleware configured");
+// 1. Enhanced Helmet Configuration
+app.use(helmet({
+  contentSecurityPolicy: false, // We'll handle CSP on Vercel
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
-// ====================== RESEND EMAIL SETUP ======================
-const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
-
-const ADMIN_EMAILS = [
-  "ogudarichard254@gmail.com",
-  "lucyleemaish@gmail.com",
-  "kenfredmugo1@gmail.com",
-];
-
-const getEmailHtml = (property, owner) => `
-  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    <div style="background: #1f2937; padding: 20px; text-align: center;">
-      <h1 style="color: #fbbf24; margin: 0;">🏠 New Property Submitted</h1>
-      <p style="color: #94a3b8; margin: 6px 0 0;">Axx Spaces Admin Notification</p>
-    </div>
-    <div style="background: white; padding: 24px; border: 1px solid #e5e7eb;">
-      <h2 style="color: #1f2937; font-size: 16px;">Property Details</h2>
-      <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0; width: 130px;">Title</td>
-          <td style="font-weight:bold;">${property.title}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0;">County</td>
-          <td>${property.county}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0;">Location</td>
-          <td>${property.location || "N/A"}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0;">Type</td>
-          <td>${property.propertyType || "N/A"}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0;">Price</td>
-          <td style="color:#22c55e;font-weight:bold;">KSh ${Number(property.price).toLocaleString()} / month</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0;">Bedrooms</td>
-          <td>${property.bedrooms || "N/A"}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0;">Status</td>
-          <td><span style="background:#fef3c7;color:#d97706;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:bold;">⏳ PENDING</span></td>
-        </tr>
-        <tr>
-          <td style="color: #6b7280; padding: 8px 0;">Submitted</td>
-          <td>${new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</td>
-        </tr>
-      </table>
-
-      <h2 style="color: #1f2937; font-size: 16px; margin-top: 20px;">Landlord Details</h2>
-      <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0; width: 130px;">Name</td>
-          <td style="font-weight:bold;">${owner?.name || "N/A"}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="color: #6b7280; padding: 8px 0;">Email</td>
-          <td>${owner?.email || "N/A"}</td>
-        </tr>
-        <tr>
-          <td style="color: #6b7280; padding: 8px 0;">Phone</td>
-          <td>${owner?.phone || "N/A"}</td>
-        </tr>
-      </table>
-
-      <div style="margin-top: 28px; text-align: center;">
-        <a href="https://axx-spaces.vercel.app/dashboard" 
-          style="background:#fbbf24;color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
-          ✅ Review &amp; Approve Property
-        </a>
-      </div>
-      <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:20px;">
-        Property ID: ${property._id}
-      </p>
-    </div>
-  </div>
-`;
-
-// ✅ Test email route
-app.get("/api/test-email", async (req, res) => {
-  try {
-    // ✅ Send one by one so unverified emails don't block others
-    for (const email of ADMIN_EMAILS) {
-      try {
-        await resend.emails.send({
-          from: "onboarding@resend.dev",
-          to: email,
-          subject: "✅ Test from Render - Axx Spaces",
-          html: "<p>If you see this, <strong>Render email is working!</strong></p>",
-        });
-        console.log(`✅ Test email sent to: ${email}`);
-      } catch (err) {
-        console.error(`❌ Failed to send to ${email}:`, err.message);
-      }
-    }
-    res.json({ success: true, message: "✅ Emails sent to all admins!" });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
+// 2. Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: "Too many requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
+app.use(limiter);
 
-// ✅ Export so property.js can use it
-export const sendPropertyEmail = async (property, owner) => {
-  // ✅ Send one by one so unverified emails don't block others
-  for (const email of ADMIN_EMAILS) {
-    try {
-      await resend.emails.send({
-        from: "onboarding@resend.dev",
-        to: email,
-        subject: `🏠 New Property Submitted — ${property.title}`,
-        html: getEmailHtml(property, owner),
-      });
-      console.log(`✅ Email sent to: ${email}`);
-    } catch (err) {
-      console.error(`❌ Failed to send to ${email}:`, err.message);
-    }
-  }
-};
+// 3. Cookie Parser (Important for HttpOnly cookies)
+app.use(cookieParser());
 
-// ====================== DATABASE ======================
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch(err => {
-    console.error("❌ MongoDB error:", err);
-    process.exit(1);
-  });
+// 4. Improved CORS
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    process.env.FRONTEND_URL || "https://axx-spaces.vercel.app"
+  ],
+  credentials: true,                    // Allow cookies
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Set-Cookie"]
+}));
+
+// 5. Body Parsers
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+console.log("✅ Security middleware configured");
 
 // ====================== ROUTES ======================
 app.use("/api/auth", authRoutes);
@@ -162,12 +68,13 @@ app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
 });
 
+// ====================== START SERVER ======================
 const PORT = process.env.PORT || 1000;
 app.listen(PORT, () => {
   console.log("==================================");
   console.log("🚀 AXX SPACES SERVER STARTED");
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
-  console.log("🚚 Mover Routes: Ready");
-  console.log("📧 Email: Resend configured for 3 admins");
+  console.log("🔒 Security: Helmet + Rate Limit + Cookie Parser");
+  console.log("📧 Email: Resend configured");
 });
