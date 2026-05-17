@@ -65,11 +65,11 @@ const propertySchema = new mongoose.Schema(
       default: "pending",
     },
 
-    // ✅ NEW FIELDS FOR MONETIZATION (ADDED, NOT REMOVING ANYTHING)
+    // ✅ NEW FIELDS FOR MONETIZATION 
     isFeatured: {
       type: Boolean,
       default: false,
-      index: true, // Index for faster queries
+      index: true,
     },
     promotionEndDate: {
       type: Date,
@@ -92,6 +92,14 @@ const propertySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // ✅ REVIEWS - Added (No other changes made)
+    reviews: [{
+      name: { type: String, required: true },
+      rating: { type: Number, required: true, min: 1, max: 5 },
+      comment: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now }
+    }]
   },
   { timestamps: true }
 );

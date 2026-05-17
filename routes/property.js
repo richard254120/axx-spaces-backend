@@ -3,7 +3,7 @@ import Property from "../models/Property.js";
 import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
-import { sendPropertyEmail } from "../server.js"; // ✅ Import from server.js
+import { sendPropertyEmail } from "../server.js";
 
 const router = express.Router();
 
@@ -72,7 +72,6 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
 
     await property.save();
 
-    // ✅ Fetch full user and send email
     const fullUser = await User.findById(req.user._id).select("name email phone");
     sendPropertyEmail(property, fullUser || req.user);
 
@@ -92,6 +91,50 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
   } catch (error) {
     console.error("❌ Create property error:", error);
     res.status(500).json({ error: error.message || "Failed to create property" });
+  }
+});
+
+// ====================== REVIEWS ROUTES (NEW - ADDED) ======================
+
+// GET Reviews
+router.get("/:id/reviews", async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ error: "Property not found" });
+    res.json(property.reviews || []);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch reviews" });
+  }
+});
+
+// POST Review
+router.post("/:id/reviews", async (req, res) => {
+  try {
+    const { name, rating, comment } = req.body;
+
+    if (!name || !rating || !comment) {
+      return res.status(400).json({ error: "Name, rating and comment are required" });
+    }
+
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ error: "Property not found" });
+
+    property.reviews.push({
+      name: name.trim(),
+      rating: Number(rating),
+      comment: comment.trim()
+    });
+
+    await property.save();
+
+    res.status(201).json({ 
+      success: true, 
+      message: "✅ Review submitted successfully!" 
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to submit review" });
   }
 });
 
