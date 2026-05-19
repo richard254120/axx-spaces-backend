@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
     // ✅ ROLE IDENTIFICATION — added "seller"
     role: {
       type: String,
-      enum: ["user", "mover", "admin", "landlord", "seller"],
+      enum: ["user", "mover", "admin", "landlord", "seller", "seller"],
       default: "user",
     },
 
