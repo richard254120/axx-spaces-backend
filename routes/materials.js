@@ -11,22 +11,14 @@ router.post("/create", auth, upload.array("images", 8), async (req, res) => {
     if (req.user.role !== "seller" && req.user.role !== "admin") {
       return res.status(403).json({ error: "Only sellers can upload materials" });
     }
-
-    const {
-      title, description, category, subcategory,
-      price, quantity, condition, location, county, lat, lng,
-    } = req.body;
-
+    const { title, description, category, subcategory, price, quantity, condition, location, county, lat, lng } = req.body;
     if (!title || !description || !category || !price || !quantity) {
       return res.status(400).json({ error: "Missing required fields" });
     }
-
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "Please upload at least one image" });
     }
-
     const imageUrls = req.files.map((file) => file.path);
-
     const material = new Material({
       title, description, category, subcategory,
       price: parseFloat(price),
@@ -38,17 +30,11 @@ router.post("/create", auth, upload.array("images", 8), async (req, res) => {
       seller: req.user._id,
       sellerName: req.user.name,
       sellerPhone: req.user.phone,
-      status: "pending", // ✅ pending approval by default
+      status: "pending",
       isVerified: false,
     });
-
     await material.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Material submitted! It will be visible after admin approval.",
-      material,
-    });
+    res.status(201).json({ success: true, message: "Material submitted! It will be visible after admin approval.", material });
   } catch (error) {
     console.error("Create material error:", error);
     res.status(500).json({ error: error.message || "Failed to create material" });
@@ -59,20 +45,15 @@ router.post("/create", auth, upload.array("images", 8), async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const { category, condition, minPrice, maxPrice, county, search } = req.query;
-
-    // ✅ Only show approved materials to the public
     let filter = { status: "active", isVerified: true };
-
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
     if (county) filter.county = county;
-
     if (minPrice || maxPrice) {
       filter.price = {};
       if (minPrice) filter.price.$gte = parseFloat(minPrice);
       if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
     }
-
     if (search) {
       filter.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -80,15 +61,39 @@ router.get("/", async (req, res) => {
         { location: { $regex: search, $options: "i" } },
       ];
     }
-
     const materials = await Material.find(filter)
       .populate("seller", "name phone isApproved")
       .sort({ createdAt: -1 })
       .limit(50);
-
     res.json(materials);
   } catch (error) {
-    console.error("Get materials error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ ✅ SPECIFIC ROUTES BEFORE /:id ============
+
+// GET SELLER'S OWN MATERIALS (all statuses)
+router.get("/seller/my-materials", auth, async (req, res) => {
+  try {
+    const materials = await Material.find({ seller: req.user._id }).sort({ createdAt: -1 });
+    res.json(materials);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ADMIN — GET ALL PENDING MATERIALS
+router.get("/admin/pending", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const materials = await Material.find({ status: "pending" })
+      .populate("seller", "name email phone")
+      .sort({ createdAt: -1 });
+    res.json(materials);
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -101,34 +106,8 @@ router.get("/:id", async (req, res) => {
       { $inc: { views: 1 } },
       { new: true }
     ).populate("seller", "name phone isApproved");
-
     if (!material) return res.status(404).json({ error: "Material not found" });
     res.json(material);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ GET SELLER'S OWN MATERIALS (all statuses) ============
-router.get("/seller/my-materials", auth, async (req, res) => {
-  try {
-    const materials = await Material.find({ seller: req.user._id }).sort({ createdAt: -1 });
-    res.json(materials);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ ADMIN — GET ALL PENDING MATERIALS ============
-router.get("/admin/pending", auth, async (req, res) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "Admin only" });
-    }
-    const materials = await Material.find({ status: "pending" })
-      .populate("seller", "name email phone")
-      .sort({ createdAt: -1 });
-    res.json(materials);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
