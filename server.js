@@ -10,6 +10,9 @@ import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
 import paymentRoutes from "./routes/payment.js";
 import moverRoutes from "./routes/moverRoutes.js";
+import materialRoutes from "./routes/materials.js";
+import verificationRoutes from "./routes/verification.js";
+
 
 dotenv.config();
 
@@ -60,6 +63,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/movers", moverRoutes);
+app.use("/api/materials", materialRoutes);
+app.use("/api/verification", verificationRoutes);
 
 app.get("/api/health", (req, res) => res.json({ status: "OK" }));
 
