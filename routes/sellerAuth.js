@@ -29,7 +29,7 @@ router.post("/register", async (req, res) => {
       phone,
       county: county || "",
       role: "seller",
-      isApproved: false, // requires admin approval
+      isApproved: false,
     });
 
     await seller.save();
