@@ -1,0 +1,91 @@
+import express from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+const router = express.Router();
+
+// ============ SELLER REGISTER ============
+router.post("/register", async (req, res) => {
+  try {
+    const { name, email, password, phone, county } = req.body;
+
+    if (!name || !email || !password || !phone) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) return res.status(400).json({ error: "Email already registered" });
+
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) return res.status(400).json({ error: "Phone already registered" });
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const seller = new User({
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      county: county || "",
+      role: "seller",
+      isApproved: false, // requires admin approval
+    });
+
+    await seller.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Seller account created! You can now login and upload materials. They will be visible after admin approval.",
+    });
+  } catch (error) {
+    console.error("Seller register error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ SELLER LOGIN ============
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const seller = await User.findOne({ email, role: "seller" }).select("+password");
+    if (!seller) {
+      return res.status(401).json({ error: "No seller account found with this email" });
+    }
+
+    const isMatch = await bcrypt.compare(password, seller.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Incorrect password" });
+    }
+
+    const token = jwt.sign(
+      { userId: seller._id, role: seller.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        _id: seller._id,
+        name: seller.name,
+        email: seller.email,
+        phone: seller.phone,
+        role: seller.role,
+        isApproved: seller.isApproved,
+        county: seller.county,
+      },
+    });
+  } catch (error) {
+    console.error("Seller login error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;
