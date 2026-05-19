@@ -5,7 +5,7 @@ import upload from "../config/multer.js";
 
 const router = express.Router();
 
-// ============ CREATE MATERIAL (Sell) — sellers only ============
+// ============ CREATE MATERIAL ============
 router.post("/create", auth, upload.array("images", 8), async (req, res) => {
   try {
     if (req.user.role !== "seller" && req.user.role !== "admin") {
@@ -34,18 +34,18 @@ router.post("/create", auth, upload.array("images", 8), async (req, res) => {
       isVerified: false,
     });
     await material.save();
-    res.status(201).json({ success: true, message: "Material submitted! It will be visible after admin approval.", material });
+    res.status(201).json({ success: true, message: "Material submitted!", material });
   } catch (error) {
-    console.error("Create material error:", error);
-    res.status(500).json({ error: error.message || "Failed to create material" });
+    res.status(500).json({ error: error.message });
   }
 });
 
-// ============ GET ALL APPROVED MATERIALS (public browse) ============
+// ============ GET ALL APPROVED MATERIALS (Public Browse) ============
 router.get("/", async (req, res) => {
   try {
     const { category, condition, minPrice, maxPrice, county, search } = req.query;
     let filter = { status: "active", isVerified: true };
+    
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
     if (county) filter.county = county;
@@ -71,43 +71,21 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ============ ✅ SPECIFIC ROUTES BEFORE /:id ============
-
-// GET SELLER'S OWN MATERIALS (all statuses)
+// ============ GET SELLER'S OWN MATERIALS (With dynamic alignment) ============
 router.get("/seller/my-materials", auth, async (req, res) => {
   try {
-    const materials = await Material.find({ seller: req.user._id }).sort({ createdAt: -1 });
-    res.json(materials);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    const rawMaterials = await Material.find({ seller: req.user._id }).sort({ createdAt: -1 });
+    
+    // Safety check: Fix data anomalies on the fly before sending to UI
+    const materials = rawMaterials.map((m) => {
+      let item = m.toObject();
+      if (item.isVerified === true && item.status === "pending") {
+        item.status = "active";
+      }
+      return item;
+    });
 
-// ADMIN — GET ALL PENDING MATERIALS
-router.get("/admin/pending", auth, async (req, res) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "Admin only" });
-    }
-    const materials = await Material.find({ status: "pending" })
-      .populate("seller", "name email phone")
-      .sort({ createdAt: -1 });
     res.json(materials);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ GET SINGLE MATERIAL ============
-router.get("/:id", async (req, res) => {
-  try {
-    const material = await Material.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { views: 1 } },
-      { new: true }
-    ).populate("seller", "name phone isApproved");
-    if (!material) return res.status(404).json({ error: "Material not found" });
-    res.json(material);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -121,11 +99,11 @@ router.patch("/:id/approve", auth, async (req, res) => {
     }
     const material = await Material.findByIdAndUpdate(
       req.params.id,
-      { status: "active", isVerified: true },
+      { status: "active", isVerified: true }, // Updates both properties concurrently
       { new: true }
     );
     if (!material) return res.status(404).json({ error: "Material not found" });
-    res.json({ success: true, message: "Material approved and now visible", material });
+    res.json({ success: true, message: "Material approved!", material });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -142,30 +120,22 @@ router.patch("/:id/reject", auth, async (req, res) => {
       { status: "archived", isVerified: false },
       { new: true }
     );
-    if (!material) return res.status(404).json({ error: "Material not found" });
-    res.json({ success: true, message: "Material rejected", material });
+    res.json({ success: true, material });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ============ UPDATE MATERIAL ============
-router.patch("/:id", auth, async (req, res) => {
+// ============ MARK AS SOLD ============
+router.patch("/:id/sold", auth, async (req, res) => {
   try {
     const material = await Material.findById(req.params.id);
-    if (!material) return res.status(404).json({ error: "Material not found" });
-    if (material.seller.toString() !== req.user._id.toString()) {
+    if (!material || material.seller.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "Unauthorized" });
     }
-    const { title, description, price, quantity, condition, status } = req.body;
-    if (title) material.title = title;
-    if (description) material.description = description;
-    if (price) material.price = parseFloat(price);
-    if (quantity) material.quantity = parseInt(quantity);
-    if (condition) material.condition = condition;
-    if (status) material.status = status;
+    material.status = "sold";
     await material.save();
-    res.json({ success: true, message: "Material updated", material });
+    res.json({ success: true, material });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -180,36 +150,7 @@ router.delete("/:id", auth, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
     await Material.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "Material deleted" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ MARK AS SOLD ============
-router.patch("/:id/sold", auth, async (req, res) => {
-  try {
-    const material = await Material.findById(req.params.id);
-    if (!material) return res.status(404).json({ error: "Material not found" });
-    if (material.seller.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-    material.status = "sold";
-    await material.save();
-    res.json({ success: true, message: "Material marked as sold", material });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============ SEND INQUIRY ============
-router.post("/:id/inquiry", auth, async (req, res) => {
-  try {
-    const material = await Material.findById(req.params.id);
-    if (!material) return res.status(404).json({ error: "Material not found" });
-    material.inquiries = (material.inquiries || 0) + 1;
-    await material.save();
-    res.json({ success: true, message: "Inquiry sent!", sellerPhone: material.sellerPhone });
+    res.json({ success: true, message: "Deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

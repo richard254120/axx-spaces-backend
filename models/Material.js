@@ -74,7 +74,7 @@ const materialSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["active", "sold", "archived", "pending"],
-      default: "active",
+      default: "pending", // Fixed: Default to pending until approved
     },
     isVerified: {
       type: Boolean,
@@ -94,26 +94,13 @@ const materialSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-
-    // TIMESTAMPS
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
-    updatedAt: {
-      type: Date,
-      default: Date.now,
-    },
   },
   { timestamps: true }
 );
 
-// Index for faster queries
 materialSchema.index({ category: 1, county: 1, status: 1 });
 materialSchema.index({ seller: 1 });
 materialSchema.index({ createdAt: -1 });
 
-const Material =
-  mongoose.models.Material || mongoose.model("Material", materialSchema);
-
+const Material = mongoose.models.Material || mongoose.model("Material", materialSchema);
 export default Material;
