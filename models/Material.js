@@ -73,7 +73,7 @@ const materialSchema = new mongoose.Schema(
     // STATUS
     status: {
       type: String,
-      enum: ["active", "sold", "archived"],
+      enum: ["active", "sold", "archived", "pending"],
       default: "active",
     },
     isVerified: {
