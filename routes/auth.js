@@ -83,6 +83,13 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
+    // 🔒 MOVER APPROVAL GATEKEEPER
+    if (user.role === "mover" && !user.isApproved) {
+      return res.status(403).json({ 
+        error: "⏳ Your account is pending admin approval. You will be able to log in once approved." 
+      });
+    }
+
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
