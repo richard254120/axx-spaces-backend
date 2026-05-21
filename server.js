@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
-
+import jobRoutes from "./routes/jobs.js";
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
 import paymentRoutes from "./routes/payment.js";
@@ -64,7 +64,7 @@ app.use("/api/movers", moverRoutes);
 app.use("/api/materials", materialRoutes);
 app.use("/api/verification", verificationRoutes);
 app.use("/api/seller-auth", sellerAuthRoutes);
-
+app.use("/api/jobs", jobRoutes);
 app.get("/api/health", (req, res) => res.json({ status: "OK", timestamp: new Date() }));
 
 // ====================== 404 HANDLER ======================
