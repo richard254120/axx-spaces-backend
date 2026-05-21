@@ -28,7 +28,10 @@ export const getAllMovers = async (req, res) => {
     const { county } = req.query;
     const query = { role: "mover", isApproved: true };
     
-    if (county) query.county = county;
+    // Dynamically skips county filtering if "all" or an empty choice is selected
+    if (county && county !== "all" && county !== "") {
+      query.county = county;
+    }
 
     const movers = await User.find(query).select("-password");
     res.json(movers);
