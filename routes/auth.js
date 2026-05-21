@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
-import { auth } from "../middleware/auth.js";
+import { protect as auth } from "../middleware/auth.js"; // Linked named import to local alias
 import { Resend } from "resend";
 
 const router = express.Router();
