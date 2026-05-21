@@ -1,13 +1,14 @@
 import express from "express";
-import { createJob, getMoverJobs } from "../controllers/jobController.js";
-import { verifyToken } from "../middleware/authMiddleware.js"; // Replace with your actual auth middleware path
+import { createJob, getMoverJobs, acceptJob } from "../controllers/jobController.js";
+import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// @route   POST /api/jobs -> Triggered when a customer submits the booking modal
-router.post("/", verifyToken, createJob);
+// OPEN ROUTE: Anyone can book without registering or passing a token
+router.post("/", createJob);
 
-// @route   GET /api/jobs/mover -> Triggered on the mover dashboard to fetch their jobs
+// PROTECTED ROUTES: Only the logged-in mover can view/interact with their jobs dashboard
 router.get("/mover", verifyToken, getMoverJobs);
+router.put("/:id/accept", verifyToken, acceptJob);
 
 export default router;
