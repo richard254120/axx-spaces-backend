@@ -1,16 +1,24 @@
 import express from "express";
-import { createJob, getMoverJobs } from "../controllers/jobController.js";
-import { auth } from "../middleware/auth.js"; // Corrected path and export name
+import {
+  createJob,
+  getMoverJobs,
+  acceptJob,
+  completeJob,
+} from "../controllers/jobController.js";
+import { auth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// @route   POST /api/jobs
-// Note: If you want customers to be able to post jobs WITHOUT being logged in, 
-// remove the 'auth' middleware from this line.
-router.post("/", createJob); 
+// POST /api/jobs — customer submits a booking (auth optional; works logged-in or as guest)
+router.post("/", createJob);
 
-// @route   GET /api/jobs/mover
-// Updated to use the correct 'auth' function imported from middleware
+// GET /api/jobs/mover — mover fetches their job list
 router.get("/mover", auth, getMoverJobs);
+
+// PUT /api/jobs/:id/accept — mover accepts a pending job
+router.put("/:id/accept", auth, acceptJob);
+
+// PATCH /api/jobs/:id/complete — mover closes a job
+router.patch("/:id/complete", auth, completeJob);
 
 export default router;
