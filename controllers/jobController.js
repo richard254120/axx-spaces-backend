@@ -1,48 +1,55 @@
 import Job from "../models/Job.js";
+import mongoose from "mongoose";
 
-// @desc    Create a new job booking
+// @desc    Create a new job booking (no login required)
 // @route   POST /api/jobs
 export const createJob = async (req, res) => {
   try {
     const {
       moverId,
       moverName,
+      customerName,
+      customerPhone,
       serviceType,
       pickupLocation,
       dropoffLocation,
       scheduledDate,
       notes,
-      customerPhone,
-      customerName,
       county,
     } = req.body;
 
-    // Basic validation
-    if (!moverId || !serviceType || !pickupLocation || !dropoffLocation || !scheduledDate || !customerPhone) {
-      return res.status(400).json({ message: "Please provide all required fields." });
+    // Validate required fields
+    if (!moverId || !customerName || !customerPhone || !serviceType ||
+        !pickupLocation || !dropoffLocation || !scheduledDate) {
+      return res.status(400).json({
+        message: "Please provide all required fields: name, phone, service, pickup, dropoff, and date.",
+      });
     }
 
-    // customer field is required in schema — use logged-in user id if available,
-    // otherwise fall back to the mover id so the document saves cleanly.
-    const customerId = req.user?.id || moverId;
+    // Validate moverId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(moverId)) {
+      return res.status(400).json({ message: "Invalid mover ID." });
+    }
 
     const job = await Job.create({
-      customer: customerId,
-      customerName: customerName || "Guest",
+      // If a logged-in user submitted, use their ID; otherwise use moverId as a placeholder
+      // so the required schema field is satisfied
+      customer: req.user?.id || moverId,
+      customerName,
       customerPhone,
       mover: moverId,
-      moverName,
+      moverName: moverName || "",
       serviceType,
       pickupLocation,
       dropoffLocation,
       scheduledDate,
       notes: notes || "",
       county: county || "",
-      amount: 0,       // price agreed offline / set by admin later
+      amount: 0,       // price is agreed offline; can be updated by admin or mover later
       status: "pending",
     });
 
-    res.status(201).json({ message: "Booking sent successfully.", job });
+    res.status(201).json({ message: "Booking request sent successfully.", job });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -59,7 +66,7 @@ export const getMoverJobs = async (req, res) => {
   }
 };
 
-// @desc    Mover accepts a pending job (unlocks customer phone)
+// @desc    Mover accepts a pending job (unlocks customer phone on dashboard)
 // @route   PUT /api/jobs/:id/accept
 export const acceptJob = async (req, res) => {
   try {
