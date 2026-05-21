@@ -71,16 +71,10 @@ export const getApprovedMaterials = async (req, res) => {
 // ============ GET SELLER'S OWN MATERIALS ============
 export const getMyMaterials = async (req, res) => {
   try {
-    const rawMaterials = await Material.find({ seller: req.user._id }).sort({ createdAt: -1 });
+    // ✅ Fetches all items belonging to the seller exactly as they exist in MongoDB
+    const materials = await Material.find({ seller: req.user._id }).sort({ createdAt: -1 });
     
-    const materials = rawMaterials.map((m) => {
-      let item = m.toObject();
-      if (item.isVerified === true && item.status === "pending") {
-        item.status = "approved";
-      }
-      return item;
-    });
-
+    // Send the database rows directly to the dashboard with no interference
     res.json(materials);
   } catch (error) {
     res.status(500).json({ error: error.message });
