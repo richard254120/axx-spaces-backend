@@ -14,16 +14,17 @@ export const createJob = async (req, res) => {
       dropoffLocation, 
       scheduledDate, 
       notes, 
-      county 
+      county,
+      amount // Included layout calculation parameter
     } = req.body;
 
-    if (!moverId || !customerName || !customerPhone || !serviceType || !pickupLocation || !dropoffLocation || !scheduledDate) {
+    if (!customerName || !customerPhone || !serviceType || !pickupLocation || !dropoffLocation || !scheduledDate) {
       return res.status(400).json({ message: "Missing required booking specifications." });
     }
     
     const newJob = new Job({
-      moverId,
-      moverName,
+      moverId: moverId || null, // Can be null if it's a general pool post
+      moverName: moverName || "Unassigned",
       customerName,
       customerPhone,
       serviceType,
@@ -32,7 +33,8 @@ export const createJob = async (req, res) => {
       scheduledDate,
       notes,
       county,
-      status: "pending" // Job starts as pending
+      amount: amount || 0, // Fallback if pricing calculation isn't processed yet
+      status: "pending" 
     });
 
     await newJob.save();
@@ -42,11 +44,18 @@ export const createJob = async (req, res) => {
   }
 };
 
-// @desc    Get all jobs assigned to the logged-in mover
+// @desc    Get all jobs assigned to the logged-in mover OR open marketplace requests
 // @route   GET /api/jobs/mover
 export const getMoverJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ moverId: req.user.id }).sort({ createdAt: -1 });
+    // Crucial Update: Fetches jobs explicitly assigned to this mover OR system pool pending requests
+    const jobs = await Job.find({
+      $or: [
+        { moverId: req.user.id },
+        { status: "pending" }
+      ]
+    }).sort({ createdAt: -1 });
+    
     res.json(jobs);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -59,16 +68,31 @@ export const acceptJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: "Job not found" });
+    if (job.status !== "pending") return res.status(400).json({ message: "Job has already been claimed." });
 
-    // Security check: Ensure this job belongs to the mover logged in
-    if (job.moverId.toString() !== req.user.id) {
-      return res.status(401).json({ message: "Unauthorized action on this profile line." });
-    }
-
+    // Assign the logged-in mover as the official handler
+    job.moverId = req.user.id;
     job.status = "accepted";
     await job.save();
 
     res.json({ message: "Job request accepted successfully!", job });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Complete an active job assignment
+// @route   PATCH /api/jobs/:id/complete
+export const completeJob = async (req, res) => {
+  try {
+    // Security check: Find the job and ensure it explicitly belongs to the active mover
+    const job = await Job.findOne({ _id: req.params.id, moverId: req.user.id });
+    if (!job) return res.status(404).json({ message: "Active job layout assignment not found." });
+
+    job.status = "completed";
+    await job.save();
+
+    res.json({ message: "Job marked as completed successfully!", job });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
