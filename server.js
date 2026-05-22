@@ -5,7 +5,11 @@ import mongoose from "mongoose";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
-import jobRoutes from "./routes/jobs.js";
+
+// Security Middleware
+import security from "./middleware/security.js";
+
+// Routes
 import authRoutes from "./routes/auth.js";
 import propertyRoutes from "./routes/property.js";
 import paymentRoutes from "./routes/payment.js";
@@ -13,39 +17,16 @@ import moverRoutes from "./routes/moverRoutes.js";
 import materialRoutes from "./routes/materials.js";
 import verificationRoutes from "./routes/verification.js";
 import sellerAuthRoutes from "./routes/sellerAuth.js";
+import jobRoutes from "./routes/jobs.js";
 
 dotenv.config();
 
 const app = express();
 
 // ====================== SECURITY MIDDLEWARE ======================
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-}));
+security.applyTo(app);
 
-app.use(rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { error: "Too many requests from this IP, please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
-}));
-
-app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    process.env.FRONTEND_URL || "https://axx-spaces.vercel.app",
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  exposedHeaders: ["Set-Cookie"],
-}));
-
-app.use(cookieParser());
+// ====================== BODY PARSERS ======================
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
@@ -54,18 +35,24 @@ console.log("✅ Security middleware configured");
 // ====================== MONGODB CONNECTION ======================
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err.message));
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1);
+  });
 
 // ====================== ROUTES ======================
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", security.authLimiter, authRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/movers", moverRoutes);
 app.use("/api/materials", materialRoutes);
 app.use("/api/verification", verificationRoutes);
-app.use("/api/seller-auth", sellerAuthRoutes);
+app.use("/api/seller-auth", security.authLimiter, sellerAuthRoutes);
 app.use("/api/jobs", jobRoutes);
-app.get("/api/health", (req, res) => res.json({ status: "OK", timestamp: new Date() }));
+
+app.get("/api/health", (req, res) => 
+  res.json({ status: "OK", timestamp: new Date().toISOString() })
+);
 
 // ====================== 404 HANDLER ======================
 app.use((req, res) => {
@@ -79,5 +66,5 @@ app.listen(PORT, () => {
   console.log("🚀 AXX SPACES SERVER STARTED");
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
-  console.log("🔒 Security: Helmet + Rate Limit + HttpOnly Cookies");
+  console.log("🔒 Security: Active (Helmet + Rate Limiting + Sanitization)");
 });
