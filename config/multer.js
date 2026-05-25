@@ -2,6 +2,7 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import dotenv from "dotenv";
+import { validateFileType, validateFileSize, sanitizeFilename } from "../middleware/fileUploadSecurity.js";
 
 dotenv.config();
 
@@ -30,14 +31,31 @@ const storage = new CloudinaryStorage({
 
 console.log("✅ CloudinaryStorage configured");
 
-// ============ FILE FILTER ============
+// ============ ENHANCED FILE FILTER ============
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
+  try {
+    // Use enhanced file type validation
+    const typeValidation = validateFileType(file, 'images');
+    if (!typeValidation.isValid) {
+      console.error("❌ File rejected:", file.originalname, typeValidation.error);
+      return cb(new Error(typeValidation.error), false);
+    }
+
+    // Use enhanced file size validation
+    const sizeValidation = validateFileSize(file, 'images');
+    if (!sizeValidation.isValid) {
+      console.error("❌ File rejected:", file.originalname, sizeValidation.error);
+      return cb(new Error(sizeValidation.error), false);
+    }
+
+    // Sanitize filename
+    file.originalname = sanitizeFilename(file.originalname);
+
     console.log("✅ Image file accepted:", file.originalname);
     cb(null, true);
-  } else {
-    console.error("❌ Non-image file rejected:", file.originalname);
-    cb(new Error("❌ Only image files are allowed"), false);
+  } catch (error) {
+    console.error("❌ File filter error:", error);
+    cb(new Error("File validation failed"), false);
   }
 };
 

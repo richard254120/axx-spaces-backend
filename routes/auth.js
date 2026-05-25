@@ -3,7 +3,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
-import { protect as auth } from "../middleware/auth.js";
+import { protect as auth } from "../middleware/enhancedAuth.js";
+import { passwordValidationMiddleware } from "../middleware/passwordValidator.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
 
@@ -11,7 +12,7 @@ const router = express.Router();
 const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
 
 // ====================== REGISTER ======================
-router.post("/register", async (req, res) => {
+router.post("/register", passwordValidationMiddleware, async (req, res) => {
   try {
     const {
       name, email, password, phone, role,
@@ -186,7 +187,7 @@ router.post("/forgot-password", async (req, res) => {
 });
 
 // ====================== RESET PASSWORD ======================
-router.post("/reset-password/:token", async (req, res) => {
+router.post("/reset-password/:token", passwordValidationMiddleware, async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
