@@ -82,10 +82,10 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // 🔒 MOVER APPROVAL GATEKEEPER
-    if (user.role === "mover" && !user.isApproved) {
-      return res.status(403).json({ 
-        error: "⏳ Your account is pending admin approval. You will be able to log in once approved." 
+    // 🔒 MOVER & TOURISM PROVIDER APPROVAL GATEKEEPER
+    if ((user.role === "mover" || user.role === "tourism_provider") && !user.isApproved) {
+      return res.status(403).json({
+        error: "⏳ Your account is pending admin approval. You will be able to log in once approved."
       });
     }
 
@@ -216,6 +216,61 @@ router.post("/reset-password/:token", passwordValidationMiddleware, async (req, 
   } catch (err) {
     console.error("❌ Reset password error:", err);
     res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
+// ====================== GET PENDING TOURISM PROVIDERS ======================
+router.get("/pending-tourism-providers", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+
+    const pendingProviders = await User.find({
+      role: "tourism_provider",
+      isApproved: false,
+    }).select("name email phone role createdAt");
+
+    res.json(pendingProviders);
+  } catch (err) {
+    console.error("❌ Failed to fetch pending tourism providers:", err);
+    res.status(500).json({ error: "Failed to fetch pending tourism providers" });
+  }
+});
+
+// ====================== APPROVE TOURISM PROVIDER ======================
+router.patch("/:userId/approve-tourism-provider", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+
+    const { userId } = req.params;
+    const { approve } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (user.role !== "tourism_provider") {
+      return res.status(400).json({ error: "User is not a tourism provider" });
+    }
+
+    if (approve) {
+      user.isApproved = true;
+      await user.save();
+      console.log(`✅ Tourism provider approved: ${user.email}`);
+      res.json({ message: "Tourism provider approved successfully" });
+    } else {
+      await User.findByIdAndDelete(userId);
+      console.log(`✅ Tourism provider rejected and deleted: ${user.email}`);
+      res.json({ message: "Tourism provider rejected and deleted" });
+    }
+  } catch (err) {
+    console.error("❌ Failed to approve tourism provider:", err);
+    res.status(500).json({ error: "Failed to approve tourism provider" });
   }
 });
 
