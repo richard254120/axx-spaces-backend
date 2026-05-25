@@ -1,5 +1,6 @@
 import Job from "../models/Job.js";
 import mongoose from "mongoose";
+import User from "../models/User.js";
 
 // @desc    Create a new job booking (no login required)
 // @route   POST /api/jobs
@@ -103,6 +104,22 @@ export const completeJob = async (req, res) => {
 
     job.status = "completed";
     await job.save();
+
+    // Track commission for the platform (10% of job amount if amount > 0)
+    if (job.amount && job.amount > 0) {
+      const commission = job.amount * 0.10; // 10% platform commission
+      await User.findByIdAndUpdate(req.user.id, {
+        $inc: { totalCommissionEarned: commission },
+        $push: {
+          commissionHistory: {
+            type: "job",
+            amount: commission,
+            referenceId: job._id,
+            date: new Date(),
+          },
+        },
+      });
+    }
 
     res.json({ message: "Job marked as completed.", job });
   } catch (error) {

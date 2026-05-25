@@ -94,6 +94,51 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+    // ✅ SUBSCRIPTION TIERS FOR MOVERS AND SELLERS
+    subscriptionTier: {
+      type: String,
+      enum: ["free", "basic", "premium"],
+      default: "free",
+    },
+    subscriptionStartDate: {
+      type: Date,
+    },
+    subscriptionEndDate: {
+      type: Date,
+    },
+
+    // ✅ FEATURED/PROMOTED STATUS FOR MOVERS
+    isFeaturedMover: {
+      type: Boolean,
+      default: false,
+    },
+    featuredStartDate: {
+      type: Date,
+    },
+    featuredEndDate: {
+      type: Date,
+    },
+
+    // ✅ COMMISSION TRACKING
+    totalCommissionEarned: {
+      type: Number,
+      default: 0,
+    },
+    commissionHistory: [
+      {
+        type: {
+          type: String,
+          enum: ["job", "material_sale"],
+        },
+        amount: Number,
+        referenceId: mongoose.Schema.Types.ObjectId,
+        date: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
     // ✅ PASSWORD RESET FIELDS
     resetPasswordToken: {
       type: String,

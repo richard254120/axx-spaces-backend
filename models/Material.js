@@ -94,6 +94,22 @@ const materialSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // ✅ MONETIZATION: FEATURED/PROMOTED LISTINGS
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    promotionTier: {
+      type: String,
+      enum: ["boost-7days", "boost-30days"],
+    },
+    promotionStartDate: {
+      type: Date,
+    },
+    promotionEndDate: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

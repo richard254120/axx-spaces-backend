@@ -1,4 +1,5 @@
 import Material from "../models/Material.js";
+import User from "../models/User.js";
 
 // ============ CREATE MATERIAL ============
 export const createMaterial = async (req, res) => {
@@ -125,6 +126,21 @@ export const markAsSold = async (req, res) => {
     }
     material.status = "sold";
     await material.save();
+
+    // Track commission for the platform (5% of material price)
+    const commission = material.price * 0.05; // 5% platform commission
+    await User.findByIdAndUpdate(req.user._id, {
+      $inc: { totalCommissionEarned: commission },
+      $push: {
+        commissionHistory: {
+          type: "material_sale",
+          amount: commission,
+          referenceId: material._id,
+          date: new Date(),
+        },
+      },
+    });
+
     res.json({ success: true, material });
   } catch (error) {
     res.status(500).json({ error: error.message });
