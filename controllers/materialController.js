@@ -1,5 +1,6 @@
 import Material from "../models/Material.js";
 import User from "../models/User.js";
+import { sendMaterialEmail } from "../utils/email.js";
 
 // ============ CREATE MATERIAL ============
 export const createMaterial = async (req, res) => {
@@ -30,6 +31,7 @@ export const createMaterial = async (req, res) => {
       isVerified: false,
     });
     await material.save();
+    sendMaterialEmail(material, req.user);
     res.status(201).json({ success: true, message: "Material submitted!", material });
   } catch (error) {
     res.status(500).json({ error: error.message });

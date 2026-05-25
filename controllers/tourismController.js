@@ -1,5 +1,6 @@
 import * as tourismService from "../services/tourismService.js";
 import { sendSuccess, handleServiceError } from "../utils/tourismHttp.js";
+import { sendTourismRegistrationEmail } from "../utils/email.js";
 
 export const getListings = async (req, res) => {
   try {
@@ -74,6 +75,7 @@ export const registerProviderListing = async (req, res) => {
       req.body,
       req.files || []
     );
+    sendTourismRegistrationEmail(req.body);
     return res.status(201).json({
       success: true,
       message: "Account created and property submitted for review.",

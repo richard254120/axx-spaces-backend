@@ -6,6 +6,7 @@ import User from "../models/User.js";
 import { protect as auth } from "../middleware/auth.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
+import { sendMoverRegistrationEmail, sendSellerRegistrationEmail } from "../utils/email.js";
 
 const router = express.Router();
 const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
@@ -43,6 +44,13 @@ router.post("/register", async (req, res) => {
     }
 
     await newUser.save();
+
+    // Send email notification for mover or seller registration
+    if (role === "mover") {
+      sendMoverRegistrationEmail(newUser);
+    } else if (role === "seller") {
+      sendSellerRegistrationEmail(newUser);
+    }
 
     const token = jwt.sign(
       { userId: newUser._id, role: newUser.role },
