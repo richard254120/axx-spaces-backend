@@ -66,6 +66,7 @@ const tourismListingSchema = new mongoose.Schema(
     emoji: { type: String, default: "🏨" },
     shortDesc: { type: String, default: "" },
     images: { type: [String], default: [] },
+    videos: { type: [String], default: [] },
 
     owner: {
       type: mongoose.Schema.Types.ObjectId,

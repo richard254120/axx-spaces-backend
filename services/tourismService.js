@@ -2,7 +2,7 @@ import TourismListing from "../models/TourismListing.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { formatTourismCard, formatTourismDetail } from "../utils/tourismFormat.js";
+import { formatTourismCard, formatTourismDetail, formatTourismOwnerDetail } from "../utils/tourismFormat.js";
 
 const SORT_MAP = {
   recommended: { isFeatured: -1, createdAt: -1 },
@@ -173,6 +173,154 @@ export async function getListingById(id, viewer = null) {
 export async function listByOwner(ownerId) {
   const listings = await TourismListing.find({ owner: ownerId }).sort({ createdAt: -1 });
   return listings.map(formatTourismCard);
+}
+
+async function getOwnedListingOrThrow(listingId, ownerId) {
+  const listing = await TourismListing.findById(listingId);
+  if (!listing) {
+    const err = new Error("Property not found");
+    err.status = 404;
+    throw err;
+  }
+  if (listing.owner.toString() !== ownerId.toString()) {
+    const err = new Error("You do not have permission to manage this property");
+    err.status = 403;
+    throw err;
+  }
+  return listing;
+}
+
+function mediaUrlsFromFiles(files = []) {
+  const images = [];
+  const videos = [];
+  for (const f of files) {
+    const url = f.path || f.secure_url;
+    if (!url) continue;
+    if (f.mimetype?.startsWith("video/")) videos.push(url);
+    else images.push(url);
+  }
+  return { images, videos };
+}
+
+export async function getOwnerProfile(ownerId) {
+  const user = await User.findById(ownerId).select("name email phone role createdAt");
+  if (!user) {
+    const err = new Error("User not found");
+    err.status = 404;
+    throw err;
+  }
+
+  const listings = await TourismListing.find({ owner: ownerId }).sort({ createdAt: -1 });
+
+  return {
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      memberSince: user.createdAt,
+    },
+    stats: {
+      total: listings.length,
+      pending: listings.filter((l) => l.status === "pending").length,
+      approved: listings.filter((l) => l.status === "approved").length,
+      rejected: listings.filter((l) => l.status === "rejected").length,
+      totalViews: listings.reduce((s, l) => s + (l.views || 0), 0),
+    },
+    listings: listings.map(formatTourismCard),
+  };
+}
+
+export async function getOwnerListing(listingId, ownerId) {
+  const listing = await getOwnedListingOrThrow(listingId, ownerId);
+  return formatTourismOwnerDetail(listing);
+}
+
+export async function updateOwnerListing(listingId, ownerId, body, files = []) {
+  const listing = await getOwnedListingOrThrow(listingId, ownerId);
+  const wasApproved = listing.status === "approved";
+
+  const fields = {
+    name: body.name?.trim(),
+    category: body.category?.trim(),
+    description: body.description?.trim(),
+    county: body.county?.trim(),
+    town: body.town?.trim(),
+    address: body.address,
+    mapLink: body.mapLink,
+    bookingUrl: body.bookingUrl,
+    price: body.basePrice != null ? parseFloat(body.basePrice) : body.price != null ? parseFloat(body.price) : undefined,
+    weekendPrice: body.weekendPrice != null && body.weekendPrice !== "" ? parseFloat(body.weekendPrice) : undefined,
+    peakPrice: body.peakPrice != null && body.peakPrice !== "" ? parseFloat(body.peakPrice) : undefined,
+  };
+
+  Object.entries(fields).forEach(([key, val]) => {
+    if (val !== undefined && val !== "") listing[key] = val;
+  });
+
+  if (fields.town || fields.county) {
+    const town = listing.town || "";
+    const county = listing.county || "";
+    listing.location = town ? `${town}, ${county}` : county;
+  }
+
+  if (body.amenities !== undefined) {
+    listing.amenities = parseJsonField(body.amenities);
+  }
+
+  if (body.roomTypes !== undefined) {
+    const roomTypes = parseJsonField(body.roomTypes);
+    listing.roomTypes = roomTypes
+      .filter((r) => r.name && r.price)
+      .map((r) => ({
+        name: r.name,
+        price: parseFloat(r.price),
+        guests: parseInt(r.guests) || 2,
+        desc: r.desc || "",
+      }));
+  }
+
+  if (body.checkIn || body.checkOut || body.cancellation) {
+    listing.policies = {
+      ...listing.policies?.toObject?.() || listing.policies,
+      ...(body.checkIn && { checkIn: body.checkIn }),
+      ...(body.checkOut && { checkOut: body.checkOut }),
+      ...(body.cancellation && { cancellation: body.cancellation }),
+    };
+  }
+
+  if (body.managerName || body.phone || body.email || body.whatsapp) {
+    listing.manager = {
+      name: body.managerName || listing.manager?.name || "",
+      phone: body.phone || listing.manager?.phone || "",
+      email: body.email || listing.manager?.email || "",
+      whatsapp: body.whatsapp || listing.manager?.whatsapp || "",
+    };
+  }
+
+  const { images, videos } = mediaUrlsFromFiles(files);
+  if (images.length) listing.images = [...(listing.images || []), ...images];
+  if (videos.length) listing.videos = [...(listing.videos || []), ...videos];
+
+  let removeImages = [];
+  let removeVideos = [];
+  try {
+    if (body.removeImages) removeImages = parseJsonField(body.removeImages);
+    if (body.removeVideos) removeVideos = parseJsonField(body.removeVideos);
+  } catch { /* ignore */ }
+
+  if (removeImages.length) {
+    listing.images = (listing.images || []).filter((u) => !removeImages.includes(u));
+  }
+  if (removeVideos.length) {
+    listing.videos = (listing.videos || []).filter((u) => !removeVideos.includes(u));
+  }
+
+  if (wasApproved) listing.status = "pending";
+
+  await listing.save();
+  return formatTourismOwnerDetail(listing);
 }
 
 export async function buildAndSaveListing(body, user, files = []) {

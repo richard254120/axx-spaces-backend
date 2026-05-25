@@ -104,6 +104,44 @@ export const incrementView = async (req, res) => {
   }
 };
 
+export const getOwnerProfile = async (req, res) => {
+  try {
+    const data = await tourismService.getOwnerProfile(req.user._id);
+    return sendSuccess(res, data);
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+export const getOwnerListing = async (req, res) => {
+  try {
+    const data = await tourismService.getOwnerListing(req.params.id, req.user._id);
+    return sendSuccess(res, data);
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+export const updateOwnerListing = async (req, res) => {
+  try {
+    const data = await tourismService.updateOwnerListing(
+      req.params.id,
+      req.user._id,
+      req.body,
+      req.files || []
+    );
+    return res.json({
+      success: true,
+      message: data.status === "pending"
+        ? "Changes saved. Your property will be reviewed again before going live."
+        : "Property updated successfully.",
+      data,
+    });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
 export const updateListingStatus = async (req, res) => {
   try {
     if (req.user.role !== "admin") {

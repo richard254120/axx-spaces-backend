@@ -41,6 +41,32 @@ export function formatTourismCard(listing) {
     status: obj.status,
     views: obj.views,
     createdAt: obj.createdAt,
+    updatedAt: obj.updatedAt,
+    images: obj.images || [],
+    videos: obj.videos || [],
+    thumbnail: obj.images?.[0] || null,
+  };
+}
+
+const STATUS_MESSAGES = {
+  pending: "Your property is under review. Our team will respond within 24 hours.",
+  approved: "Your property is live. Guests can find and book it on AXXSpace.",
+  rejected: "This listing was not approved. Edit details and media, then resubmit for review.",
+};
+
+export function formatTourismOwnerDetail(listing) {
+  const detail = formatTourismDetail(listing);
+  const obj = listing.toObject ? listing.toObject() : listing;
+
+  return {
+    ...detail,
+    videos: obj.videos || [],
+    images: obj.images || [],
+    policiesRaw: obj.policies,
+    advertisingPackage: obj.advertisingPackage,
+    statusMessage: STATUS_MESSAGES[obj.status] || "",
+    submittedAt: obj.createdAt,
+    lastUpdated: obj.updatedAt,
   };
 }
 
@@ -88,5 +114,6 @@ export function formatTourismDetail(listing) {
     town: obj.town,
     address: obj.address,
     mapLink: obj.mapLink,
+    videos: obj.videos || [],
   };
 }
