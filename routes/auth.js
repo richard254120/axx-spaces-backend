@@ -3,8 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
-import { protect as auth } from "../middleware/enhancedAuth.js";
-import { passwordValidationMiddleware } from "../middleware/passwordValidator.js";
+import { protect as auth } from "../middleware/auth.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
 
@@ -12,7 +11,7 @@ const router = express.Router();
 const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
 
 // ====================== REGISTER ======================
-router.post("/register", passwordValidationMiddleware, async (req, res) => {
+router.post("/register", async (req, res) => {
   try {
     const {
       name, email, password, phone, role,
@@ -82,10 +81,10 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // 🔒 MOVER & TOURISM PROVIDER APPROVAL GATEKEEPER
-    if ((user.role === "mover" || user.role === "tourism_provider") && !user.isApproved) {
-      return res.status(403).json({
-        error: "⏳ Your account is pending admin approval. You will be able to log in once approved."
+    // 🔒 MOVER APPROVAL GATEKEEPER
+    if (user.role === "mover" && !user.isApproved) {
+      return res.status(403).json({ 
+        error: "⏳ Your account is pending admin approval. You will be able to log in once approved." 
       });
     }
 
@@ -149,12 +148,12 @@ router.post("/forgot-password", async (req, res) => {
     await resend.emails.send({
       from: "onboarding@resend.dev",
       to: email,
-      subject: "🔐 Reset Your Axxspace Password",
+      subject: "🔐 Reset Your Axx Spaces Password",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: #1f2937; padding: 20px; text-align: center;">
             <h1 style="color: #fbbf24; margin: 0;">🔐 Password Reset</h1>
-            <p style="color: #94a3b8; margin: 6px 0 0;">Axxspace</p>
+            <p style="color: #94a3b8; margin: 6px 0 0;">Axx Spaces</p>
           </div>
           <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
             <p style="color: #1f2937; font-size: 15px;">Hi <strong>${user.name}</strong>,</p>
@@ -187,7 +186,7 @@ router.post("/forgot-password", async (req, res) => {
 });
 
 // ====================== RESET PASSWORD ======================
-router.post("/reset-password/:token", passwordValidationMiddleware, async (req, res) => {
+router.post("/reset-password/:token", async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
@@ -216,61 +215,6 @@ router.post("/reset-password/:token", passwordValidationMiddleware, async (req, 
   } catch (err) {
     console.error("❌ Reset password error:", err);
     res.status(500).json({ error: "Failed to reset password" });
-  }
-});
-
-// ====================== GET PENDING TOURISM PROVIDERS ======================
-router.get("/pending-tourism-providers", auth, async (req, res) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "Admin access required" });
-    }
-
-    const pendingProviders = await User.find({
-      role: "tourism_provider",
-      isApproved: false,
-    }).select("name email phone role createdAt");
-
-    res.json(pendingProviders);
-  } catch (err) {
-    console.error("❌ Failed to fetch pending tourism providers:", err);
-    res.status(500).json({ error: "Failed to fetch pending tourism providers" });
-  }
-});
-
-// ====================== APPROVE TOURISM PROVIDER ======================
-router.patch("/:userId/approve-tourism-provider", auth, async (req, res) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "Admin access required" });
-    }
-
-    const { userId } = req.params;
-    const { approve } = req.body;
-
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    if (user.role !== "tourism_provider") {
-      return res.status(400).json({ error: "User is not a tourism provider" });
-    }
-
-    if (approve) {
-      user.isApproved = true;
-      await user.save();
-      console.log(`✅ Tourism provider approved: ${user.email}`);
-      res.json({ message: "Tourism provider approved successfully" });
-    } else {
-      await User.findByIdAndDelete(userId);
-      console.log(`✅ Tourism provider rejected and deleted: ${user.email}`);
-      res.json({ message: "Tourism provider rejected and deleted" });
-    }
-  } catch (err) {
-    console.error("❌ Failed to approve tourism provider:", err);
-    res.status(500).json({ error: "Failed to approve tourism provider" });
   }
 });
 

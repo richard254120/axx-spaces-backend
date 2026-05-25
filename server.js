@@ -7,7 +7,7 @@ import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
 // Security Middleware
-import security from "./middleware/enhancedSecurity.js";
+import security from "./middleware/security.js";
 
 // Routes
 import authRoutes from "./routes/auth.js";
@@ -20,9 +20,6 @@ import sellerAuthRoutes from "./routes/sellerAuth.js";
 import jobRoutes from "./routes/jobs.js";
 import tourismRoutes from "./routes/tourism.js";
 import profileRoutes from "./routes/profile.js";
-import securityRoutes from "./routes/security.js";
-import reviewRoutes from "./routes/reviews.js";
-import configRoutes from "./routes/config.js";
 
 dotenv.config();
 
@@ -49,7 +46,6 @@ mongoose.connect(process.env.MONGO_URI)
 app.use("/api/auth", security.authLimiter, authRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/payment", paymentRoutes);
-app.use("/api/config", configRoutes);
 app.use("/api/movers", moverRoutes);
 app.use("/api/materials", materialRoutes);
 app.use("/api/verification", verificationRoutes);
@@ -57,8 +53,6 @@ app.use("/api/seller-auth", security.authLimiter, sellerAuthRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/tourism", tourismRoutes);
 app.use("/api/profile", profileRoutes);
-app.use("/api/security", securityRoutes);
-app.use("/api/reviews", reviewRoutes);
 
 app.get("/api/health", (req, res) => 
   res.json({ status: "OK", timestamp: new Date().toISOString() })
@@ -73,7 +67,7 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 1000;
 app.listen(PORT, () => {
   console.log("==================================");
-  console.log("🚀 AXXSPACE SERVER STARTED");
+  console.log("🚀 AXX SPACES SERVER STARTED");
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
   console.log("🔒 Security: Active (Helmet + Rate Limiting + Sanitization)");

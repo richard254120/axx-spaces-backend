@@ -414,8 +414,7 @@ export async function registerProviderAndListing(body, files = []) {
     email: ownerEmail.toLowerCase(),
     phone: ownerPhone,
     password: await bcrypt.hash(password, 10),
-    role: "tourism_provider",
-    isApproved: false,
+    role: "landlord",
   });
 
   const listing = await buildAndSaveListing(
