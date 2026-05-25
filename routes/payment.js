@@ -54,7 +54,7 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`, 
       AccountReference: `AX${propertyId || "Wallet"}`,
-      TransactionDesc: plan || "Axx Spaces Payment",
+      TransactionDesc: plan || "Axxspace Payment",
     };
 
     const mpesaResponse = await axios.post(

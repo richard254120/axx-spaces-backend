@@ -1,7 +1,7 @@
 {
   "name": "axx-spaces-backend",
   "version": "1.0.0",
-  "description": "Axx Spaces - Kenya Property Rental Platform",
+  "description": "Axxspace - Kenya Property Rental Platform",
   "type": "module",
   "main": "server.js",
   "scripts": {

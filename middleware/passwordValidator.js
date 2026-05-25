@@ -1,5 +1,4 @@
 // passwordValidator.js - Password Strength Validation
-import zxcvbn from 'zxcvbn';
 
 // Password strength requirements
 const PASSWORD_REQUIREMENTS = {
@@ -9,7 +8,6 @@ const PASSWORD_REQUIREMENTS = {
   requireLowercase: true,
   requireNumbers: true,
   requireSpecialChars: true,
-  minStrength: 3, // zxcvbn score (0-4), 3 = strong
 };
 
 // Common weak passwords to block
@@ -72,19 +70,9 @@ export const validatePassword = (password) => {
     errors.push('Password must not contain repeated characters');
   }
   
-  // Use zxcvbn for strength estimation
-  const result = zxcvbn(password);
-  
-  if (result.score < PASSWORD_REQUIREMENTS.minStrength) {
-    errors.push(`Password is too weak. ${result.feedback.warning || 'Please choose a stronger password'}`);
-  }
-  
   return {
     isValid: errors.length === 0,
     errors,
-    score: result.score,
-    feedback: result.feedback,
-    crackTime: result.crack_times_display.offline_fast_hashing_1e10_per_second,
   };
 };
 

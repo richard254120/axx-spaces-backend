@@ -17,14 +17,14 @@ export const sendNewPropertyNotification = async (property, owner) => {
     });
 
     await transporter.sendMail({
-      from: `"Axx Spaces" <${process.env.EMAIL_USER}>`,
+      from: `"Axxspace" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_USER,
       subject: `🏠 New Property Submitted — ${property.title}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 24px; border-radius: 10px;">
           <div style="background: #1f2937; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
             <h1 style="color: #fbbf24; margin: 0; font-size: 22px;">🏠 New Property Submitted</h1>
-            <p style="color: #94a3b8; margin: 6px 0 0; font-size: 14px;">Axx Spaces Admin Notification</p>
+            <p style="color: #94a3b8; margin: 6px 0 0; font-size: 14px;">Axxspace Admin Notification</p>
           </div>
 
           <div style="background: white; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb;">
@@ -100,7 +100,7 @@ export const sendNewPropertyNotification = async (property, owner) => {
             </div>
 
             <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 24px;">
-              This is an automated notification from Axx Spaces.<br/>
+              This is an automated notification from Axxspace.<br/>
               Property ID: ${property._id}
             </p>
           </div>

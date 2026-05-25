@@ -149,12 +149,12 @@ router.post("/forgot-password", async (req, res) => {
     await resend.emails.send({
       from: "onboarding@resend.dev",
       to: email,
-      subject: "🔐 Reset Your Axx Spaces Password",
+      subject: "🔐 Reset Your Axxspace Password",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: #1f2937; padding: 20px; text-align: center;">
             <h1 style="color: #fbbf24; margin: 0;">🔐 Password Reset</h1>
-            <p style="color: #94a3b8; margin: 6px 0 0;">Axx Spaces</p>
+            <p style="color: #94a3b8; margin: 6px 0 0;">Axxspace</p>
           </div>
           <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
             <p style="color: #1f2937; font-size: 15px;">Hi <strong>${user.name}</strong>,</p>

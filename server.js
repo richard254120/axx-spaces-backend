@@ -71,7 +71,7 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 1000;
 app.listen(PORT, () => {
   console.log("==================================");
-  console.log("🚀 AXX SPACES SERVER STARTED");
+  console.log("🚀 AXXSPACE SERVER STARTED");
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
   console.log("🔒 Security: Active (Helmet + Rate Limiting + Sanitization)");

@@ -32,7 +32,7 @@ export const sendPropertyEmail = async (property, owner) => {
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axx Spaces <onboarding@resend.dev>",
+        from: "Axxspace <onboarding@resend.dev>",
         to: email,
         subject: `New Property: ${property.title}`,
         html: getEmailHtml(property, owner),
