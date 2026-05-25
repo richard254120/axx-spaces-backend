@@ -47,9 +47,9 @@ router.post("/register", async (req, res) => {
 
     // Send email notification for mover or seller registration
     if (role === "mover") {
-      sendMoverRegistrationEmail(newUser);
+      await sendMoverRegistrationEmail(newUser);
     } else if (role === "seller") {
-      sendSellerRegistrationEmail(newUser);
+      await sendSellerRegistrationEmail(newUser);
     }
 
     const token = jwt.sign(
@@ -240,7 +240,7 @@ router.patch("/:id/approve-tourism-provider", auth, async (req, res) => {
     );
     if (!user) return res.status(404).json({ error: "User not found" });
     if (approve) {
-      sendTourismApprovalEmail(user.email, user.name);
+      await sendTourismApprovalEmail(user.email, user.name);
     }
     res.json({ success: true, message: `Tourism provider ${approve ? 'approved' : 'rejected'}`, user });
   } catch (err) {
@@ -263,7 +263,7 @@ router.patch("/:id/approve-mover", auth, async (req, res) => {
     );
     if (!user) return res.status(404).json({ error: "User not found" });
     if (approve) {
-      sendMoverApprovalEmail(user.email, user.name);
+      await sendMoverApprovalEmail(user.email, user.name);
     }
     res.json({ success: true, message: `Mover ${approve ? 'approved' : 'rejected'}`, user });
   } catch (err) {

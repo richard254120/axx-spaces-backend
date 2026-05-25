@@ -31,7 +31,7 @@ export const createMaterial = async (req, res) => {
       isVerified: false,
     });
     await material.save();
-    sendMaterialEmail(material, req.user);
+    await sendMaterialEmail(material, req.user);
     res.status(201).json({ success: true, message: "Material submitted!", material });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -96,7 +96,7 @@ export const approveMaterial = async (req, res) => {
       { new: true }
     ).populate("seller", "email");
     if (!material) return res.status(404).json({ error: "Material not found" });
-    sendMaterialApprovalEmail(material.seller.email, material.title);
+    await sendMaterialApprovalEmail(material.seller.email, material.title);
     res.json({ success: true, message: "Material approved!", material });
   } catch (error) {
     res.status(500).json({ error: error.message });

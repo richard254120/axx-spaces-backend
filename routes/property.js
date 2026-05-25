@@ -270,7 +270,7 @@ router.patch("/:id/status", auth, async (req, res) => {
     ).populate("owner", "email");
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
     if (status === "approved") {
-      sendPropertyApprovalEmail(property.owner.email, property.title);
+      await sendPropertyApprovalEmail(property.owner.email, property.title);
     }
     res.json({ success: true, message: `✅ Property ${status}`, property });
   } catch (error) {

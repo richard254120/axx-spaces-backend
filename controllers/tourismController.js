@@ -75,7 +75,7 @@ export const registerProviderListing = async (req, res) => {
       req.body,
       req.files || []
     );
-    sendTourismRegistrationEmail(req.body);
+    await sendTourismRegistrationEmail(req.body);
     return res.status(201).json({
       success: true,
       message: "Account created and property submitted for review.",
