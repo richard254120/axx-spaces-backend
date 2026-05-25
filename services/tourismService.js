@@ -3,6 +3,8 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { formatTourismCard, formatTourismDetail, formatTourismOwnerDetail } from "../utils/tourismFormat.js";
+import { formatUserResponse } from "../utils/formatUser.js";
+import { updateUserProfile } from "./profileService.js";
 
 const SORT_MAP = {
   recommended: { isFeatured: -1, createdAt: -1 },
@@ -202,38 +204,8 @@ function mediaUrlsFromFiles(files = []) {
   return { images, videos };
 }
 
-export async function updateOwnerProfile(ownerId, { name, phone }) {
-  if (!name?.trim()) {
-    const err = new Error("Name is required");
-    err.status = 400;
-    throw err;
-  }
-  if (!phone?.trim()) {
-    const err = new Error("Phone number is required");
-    err.status = 400;
-    throw err;
-  }
-
-  const user = await User.findByIdAndUpdate(
-    ownerId,
-    { name: name.trim(), phone: phone.trim() },
-    { new: true, runValidators: true }
-  ).select("name email phone role createdAt");
-
-  if (!user) {
-    const err = new Error("User not found");
-    err.status = 404;
-    throw err;
-  }
-
-  return {
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-    memberSince: user.createdAt,
-  };
+export async function updateOwnerProfile(ownerId, body, avatarFile) {
+  return updateUserProfile(ownerId, body, avatarFile);
 }
 
 export async function getOwnerProfile(ownerId) {
@@ -247,14 +219,7 @@ export async function getOwnerProfile(ownerId) {
   const listings = await TourismListing.find({ owner: ownerId }).sort({ createdAt: -1 });
 
   return {
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      memberSince: user.createdAt,
-    },
+    user: formatUserResponse(user),
     stats: {
       total: listings.length,
       pending: listings.filter((l) => l.status === "pending").length,

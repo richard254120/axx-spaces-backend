@@ -2,6 +2,7 @@ import express from "express";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import tourismUpload from "../config/multerTourism.js";
+import profileUpload from "../config/multerProfile.js";
 import {
   getListings,
   getFeatured,
@@ -28,7 +29,7 @@ router.get("/categories", getCategories);
 
 // Owner portal (must be before /:id)
 router.get("/owner/profile", auth, getOwnerProfile);
-router.patch("/owner/profile", auth, updateOwnerProfile);
+router.patch("/owner/profile", auth, profileUpload.single("avatar"), updateOwnerProfile);
 router.get("/owner/listings/:id", auth, getOwnerListing);
 router.patch(
   "/owner/listings/:id",

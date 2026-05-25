@@ -115,7 +115,7 @@ export const getOwnerProfile = async (req, res) => {
 
 export const updateOwnerProfile = async (req, res) => {
   try {
-    const user = await tourismService.updateOwnerProfile(req.user._id, req.body);
+    const user = await tourismService.updateOwnerProfile(req.user._id, req.body, req.file);
     return res.json({
       success: true,
       message: "Profile updated successfully",

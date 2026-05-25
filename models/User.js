@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    profileImage: {
+      type: String,
+      default: "",
+    },
     // ✅ ROLE IDENTIFICATION — added "seller"
     role: {
       type: String,

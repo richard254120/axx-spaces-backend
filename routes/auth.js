@@ -3,7 +3,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
-import { protect as auth } from "../middleware/auth.js"; // Linked named import to local alias
+import { protect as auth } from "../middleware/auth.js";
+import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
 
 const router = express.Router();
@@ -51,10 +52,7 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({
       token,
-      user: {
-        _id: newUser._id, name: newUser.name, email: newUser.email,
-        phone: newUser.phone, role: newUser.role, isApproved: newUser.isApproved
-      },
+      user: formatUserResponse(newUser),
     });
 
   } catch (err) {
@@ -117,13 +115,7 @@ router.get("/me", auth, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.json({
-      user: {
-        _id: req.user._id, name: req.user.name, email: req.user.email,
-        phone: req.user.phone, role: req.user.role,
-        isApproved: req.user.isApproved, walletBalance: req.user.walletBalance
-      },
-    });
+    res.json({ user: formatUserResponse(req.user) });
 
   } catch (err) {
     console.error("❌ Profile fetch error:", err);

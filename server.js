@@ -19,6 +19,7 @@ import verificationRoutes from "./routes/verification.js";
 import sellerAuthRoutes from "./routes/sellerAuth.js";
 import jobRoutes from "./routes/jobs.js";
 import tourismRoutes from "./routes/tourism.js";
+import profileRoutes from "./routes/profile.js";
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use("/api/verification", verificationRoutes);
 app.use("/api/seller-auth", security.authLimiter, sellerAuthRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/tourism", tourismRoutes);
+app.use("/api/profile", profileRoutes);
 
 app.get("/api/health", (req, res) => 
   res.json({ status: "OK", timestamp: new Date().toISOString() })

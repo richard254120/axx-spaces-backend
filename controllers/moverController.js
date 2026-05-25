@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import { formatUserResponse } from "../utils/formatUser.js";
 
 // @desc    Get stats for the mover dashboard
 // @route   GET /api/movers/stats
@@ -42,9 +43,9 @@ export const getAllMovers = async (req, res) => {
 // @route   GET /api/movers/profile
 export const getMoverProfile = async (req, res) => {
   try {
-    const mover = await User.findById(req.user.id).select("-password");
+    const mover = await User.findById(req.user._id || req.user.id).select("-password");
     if (!mover) return res.status(404).json({ message: "Mover not found" });
-    res.json(mover);
+    res.json(formatUserResponse(mover));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

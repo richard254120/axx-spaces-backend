@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { formatUserResponse } from "../utils/formatUser.js";
 
 const router = express.Router();
 
@@ -72,15 +73,7 @@ router.post("/login", async (req, res) => {
     res.json({
       success: true,
       token,
-      user: {
-        _id: seller._id,
-        name: seller.name,
-        email: seller.email,
-        phone: seller.phone,
-        role: seller.role,
-        isApproved: seller.isApproved,
-        county: seller.county,
-      },
+      user: formatUserResponse(seller),
     });
   } catch (error) {
     console.error("Seller login error:", error);
