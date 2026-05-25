@@ -4,20 +4,44 @@ import { auth } from "../middleware/auth.js";
 import User from "../models/User.js";
 import Property from "../models/Property.js";
 import Material from "../models/Material.js";
+import Config from "../models/Config.js";
 
 const router = express.Router();
 
 // ====================== M-PESA CONFIGURATION ======================
-const MPESA_SHORTCODE = process.env.MPESA_SHORTCODE || "174379";
-const MPESA_PASSKEY = process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
+// Helper function to get M-Pesa configuration from database or environment
+const getMpesaConfig = async () => {
+  try {
+    const shortcode = await Config.getConfig("mpesa_shortcode");
+    const passkey = await Config.getConfig("mpesa_passkey");
+    const consumerKey = await Config.getConfig("mpesa_consumer_key");
+    const consumerSecret = await Config.getConfig("mpesa_consumer_secret");
+    
+    return {
+      MPESA_SHORTCODE: shortcode || process.env.MPESA_SHORTCODE || "174379",
+      MPESA_PASSKEY: passkey || process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
+      MPESA_CONSUMER_KEY: consumerKey || process.env.MPESA_CONSUMER_KEY,
+      MPESA_CONSUMER_SECRET: consumerSecret || process.env.MPESA_CONSUMER_SECRET,
+    };
+  } catch (err) {
+    console.error("Error fetching M-Pesa config:", err);
+    return {
+      MPESA_SHORTCODE: process.env.MPESA_SHORTCODE || "174379",
+      MPESA_PASSKEY: process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
+      MPESA_CONSUMER_KEY: process.env.MPESA_CONSUMER_KEY,
+      MPESA_CONSUMER_SECRET: process.env.MPESA_CONSUMER_SECRET,
+    };
+  }
+};
 
 /**
  * Generates the M-Pesa Access Token using Consumer Key and Secret
  */
 const getAccessToken = async () => {
   try {
+    const config = await getMpesaConfig();
     const authString = Buffer.from(
-      `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
+      `${config.MPESA_CONSUMER_KEY}:${config.MPESA_CONSUMER_SECRET}`
     ).toString("base64");
 
     const response = await axios.get(
@@ -41,17 +65,18 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
     }
 
     const token = await getAccessToken();
+    const config = await getMpesaConfig();
     const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
-    const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString("base64");
+    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
 
     const payload = {
-      BusinessShortCode: MPESA_SHORTCODE,
+      BusinessShortCode: config.MPESA_SHORTCODE,
       Password: password,
       Timestamp: timestamp,
       TransactionType: "CustomerPayBillOnline",
       Amount: Math.round(Number(amount)),
       PartyA: phone.replace(/\s+/g, ""),
-      PartyB: MPESA_SHORTCODE,
+      PartyB: config.MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
       AccountReference: `AX${propertyId || materialId || subscriptionType || "Wallet"}`,
@@ -285,17 +310,18 @@ router.post("/subscribe", auth, async (req, res) => {
     }
 
     const token = await getAccessToken();
+    const config = await getMpesaConfig();
     const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
-    const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString("base64");
+    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
 
     const payload = {
-      BusinessShortCode: MPESA_SHORTCODE,
+      BusinessShortCode: config.MPESA_SHORTCODE,
       Password: password,
       Timestamp: timestamp,
       TransactionType: "CustomerPayBillOnline",
       Amount: plan.amount,
       PartyA: phone.replace(/\s+/g, ""),
-      PartyB: MPESA_SHORTCODE,
+      PartyB: config.MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
       AccountReference: `AXX-${subscriptionType}-${req.user.role}`,
@@ -367,17 +393,18 @@ router.post("/boost-material", auth, async (req, res) => {
     }
 
     const token = await getAccessToken();
+    const config = await getMpesaConfig();
     const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
-    const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString("base64");
+    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
 
     const payload = {
-      BusinessShortCode: MPESA_SHORTCODE,
+      BusinessShortCode: config.MPESA_SHORTCODE,
       Password: password,
       Timestamp: timestamp,
       TransactionType: "CustomerPayBillOnline",
       Amount: boostPlan.amount,
       PartyA: phone.replace(/\s+/g, ""),
-      PartyB: MPESA_SHORTCODE,
+      PartyB: config.MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
       AccountReference: `AXX-Material-${materialId}`,
@@ -443,17 +470,18 @@ router.post("/boost-mover", auth, async (req, res) => {
     }
 
     const token = await getAccessToken();
+    const config = await getMpesaConfig();
     const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
-    const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString("base64");
+    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
 
     const payload = {
-      BusinessShortCode: MPESA_SHORTCODE,
+      BusinessShortCode: config.MPESA_SHORTCODE,
       Password: password,
       Timestamp: timestamp,
       TransactionType: "CustomerPayBillOnline",
       Amount: boostPlan.amount,
       PartyA: phone.replace(/\s+/g, ""),
-      PartyB: MPESA_SHORTCODE,
+      PartyB: config.MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
       AccountReference: `AXX-Mover-${req.user._id}`,

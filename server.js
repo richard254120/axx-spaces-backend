@@ -22,6 +22,7 @@ import tourismRoutes from "./routes/tourism.js";
 import profileRoutes from "./routes/profile.js";
 import securityRoutes from "./routes/security.js";
 import reviewRoutes from "./routes/reviews.js";
+import configRoutes from "./routes/config.js";
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ mongoose.connect(process.env.MONGO_URI)
 app.use("/api/auth", security.authLimiter, authRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/config", configRoutes);
 app.use("/api/movers", moverRoutes);
 app.use("/api/materials", materialRoutes);
 app.use("/api/verification", verificationRoutes);
