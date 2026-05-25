@@ -113,6 +113,19 @@ export const getOwnerProfile = async (req, res) => {
   }
 };
 
+export const updateOwnerProfile = async (req, res) => {
+  try {
+    const user = await tourismService.updateOwnerProfile(req.user._id, req.body);
+    return res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: { user },
+    });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
 export const getOwnerListing = async (req, res) => {
   try {
     const data = await tourismService.getOwnerListing(req.params.id, req.user._id);
@@ -124,11 +137,15 @@ export const getOwnerListing = async (req, res) => {
 
 export const updateOwnerListing = async (req, res) => {
   try {
+    const uploaded = [
+      ...(req.files?.images || []),
+      ...(req.files?.videos || []),
+    ];
     const data = await tourismService.updateOwnerListing(
       req.params.id,
       req.user._id,
       req.body,
-      req.files || []
+      uploaded
     );
     return res.json({
       success: true,

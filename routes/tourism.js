@@ -10,6 +10,7 @@ import {
   getListingById,
   getMyListings,
   getOwnerProfile,
+  updateOwnerProfile,
   getOwnerListing,
   updateOwnerListing,
   createListing,
@@ -27,6 +28,7 @@ router.get("/categories", getCategories);
 
 // Owner portal (must be before /:id)
 router.get("/owner/profile", auth, getOwnerProfile);
+router.patch("/owner/profile", auth, updateOwnerProfile);
 router.get("/owner/listings/:id", auth, getOwnerListing);
 router.patch(
   "/owner/listings/:id",

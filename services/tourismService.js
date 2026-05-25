@@ -202,6 +202,40 @@ function mediaUrlsFromFiles(files = []) {
   return { images, videos };
 }
 
+export async function updateOwnerProfile(ownerId, { name, phone }) {
+  if (!name?.trim()) {
+    const err = new Error("Name is required");
+    err.status = 400;
+    throw err;
+  }
+  if (!phone?.trim()) {
+    const err = new Error("Phone number is required");
+    err.status = 400;
+    throw err;
+  }
+
+  const user = await User.findByIdAndUpdate(
+    ownerId,
+    { name: name.trim(), phone: phone.trim() },
+    { new: true, runValidators: true }
+  ).select("name email phone role createdAt");
+
+  if (!user) {
+    const err = new Error("User not found");
+    err.status = 404;
+    throw err;
+  }
+
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    memberSince: user.createdAt,
+  };
+}
+
 export async function getOwnerProfile(ownerId) {
   const user = await User.findById(ownerId).select("name email phone role createdAt");
   if (!user) {
