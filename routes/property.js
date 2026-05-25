@@ -3,7 +3,7 @@ import Property from "../models/Property.js";
 import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
-import { sendPropertyEmail } from "../utils/email.js";
+import { sendPropertyEmail, sendPropertyApprovalEmail } from "../utils/email.js";
 
 const router = express.Router();
 
@@ -267,8 +267,11 @@ router.patch("/:id/status", auth, async (req, res) => {
       req.params.id,
       { status },
       { new: true }
-    );
+    ).populate("owner", "email");
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (status === "approved") {
+      sendPropertyApprovalEmail(property.owner.email, property.title);
+    }
     res.json({ success: true, message: `✅ Property ${status}`, property });
   } catch (error) {
     console.error("❌ Update status error:", error);

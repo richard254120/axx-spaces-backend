@@ -1,6 +1,6 @@
 import Material from "../models/Material.js";
 import User from "../models/User.js";
-import { sendMaterialEmail } from "../utils/email.js";
+import { sendMaterialEmail, sendMaterialApprovalEmail } from "../utils/email.js";
 
 // ============ CREATE MATERIAL ============
 export const createMaterial = async (req, res) => {
@@ -92,10 +92,11 @@ export const approveMaterial = async (req, res) => {
     }
     const material = await Material.findByIdAndUpdate(
       req.params.id,
-      { status: "approved", isVerified: true }, 
+      { status: "approved", isVerified: true },
       { new: true }
-    );
+    ).populate("seller", "email");
     if (!material) return res.status(404).json({ error: "Material not found" });
+    sendMaterialApprovalEmail(material.seller.email, material.title);
     res.json({ success: true, message: "Material approved!", material });
   } catch (error) {
     res.status(500).json({ error: error.message });

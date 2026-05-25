@@ -6,7 +6,7 @@ import User from "../models/User.js";
 import { protect as auth } from "../middleware/auth.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
-import { sendMoverRegistrationEmail, sendSellerRegistrationEmail } from "../utils/email.js";
+import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 
 const router = express.Router();
 const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
@@ -223,6 +223,52 @@ router.post("/reset-password/:token", async (req, res) => {
   } catch (err) {
     console.error("❌ Reset password error:", err);
     res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
+// ====================== APPROVE TOURISM PROVIDER ======================
+router.patch("/:id/approve-tourism-provider", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const { approve } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { isApproved: approve },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (approve) {
+      sendTourismApprovalEmail(user.email, user.name);
+    }
+    res.json({ success: true, message: `Tourism provider ${approve ? 'approved' : 'rejected'}`, user });
+  } catch (err) {
+    console.error("❌ Approve tourism provider error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ====================== APPROVE MOVER ======================
+router.patch("/:id/approve-mover", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const { approve } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { isApproved: approve },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (approve) {
+      sendMoverApprovalEmail(user.email, user.name);
+    }
+    res.json({ success: true, message: `Mover ${approve ? 'approved' : 'rejected'}`, user });
+  } catch (err) {
+    console.error("❌ Approve mover error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

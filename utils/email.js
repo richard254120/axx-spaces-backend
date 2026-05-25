@@ -184,3 +184,138 @@ export const sendSellerRegistrationEmail = async (seller) => {
     }
   }
 };
+
+export const sendTourismApprovalEmail = async (email, propertyName) => {
+  const getEmailHtml = (propertyName) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">🎉 Account Approved!</h1>
+      </div>
+      <div style="background: white; padding: 24px;">
+        <h2>Congratulations!</h2>
+        <p>Your tourism provider account has been approved.</p>
+        <p><strong>Property:</strong> ${propertyName}</p>
+        <p>You can now access your dashboard and start managing your property.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${process.env.FRONTEND_URL}/tourism/login" style="background: #fbbf24; color: #1f2937; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+            Access Your Dashboard
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 13px;">If you have any questions, feel free to contact us.</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: "Axxspace <onboarding@resend.dev>",
+      to: email,
+      subject: "Your Tourism Provider Account Has Been Approved",
+      html: getEmailHtml(propertyName),
+    });
+    console.log(`✅ Approval email sent to: ${email}`);
+  } catch (err) {
+    console.error(`❌ Email failed to ${email}:`, err.message);
+  }
+};
+
+export const sendMoverApprovalEmail = async (email, name) => {
+  const getEmailHtml = (name) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">🎉 Account Approved!</h1>
+      </div>
+      <div style="background: white; padding: 24px;">
+        <h2>Congratulations, ${name}!</h2>
+        <p>Your mover account has been approved.</p>
+        <p>You can now access your dashboard and start accepting jobs.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${process.env.FRONTEND_URL}/movers/login" style="background: #fbbf24; color: #1f2937; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+            Access Your Dashboard
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 13px;">If you have any questions, feel free to contact us.</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: "Axxspace <onboarding@resend.dev>",
+      to: email,
+      subject: "Your Mover Account Has Been Approved",
+      html: getEmailHtml(name),
+    });
+    console.log(`✅ Approval email sent to: ${email}`);
+  } catch (err) {
+    console.error(`❌ Email failed to ${email}:`, err.message);
+  }
+};
+
+export const sendMaterialApprovalEmail = async (email, materialTitle) => {
+  const getEmailHtml = (materialTitle) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">✅ Material Approved!</h1>
+      </div>
+      <div style="background: white; padding: 24px;">
+        <h2>Great News!</h2>
+        <p>Your material has been approved and is now live on the platform.</p>
+        <p><strong>Material:</strong> ${materialTitle}</p>
+        <p>Buyers can now view and purchase your material.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${process.env.FRONTEND_URL}/seller/dashboard" style="background: #fbbf24; color: #1f2937; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+            View Your Dashboard
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 13px;">If you have any questions, feel free to contact us.</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: "Axxspace <onboarding@resend.dev>",
+      to: email,
+      subject: "Your Material Has Been Approved",
+      html: getEmailHtml(materialTitle),
+    });
+    console.log(`✅ Approval email sent to: ${email}`);
+  } catch (err) {
+    console.error(`❌ Email failed to ${email}:`, err.message);
+  }
+};
+
+export const sendPropertyApprovalEmail = async (email, propertyTitle) => {
+  const getEmailHtml = (propertyTitle) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">✅ Property Approved!</h1>
+      </div>
+      <div style="background: white; padding: 24px;">
+        <h2>Great News!</h2>
+        <p>Your property has been approved and is now live on the platform.</p>
+        <p><strong>Property:</strong> ${propertyTitle}</p>
+        <p>Tenants can now view and inquire about your property.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${process.env.FRONTEND_URL}/dashboard" style="background: #fbbf24; color: #1f2937; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+            View Your Dashboard
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 13px;">If you have any questions, feel free to contact us.</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: "Axxspace <onboarding@resend.dev>",
+      to: email,
+      subject: "Your Property Has Been Approved",
+      html: getEmailHtml(propertyTitle),
+    });
+    console.log(`✅ Approval email sent to: ${email}`);
+  } catch (err) {
+    console.error(`❌ Email failed to ${email}:`, err.message);
+  }
+};
