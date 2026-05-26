@@ -25,9 +25,8 @@ router.get("/:id", getReviewById);
 // Get reviews stats (public)
 router.get("/stats/summary", getReviewsStats);
 
-// ====================== PROTECTED ROUTES ======================
-// Create review (requires authentication)
-router.post("/", protect, createReview);
+// Create review (public - allows anonymous reviews)
+router.post("/", createReview);
 
 // Get user's own reviews (requires authentication)
 router.get("/user/my-reviews", protect, getUserReviews);

@@ -4,7 +4,7 @@ import User from "../models/User.js";
 // ====================== CREATE REVIEW ======================
 export const createReview = async (req, res) => {
   try {
-    const { rating, title, comment, category, relatedId } = req.body;
+    const { rating, title, comment, category, relatedId, userName } = req.body;
 
     if (!rating || !title || !comment) {
       return res.status(400).json({ error: "Rating, title, and comment are required" });
@@ -14,14 +14,21 @@ export const createReview = async (req, res) => {
       return res.status(400).json({ error: "Rating must be between 1 and 5" });
     }
 
-    const user = await User.findById(req.userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    // Handle both authenticated and anonymous reviews
+    let reviewUserName = userName || "Anonymous";
+    let userId = null;
+
+    if (req.userId) {
+      const user = await User.findById(req.userId);
+      if (user) {
+        userId = req.userId;
+        reviewUserName = user.name;
+      }
     }
 
     const review = new Review({
-      user: req.userId,
-      userName: user.name,
+      user: userId,
+      userName: reviewUserName,
       rating,
       title,
       comment,
