@@ -26,8 +26,9 @@ const helmetConfig = helmet({
 const corsOptions = {
   origin: [
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    process.env.FRONTEND_URL || "https://axx-spaces.vercel.app",
+    "https://axxspace.com",
+    "https://www.axxspace.com",
+    "https://axx-spaces-frontend.vercel.app"
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
