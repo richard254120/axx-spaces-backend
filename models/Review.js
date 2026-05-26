@@ -39,7 +39,7 @@ const reviewSchema = new mongoose.Schema({
   },
   categoryModel: {
     type: String,
-    enum: ["Property", "User", "Material", "Tourism"],
+    enum: ["Property", "User", "Material", "Tourism", null],
   },
   isVerified: {
     type: Boolean,
