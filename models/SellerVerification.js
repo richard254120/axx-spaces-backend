@@ -69,6 +69,6 @@ const sellerVerificationSchema = new mongoose.Schema(
 
 const SellerVerification =
   mongoose.models.SellerVerification ||
-  mongoose.model("SellerVerification", sellerVerificationSchema);
+  mongoose.model("SellerVerification", sellerVerificationSchema, "sellerverifications");
 
 export default SellerVerification;

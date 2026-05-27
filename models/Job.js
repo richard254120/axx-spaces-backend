@@ -21,4 +21,4 @@ const jobSchema = new mongoose.Schema({
   scheduledDate: { type: Date, required: true },
 }, { timestamps: true });
 
-export default mongoose.model("Job", jobSchema);
+export default mongoose.model("Job", jobSchema, "movers");

@@ -91,6 +91,6 @@ tourismListingSchema.index({ isFeatured: 1, status: 1 });
 
 const TourismListing =
   mongoose.models.TourismListing ||
-  mongoose.model("TourismListing", tourismListingSchema);
+  mongoose.model("TourismListing", tourismListingSchema, "tourismlistings");
 
 export default TourismListing;

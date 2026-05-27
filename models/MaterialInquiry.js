@@ -50,6 +50,6 @@ const materialInquirySchema = new mongoose.Schema(
 
 const MaterialInquiry =
   mongoose.models.MaterialInquiry ||
-  mongoose.model("MaterialInquiry", materialInquirySchema);
+  mongoose.model("MaterialInquiry", materialInquirySchema, "materialinquiries");
 
 export default MaterialInquiry;

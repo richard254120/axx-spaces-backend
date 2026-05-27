@@ -45,4 +45,4 @@ configSchema.statics.getAllConfigs = async function() {
   return result;
 };
 
-export default mongoose.model("Config", configSchema);
+export default mongoose.model("Config", configSchema, "configs");

@@ -98,6 +98,6 @@ reviewSchema.methods.isHelpfulByUser = function(userId) {
   return this.helpfulBy.includes(userId);
 };
 
-const Review = mongoose.model("Review", reviewSchema);
+const Review = mongoose.model("Review", reviewSchema, "reviews");
 
 export default Review;

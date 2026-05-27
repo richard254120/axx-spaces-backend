@@ -118,5 +118,5 @@ materialSchema.index({ category: 1, county: 1, status: 1 });
 materialSchema.index({ seller: 1 });
 materialSchema.index({ createdAt: -1 });
 
-const Material = mongoose.models.Material || mongoose.model("Material", materialSchema);
+const Material = mongoose.models.Material || mongoose.model("Material", materialSchema, "merchants");
 export default Material;

@@ -118,6 +118,6 @@ propertySchema.pre("save", function (next) {
 });
 
 const Property =
-  mongoose.models.Property || mongoose.model("Property", propertySchema);
+  mongoose.models.Property || mongoose.model("Property", propertySchema, "rentals");
 
 export default Property;
