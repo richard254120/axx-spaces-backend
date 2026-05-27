@@ -101,6 +101,27 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpiry: {
       type: Date,
     },
+
+    // ✅ EMAIL VERIFICATION FIELDS
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: {
+      type: String,
+    },
+    emailVerificationExpiry: {
+      type: Date,
+    },
+
+    // ✅ GOOGLE OAUTH FIELDS
+    googleId: {
+      type: String,
+    },
+    isGoogleUser: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

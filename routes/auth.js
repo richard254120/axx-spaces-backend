@@ -30,9 +30,15 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
     const newUser = new User({
       name, email, password: hashedPassword, phone,
       role: role || "landlord",
+      emailVerificationToken: verificationToken,
+      emailVerificationExpiry: verificationExpiry,
     });
 
     if (role === "mover") {
@@ -45,6 +51,39 @@ router.post("/register", async (req, res) => {
 
     await newUser.save();
 
+    // Send email verification email
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: email,
+      subject: "📧 Verify Your Email - Axxspace",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #0B2140; padding: 20px; text-align: center;">
+            <h1 style="color: #fbbf24; margin: 0;">Axxspace</h1>
+            <p style="color: #94a3b8; margin: 6px 0 0;">Kenya's Premier Platform</p>
+          </div>
+          <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
+            <p style="color: #1f2937; font-size: 15px;">Hi <strong>${name}</strong>,</p>
+            <p style="color: #6b7280; font-size: 14px;">
+              Thank you for registering with Axxspace! Please verify your email address to activate your account.
+              This link expires in <strong>24 hours</strong>.
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${verificationUrl}"
+                style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                ✅ Verify My Email
+              </a>
+            </div>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+              If you did not create an account with Axxspace, ignore this email.<br/>
+              Link expires in 24 hours.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+
     // Send email notification for mover or seller registration
     if (role === "mover") {
       await sendMoverRegistrationEmail(newUser);
@@ -52,15 +91,9 @@ router.post("/register", async (req, res) => {
       await sendSellerRegistrationEmail(newUser);
     }
 
-    const token = jwt.sign(
-      { userId: newUser._id, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
     res.status(201).json({
-      token,
-      user: formatUserResponse(newUser),
+      message: "Registration successful! Please check your email to verify your account.",
+      requiresVerification: true,
     });
 
   } catch (err) {
@@ -223,6 +256,182 @@ router.post("/reset-password/:token", async (req, res) => {
   } catch (err) {
     console.error("❌ Reset password error:", err);
     res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
+// ====================== VERIFY EMAIL ======================
+router.post("/verify-email/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "❌ Verification link is invalid or has expired." });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpiry = undefined;
+    await user.save();
+
+    console.log(`✅ Email verified successfully for: ${user.email}`);
+    res.json({ message: "✅ Email verified successfully! You can now login." });
+
+  } catch (err) {
+    console.error("❌ Email verification error:", err);
+    res.status(500).json({ error: "Failed to verify email" });
+  }
+});
+
+// ====================== RESEND VERIFICATION EMAIL ======================
+router.post("/resend-verification", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ error: "Email is already verified" });
+    }
+
+    // Generate new verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpiry = verificationExpiry;
+    await user.save();
+
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: email,
+      subject: "📧 Verify Your Email - Axxspace",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #0B2140; padding: 20px; text-align: center;">
+            <h1 style="color: #fbbf24; margin: 0;">Axxspace</h1>
+            <p style="color: #94a3b8; margin: 6px 0 0;">Kenya's Premier Platform</p>
+          </div>
+          <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
+            <p style="color: #1f2937; font-size: 15px;">Hi <strong>${user.name}</strong>,</p>
+            <p style="color: #6b7280; font-size: 14px;">
+              Please verify your email address to activate your account.
+              This link expires in <strong>24 hours</strong>.
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${verificationUrl}"
+                style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                ✅ Verify My Email
+              </a>
+            </div>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+              If you did not create an account with Axxspace, ignore this email.<br/>
+              Link expires in 24 hours.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+
+    console.log(`📧 Verification email resent to: ${email}`);
+    res.json({ message: "✅ Verification email sent successfully!" });
+
+  } catch (err) {
+    console.error("❌ Resend verification error:", err);
+    res.status(500).json({ error: "Failed to send verification email" });
+  }
+});
+
+// ====================== GOOGLE OAUTH ======================
+router.post("/google", async (req, res) => {
+  try {
+    const { googleId, email, name, picture } = req.body;
+
+    if (!googleId || !email || !name) {
+      return res.status(400).json({ error: "Google ID, email, and name are required" });
+    }
+
+    // Check if user exists with this Google ID
+    let user = await User.findOne({ googleId });
+
+    if (user) {
+      // User exists, log them in
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      return res.json({
+        token,
+        user: formatUserResponse(user),
+      });
+    }
+
+    // Check if user exists with this email (but no Google ID)
+    user = await User.findOne({ email });
+
+    if (user) {
+      // Link Google account to existing user
+      user.googleId = googleId;
+      user.isGoogleUser = true;
+      user.isEmailVerified = true; // Google emails are verified
+      await user.save();
+
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      return res.json({
+        token,
+        user: formatUserResponse(user),
+      });
+    }
+
+    // Create new user with Google account
+    const newUser = new User({
+      name,
+      email,
+      googleId,
+      isGoogleUser: true,
+      isEmailVerified: true, // Google emails are verified
+      phone: "", // Will need to be filled later
+      password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10), // Random password
+      role: "landlord",
+    });
+
+    await newUser.save();
+
+    const token = jwt.sign(
+      { userId: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(201).json({
+      token,
+      user: formatUserResponse(newUser),
+      requiresPhone: true, // Indicate that phone number needs to be added
+    });
+
+  } catch (err) {
+    console.error("❌ Google OAuth error:", err);
+    res.status(500).json({ error: err.message || "Google authentication failed" });
   }
 });
 
