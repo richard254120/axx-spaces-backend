@@ -38,14 +38,14 @@ export const createMaterial = async (req, res) => {
   }
 };
 
-// ============ GET ALL APPROVED MATERIALS (Public Browse) ============
+// ============ GET ALL ACTIVE MATERIALS (Public Browse) ============
 export const getApprovedMaterials = async (req, res) => {
   try {
     const { category, condition, minPrice, maxPrice, county, search } = req.query;
-    
-    // Aligned to look precisely for your "approved" status string
-    let filter = { status: "approved" };
-    
+
+    // ✅ FIXED: status is now "active" to match what approveMaterial sets
+    let filter = { status: "active" };
+
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
     if (county) filter.county = county;
@@ -74,10 +74,7 @@ export const getApprovedMaterials = async (req, res) => {
 // ============ GET SELLER'S OWN MATERIALS ============
 export const getMyMaterials = async (req, res) => {
   try {
-    // ✅ Fetches all items belonging to the seller exactly as they exist in MongoDB
     const materials = await Material.find({ seller: req.user._id }).sort({ createdAt: -1 });
-    
-    // Send the database rows directly to the dashboard with no interference
     res.json(materials);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -92,7 +89,8 @@ export const approveMaterial = async (req, res) => {
     }
     const material = await Material.findByIdAndUpdate(
       req.params.id,
-      { status: "approved", isVerified: true },
+      // ✅ FIXED: status is now "active" so the marketplace filter picks it up
+      { status: "active", isVerified: true },
       { new: true }
     ).populate("seller", "email");
     if (!material) return res.status(404).json({ error: "Material not found" });
@@ -131,7 +129,7 @@ export const markAsSold = async (req, res) => {
     await material.save();
 
     // Track commission for the platform (5% of material price)
-    const commission = material.price * 0.05; // 5% platform commission
+    const commission = material.price * 0.05;
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { totalCommissionEarned: commission },
       $push: {
