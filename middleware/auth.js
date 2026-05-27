@@ -38,3 +38,16 @@ export const protect = async (req, res, next) => {
 
 // 2. Export a clone of it named 'auth' so old files don't break!
 export const auth = protect;
+
+// 3. Admin-only middleware
+export const adminOnly = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Access denied. Admin only." });
+    }
+    next();
+  } catch (error) {
+    console.error("❌ Admin auth error:", error.message);
+    return res.status(500).json({ error: "❌ Server error" });
+  }
+};

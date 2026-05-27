@@ -21,6 +21,7 @@ import jobRoutes from "./routes/jobs.js";
 import tourismRoutes from "./routes/tourism.js";
 import profileRoutes from "./routes/profile.js";
 import reviewRoutes from "./routes/reviews.js";
+import adminRoutes from "./routes/admin.js";
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/tourism", tourismRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/api/health", (req, res) => 
   res.json({ status: "OK", timestamp: new Date().toISOString() })
