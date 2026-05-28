@@ -117,7 +117,7 @@ router.patch("/materials/:id/approve", protect, adminOnly, async (req, res) => {
   try {
     const material = await Material.findByIdAndUpdate(
       req.params.id,
-      { status: "active", isVerified: true },
+      { status: "approved", isVerified: true },
       { new: true }
     ).populate("seller", "email");
 

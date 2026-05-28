@@ -73,7 +73,7 @@ const materialSchema = new mongoose.Schema(
     // STATUS
     status: {
       type: String,
-      enum: ["active", "sold", "archived", "pending"],
+      enum: ["approved", "rejected", "sold", "archived", "pending"],
       default: "pending", // Fixed: Default to pending until approved
     },
     isVerified: {
