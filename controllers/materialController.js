@@ -65,8 +65,14 @@ export const getApprovedMaterials = async (req, res) => {
       .populate("seller", "name phone isApproved")
       .sort({ createdAt: -1 })
       .limit(50);
+
+    console.log("Materials fetched:", materials.length, "with filter:", JSON.stringify(filter));
+    if (materials.length > 0) {
+      console.log("First material status:", materials[0].status, "isVerified:", materials[0].isVerified);
+    }
     res.json(materials);
   } catch (error) {
+    console.error("❌ Get approved materials error:", error);
     res.status(500).json({ error: error.message });
   }
 };
