@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
+import security from "../middleware/security.js";
 import tourismUpload from "../config/multerTourism.js";
 import profileUpload from "../config/multerProfile.js";
 import {
@@ -34,6 +35,7 @@ router.get("/owner/listings/:id", auth, getOwnerListing);
 router.patch(
   "/owner/listings/:id",
   auth,
+  security.uploadLimiter,
   tourismUpload.fields([
     { name: "images", maxCount: 10 },
     { name: "videos", maxCount: 5 },

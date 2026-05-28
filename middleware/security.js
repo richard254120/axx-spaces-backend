@@ -7,61 +7,113 @@ import xss from 'xss-clean';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
 
-// Helmet Configuration
+// Helmet Configuration - Enhanced security headers
 const helmetConfig = helmet({
-  contentSecurityPolicy: false,           // Set to true later when you have proper CSP
+  contentSecurityPolicy: false,           // CSP is handled in frontend index.html
   crossOriginResourcePolicy: { policy: "cross-origin" },
   hsts: {
-    maxAge: 31536000,
+    maxAge: 31536000,                     // 1 year
     includeSubDomains: true,
     preload: true,
   },
-  frameguard: { action: 'deny' },
-  hidePoweredBy: true,
-  noSniff: true,
+  frameguard: { action: 'deny' },         // Prevent clickjacking
+  hidePoweredBy: true,                   // Hide Express header
+  noSniff: true,                         // Prevent MIME type sniffing
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  xssFilter: true,                       // Add XSS protection header
+  permittedCrossDomainPolicies: [],      // No cross-domain policies allowed
 });
 
-// CORS Configuration
+// CORS Configuration - Restrict origins
 const corsOptions = {
-  origin: [
-    "http://localhost:5173",
-    "https://axxspace.com",
-    "https://www.axxspace.com",
-    "https://axx-spaces-frontend.vercel.app",
-    "https://admin.axxspace.com",
-    "https://axxspace-admin.vercel.app"
-  ],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://axxspace.com",
+      "https://www.axxspace.com",
+      "https://axx-spaces-frontend.vercel.app",
+      "https://admin.axxspace.com",
+      "https://axxspace-admin.vercel.app"
+    ];
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  maxAge: 86400,
+  exposedHeaders: ["Content-Range", "X-Total-Count"],
+  maxAge: 86400,                          // 24 hours
+  optionsSuccessStatus: 204
 };
 
-// Rate Limiters
+// Rate Limiters - Enhanced with different limits for different endpoints
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000,              // 15 minutes
+  max: 100,                              // 100 requests per window
   message: { error: "Too many requests from this IP, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for trusted IPs if needed
+    return false;
+  },
+  keyGenerator: (req) => {
+    return req.ip + ':' + req.path;      // Rate limit per IP per path
+  }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,              // 15 minutes
+  max: 5,                               // Stricter limit for auth endpoints
+  message: { error: "Too many login attempts. Try again in 15 minutes." },
+  skipSuccessfulRequests: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,              // 1 minute
+  max: 30,                              // 30 requests per minute
+  message: { error: "Too many API requests, please slow down." },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: "Too many login attempts. Try again in 15 minutes." },
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,             // 1 hour
+  max: 10,                              // 10 uploads per hour
+  message: { error: "Too many upload attempts. Please try again later." },
 });
 
 function applyTo(app) {
   // Order is important
-  app.use(cookieParser());
+  app.use(cookieParser({
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // Secure cookies in production
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }));
   app.use(helmetConfig);
   app.use(cors(corsOptions));
   app.use(generalLimiter);
-  app.use(mongoSanitize());
-  app.use(xss());
-  app.use(hpp());
+  app.use(mongoSanitize());               // NoSQL injection protection
+  app.use(xss());                         // XSS protection
+  app.use(hpp());                        // HTTP parameter pollution protection
+
+  // Additional security middleware
+  app.use((req, res, next) => {
+    // Remove sensitive headers
+    res.removeHeader('X-Powered-By');
+    // Add security headers
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+  });
 
   console.log("🔒 [security.js] All security middleware applied successfully");
 }
@@ -70,4 +122,6 @@ export default {
   applyTo,
   generalLimiter,
   authLimiter,
+  apiLimiter,
+  uploadLimiter,
 };

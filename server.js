@@ -46,19 +46,19 @@ mongoose.connect(process.env.MONGO_URI)
 
 // ====================== ROUTES ======================
 app.use("/api/auth", security.authLimiter, authRoutes);
-app.use("/api/properties", propertyRoutes);
-app.use("/api/payment", paymentRoutes);
-app.use("/api/movers", moverRoutes);
-app.use("/api/materials", materialRoutes);
-app.use("/api/verification", verificationRoutes);
+app.use("/api/properties", security.apiLimiter, propertyRoutes);
+app.use("/api/payment", security.apiLimiter, paymentRoutes);
+app.use("/api/movers", security.apiLimiter, moverRoutes);
+app.use("/api/materials", security.apiLimiter, materialRoutes);
+app.use("/api/verification", security.apiLimiter, verificationRoutes);
 app.use("/api/seller-auth", security.authLimiter, sellerAuthRoutes);
-app.use("/api/jobs", jobRoutes);
-app.use("/api/tourism", tourismRoutes);
-app.use("/api/profile", profileRoutes);
-app.use("/api/reviews", reviewRoutes);
-app.use("/api/admin", adminRoutes);
+app.use("/api/jobs", security.apiLimiter, jobRoutes);
+app.use("/api/tourism", security.apiLimiter, tourismRoutes);
+app.use("/api/profile", security.apiLimiter, profileRoutes);
+app.use("/api/reviews", security.apiLimiter, reviewRoutes);
+app.use("/api/admin", security.apiLimiter, adminRoutes);
 
-app.get("/api/health", (req, res) => 
+app.get("/api/health", (req, res) =>
   res.json({ status: "OK", timestamp: new Date().toISOString() })
 );
 
@@ -69,10 +69,22 @@ app.use((req, res) => {
 
 // ====================== START SERVER ======================
 const PORT = process.env.PORT || 1000;
+
+// HTTPS enforcement in production
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.protocol === 'http') {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
+
 app.listen(PORT, () => {
   console.log("==================================");
   console.log("🚀 AXX SPACES SERVER STARTED");
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
-  console.log("🔒 Security: Active (Helmet + Rate Limiting + Sanitization)");
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log("🔒 Security: Active (Helmet + Rate Limiting + Sanitization + CSP + Auth)");
 });

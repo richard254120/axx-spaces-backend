@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
+import security from "../middleware/security.js";
 import {
   createMaterial,
   getApprovedMaterials,
@@ -13,7 +14,7 @@ import {
 
 const router = express.Router();
 
-router.post("/create", auth, upload.array("images", 8), createMaterial);
+router.post("/create", auth, security.uploadLimiter, upload.array("images", 8), createMaterial);
 router.get("/", getApprovedMaterials);
 router.get("/seller/my-materials", auth, getMyMaterials);
 router.patch("/:id/approve", auth, approveMaterial);

@@ -4,15 +4,16 @@ import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import { sendPropertyEmail, sendPropertyApprovalEmail } from "../utils/email.js";
+import security from "../middleware/security.js";
 
 const router = express.Router();
 
 // ====================== CREATE PROPERTY ======================
-router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res) => {
+router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images", 10), async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ 
-        error: "User does not exist or invalid token. Please login again." 
+      return res.status(401).json({
+        error: "User does not exist or invalid token. Please login again."
       });
     }
 
@@ -65,9 +66,9 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
       leaseType: leaseType || "monthly",
       availableFrom: availableFrom || undefined,
       rules: rules || "",
-      bookedUnits: initiallyBooked === "true" || initiallyBooked === true 
-                    ? parseInt(bookedUnits) || 0 
-                    : 0,
+      bookedUnits: initiallyBooked === "true" || initiallyBooked === true
+        ? parseInt(bookedUnits) || 0
+        : 0,
     });
 
     await property.save();
@@ -77,9 +78,9 @@ router.post(["/", "/create"], auth, upload.array("images", 10), async (req, res)
 
     console.log(`✅ Property created successfully | Owner: ${req.user._id}`);
 
-    res.status(201).json({ 
-      success: true, 
-      message: "✅ Property uploaded successfully! Pending admin approval.", 
+    res.status(201).json({
+      success: true,
+      message: "✅ Property uploaded successfully! Pending admin approval.",
       property: {
         _id: property._id,
         title: property.title,
@@ -122,19 +123,21 @@ router.get("/", async (req, res) => {
 
     const query = { status: "approved" };
 
-    if (county)       query.county       = county;
+    if (county) query.county = county;
     if (propertyType) query.propertyType = { $regex: new RegExp(`^${propertyType}$`, "i") };
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = parseFloat(minPrice);
       if (maxPrice) query.price.$lte = parseFloat(maxPrice);
     }
-    if (bedrooms)  query.bedrooms  = parseInt(bedrooms);
+    if (bedrooms) query.bedrooms = parseInt(bedrooms);
     if (furnished === "true") query.furnished = true;
-    if (featured  === "true") query.isFeatured = true;
-    if (available === "true") query.$expr = { $gt: [
-      { $subtract: ["$totalUnits", "$bookedUnits"] }, 0
-    ]};
+    if (featured === "true") query.isFeatured = true;
+    if (available === "true") query.$expr = {
+      $gt: [
+        { $subtract: ["$totalUnits", "$bookedUnits"] }, 0
+      ]
+    };
     if (search) {
       const re = new RegExp(search, "i");
       query.$or = [{ title: re }, { location: re }, { county: re }];
@@ -213,8 +216,8 @@ router.post("/:id/reviews", async (req, res) => {
     if (!property) return res.status(404).json({ error: "Property not found" });
 
     property.reviews.push({
-      name:    name.trim(),
-      rating:  Number(rating),
+      name: name.trim(),
+      rating: Number(rating),
       comment: comment.trim(),
     });
 
@@ -304,7 +307,7 @@ router.patch("/:id/book", auth, async (req, res) => {
     const { change } = req.body;
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
-    
+
     if (property.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "❌ Unauthorized" });
     }
@@ -327,11 +330,11 @@ router.delete("/:id", auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
-    
+
     if (property.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "❌ Unauthorized" });
     }
-    
+
     if (property.bookedUnits > 0) return res.status(400).json({ error: "❌ Cannot delete property with active bookings." });
 
     await Property.findByIdAndDelete(req.params.id);
