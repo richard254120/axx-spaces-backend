@@ -260,7 +260,7 @@ router.patch("/:id/status", auth, async (req, res) => {
       return res.status(403).json({ error: "❌ Access denied. Admin only." });
     }
     const { status } = req.body;
-    if (!["approved", "rejected", "pending"].includes(status)) {
+    if (!["approved", "rejected", "pending", "sold"].includes(status)) {
       return res.status(400).json({ error: "❌ Invalid status value" });
     }
     const property = await Property.findByIdAndUpdate(
@@ -275,6 +275,25 @@ router.patch("/:id/status", auth, async (req, res) => {
     res.json({ success: true, message: `✅ Property ${status}`, property });
   } catch (error) {
     console.error("❌ Update status error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====================== UPDATE PROPERTY (ADMIN EDIT) ======================
+router.patch("/:id", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Access denied. Admin only." });
+    }
+    const property = await Property.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    res.json({ success: true, property });
+  } catch (error) {
+    console.error("❌ Update property error:", error);
     res.status(500).json({ error: error.message });
   }
 });

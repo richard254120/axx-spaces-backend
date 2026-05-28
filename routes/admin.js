@@ -312,4 +312,74 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
   }
 });
 
+// ====================== DELETE USER ======================
+router.delete("/users/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ error: "❌ User not found" });
+
+    // Also delete user's properties, materials, and tourism listings
+    await Property.deleteMany({ owner: req.params.id });
+    await Material.deleteMany({ seller: req.params.id });
+    await TourismListing.deleteMany({ owner: req.params.id });
+
+    res.json({ success: true, message: "✅ User deleted successfully" });
+  } catch (error) {
+    console.error("❌ Delete user error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete user" });
+  }
+});
+
+// ====================== DELETE PROPERTY ======================
+router.delete("/properties/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const property = await Property.findByIdAndDelete(req.params.id);
+    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+
+    res.json({ success: true, message: "✅ Property deleted successfully" });
+  } catch (error) {
+    console.error("❌ Delete property error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete property" });
+  }
+});
+
+// ====================== DELETE MATERIAL ======================
+router.delete("/materials/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const material = await Material.findByIdAndDelete(req.params.id);
+    if (!material) return res.status(404).json({ error: "❌ Material not found" });
+
+    res.json({ success: true, message: "✅ Material deleted successfully" });
+  } catch (error) {
+    console.error("❌ Delete material error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete material" });
+  }
+});
+
+// ====================== DELETE TOURISM ======================
+router.delete("/tourism/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const tourism = await TourismListing.findByIdAndDelete(req.params.id);
+    if (!tourism) return res.status(404).json({ error: "❌ Tourism listing not found" });
+
+    res.json({ success: true, message: "✅ Tourism listing deleted successfully" });
+  } catch (error) {
+    console.error("❌ Delete tourism error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete tourism listing" });
+  }
+});
+
+// ====================== DELETE MOVER ======================
+router.delete("/movers/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const mover = await User.findByIdAndDelete(req.params.id);
+    if (!mover) return res.status(404).json({ error: "❌ Mover not found" });
+
+    res.json({ success: true, message: "✅ Mover deleted successfully" });
+  } catch (error) {
+    console.error("❌ Delete mover error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete mover" });
+  }
+});
+
 export default router;

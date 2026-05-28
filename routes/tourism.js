@@ -52,4 +52,24 @@ router.patch("/:id/view", incrementView);
 router.post("/:id/reviews", addReview);
 router.patch("/:id/status", auth, updateListingStatus);
 
+// ====================== UPDATE TOURISM LISTING (ADMIN EDIT) ======================
+router.patch("/:id", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Access denied. Admin only." });
+    }
+    const TourismListing = (await import("../models/TourismListing.js")).default;
+    const tourism = await TourismListing.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!tourism) return res.status(404).json({ error: "❌ Tourism listing not found" });
+    res.json({ success: true, tourism });
+  } catch (error) {
+    console.error("❌ Update tourism error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
