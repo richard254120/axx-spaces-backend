@@ -43,8 +43,8 @@ export const getApprovedMaterials = async (req, res) => {
   try {
     const { category, condition, minPrice, maxPrice, county, search } = req.query;
 
-    // ✅ FIXED: status is now "active" to match what approveMaterial sets
-    let filter = { status: "active" };
+    // ✅ FIXED: status is now "approved" to match the Material model enum
+    let filter = { status: "approved" };
 
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
@@ -89,8 +89,8 @@ export const approveMaterial = async (req, res) => {
     }
     const material = await Material.findByIdAndUpdate(
       req.params.id,
-      // ✅ FIXED: status is now "active" so the marketplace filter picks it up
-      { status: "active", isVerified: true },
+      // ✅ FIXED: status is now "approved" to match the Material model enum
+      { status: "approved", isVerified: true },
       { new: true }
     ).populate("seller", "email");
     if (!material) return res.status(404).json({ error: "Material not found" });
