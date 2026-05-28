@@ -16,7 +16,7 @@ router.get("/pending", protect, adminOnly, async (req, res) => {
       Property.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
       Material.find({ status: "pending" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
       TourismListing.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
-      User.find({ role: "mover", isApproved: false }).sort({ createdAt: -1 }),
+      User.find({ role: "mover", status: "pending" }).sort({ createdAt: -1 }),
       SellerVerification.find({ status: "pending" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
     ]);
 
@@ -56,7 +56,7 @@ router.get("/all", protect, adminOnly, async (req, res) => {
           .sort({ createdAt: -1 });
         break;
       case "movers":
-        data = await User.find({ role: "mover", ...(status === "approved" ? { isApproved: true } : status === "rejected" ? { isApproved: false } : {}) })
+        data = await User.find({ role: "mover", ...(status ? { status } : {}) })
           .sort({ createdAt: -1 });
         break;
       case "sellers":
@@ -191,7 +191,7 @@ router.patch("/movers/:id/approve", protect, adminOnly, async (req, res) => {
   try {
     const mover = await User.findByIdAndUpdate(
       req.params.id,
-      { isApproved: true },
+      { isApproved: true, status: "approved" },
       { new: true }
     );
 
@@ -210,7 +210,7 @@ router.patch("/movers/:id/reject", protect, adminOnly, async (req, res) => {
   try {
     const mover = await User.findByIdAndUpdate(
       req.params.id,
-      { isApproved: false },
+      { isApproved: false, status: "rejected" },
       { new: true }
     );
 
@@ -281,7 +281,7 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
       TourismListing.countDocuments(),
       TourismListing.countDocuments({ status: "pending" }),
       User.countDocuments({ role: "mover" }),
-      User.countDocuments({ role: "mover", isApproved: false }),
+      User.countDocuments({ role: "mover", status: "pending" }),
       SellerVerification.countDocuments(),
       SellerVerification.countDocuments({ status: "pending" }),
     ]);
