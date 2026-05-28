@@ -28,7 +28,9 @@ const corsOptions = {
     "http://localhost:5173",
     "https://axxspace.com",
     "https://www.axxspace.com",
-    "https://axx-spaces-frontend.vercel.app"
+    "https://axx-spaces-frontend.vercel.app",
+    "https://admin.axxspace.com",
+    "https://axxspace-admin.vercel.app"
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
