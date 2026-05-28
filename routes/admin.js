@@ -348,9 +348,13 @@ router.delete("/properties/:id", protect, adminOnly, async (req, res) => {
 // ====================== DELETE MATERIAL ======================
 router.delete("/materials/:id", protect, adminOnly, async (req, res) => {
   try {
+    console.log("Attempting to delete material with ID:", req.params.id);
     const material = await Material.findByIdAndDelete(req.params.id);
-    if (!material) return res.status(404).json({ error: "❌ Material not found" });
-
+    if (!material) {
+      console.log("Material not found with ID:", req.params.id);
+      return res.status(404).json({ error: "❌ Material not found" });
+    }
+    console.log("Material deleted successfully:", material._id);
     res.json({ success: true, message: "✅ Material deleted successfully" });
   } catch (error) {
     console.error("❌ Delete material error:", error);
