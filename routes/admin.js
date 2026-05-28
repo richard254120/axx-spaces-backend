@@ -64,6 +64,19 @@ router.get("/all", protect, adminOnly, async (req, res) => {
           .populate("seller", "name email phone")
           .sort({ createdAt: -1 });
         break;
+      case "sold":
+        // Get all sold items across different types
+        const [soldProperties, soldMaterials, soldTourism] = await Promise.all([
+          Property.find({ status: "sold" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
+          Material.find({ status: "sold" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
+          TourismListing.find({ status: "sold" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
+        ]);
+        data = [
+          ...soldProperties.map(item => ({ ...item.toObject(), itemType: "property" })),
+          ...soldMaterials.map(item => ({ ...item.toObject(), itemType: "material" })),
+          ...soldTourism.map(item => ({ ...item.toObject(), itemType: "tourism" })),
+        ];
+        break;
       default:
         return res.status(400).json({ error: "❌ Invalid type parameter" });
     }

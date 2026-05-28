@@ -76,7 +76,7 @@ const tourismListingSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      enum: ["pending", "approved", "rejected", "sold"],
       default: "pending",
     },
     isFeatured: { type: Boolean, default: false },
