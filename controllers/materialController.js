@@ -43,9 +43,8 @@ export const getApprovedMaterials = async (req, res) => {
   try {
     const { category, condition, minPrice, maxPrice, county, search } = req.query;
 
-    // ✅ FIXED: Accept both "approved" and "active" to handle existing data
-    // Also exclude "pending", "rejected", "sold", "archived"
-    let filter = { status: { $nin: ["pending", "rejected", "sold", "archived"] } };
+    // ✅ FIXED: Only show materials with status "approved"
+    let filter = { status: "approved" };
 
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
@@ -62,14 +61,20 @@ export const getApprovedMaterials = async (req, res) => {
         { location: { $regex: search, $options: "i" } },
       ];
     }
+
+    // First, try without populate to see if materials exist
+    const materialsWithoutPopulate = await Material.find(filter).sort({ createdAt: -1 }).limit(50);
+    console.log("Materials without populate:", materialsWithoutPopulate.length);
+
+    // Then with populate
     const materials = await Material.find(filter)
       .populate("seller", "name phone isApproved")
       .sort({ createdAt: -1 })
       .limit(50);
 
-    console.log("Materials fetched:", materials.length, "with filter:", JSON.stringify(filter));
+    console.log("Materials with populate:", materials.length, "with filter:", JSON.stringify(filter));
     if (materials.length > 0) {
-      console.log("First material status:", materials[0].status, "isVerified:", materials[0].isVerified);
+      console.log("First material ID:", materials[0]._id, "status:", materials[0].status, "isVerified:", materials[0].isVerified);
     }
     res.json(materials);
   } catch (error) {
