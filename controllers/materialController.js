@@ -44,7 +44,8 @@ export const getApprovedMaterials = async (req, res) => {
     const { category, condition, minPrice, maxPrice, county, search } = req.query;
 
     // ✅ FIXED: Accept both "approved" and "active" to handle existing data
-    let filter = { status: { $in: ["approved", "active"] } };
+    // Also exclude "pending", "rejected", "sold", "archived"
+    let filter = { status: { $nin: ["pending", "rejected", "sold", "archived"] } };
 
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
