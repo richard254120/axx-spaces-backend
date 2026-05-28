@@ -43,8 +43,8 @@ export const getApprovedMaterials = async (req, res) => {
   try {
     const { category, condition, minPrice, maxPrice, county, search } = req.query;
 
-    // ✅ FIXED: status is now "approved" to match the Material model enum
-    let filter = { status: "approved" };
+    // ✅ FIXED: Accept both "approved" and "active" to handle existing data
+    let filter = { status: { $in: ["approved", "active"] } };
 
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
