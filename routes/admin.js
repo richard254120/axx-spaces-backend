@@ -37,7 +37,7 @@ router.get("/pending", protect, adminOnly, async (req, res) => {
 router.get("/all", protect, adminOnly, async (req, res) => {
   try {
     const { type, status } = req.query;
-    
+
     let data;
     switch (type) {
       case "properties":
@@ -46,7 +46,9 @@ router.get("/all", protect, adminOnly, async (req, res) => {
           .sort({ createdAt: -1 });
         break;
       case "materials":
-        data = await Material.find(status ? { status } : {})
+        // ✅ FIXED: Map "approved" status to "active" for materials
+        const materialStatus = status === "approved" ? "active" : status;
+        data = await Material.find(materialStatus ? { status: materialStatus } : {})
           .populate("seller", "name email phone")
           .sort({ createdAt: -1 });
         break;
@@ -130,7 +132,7 @@ router.patch("/materials/:id/approve", protect, adminOnly, async (req, res) => {
   try {
     const material = await Material.findByIdAndUpdate(
       req.params.id,
-      { status: "approved", isVerified: true },
+      { status: "active", isVerified: true },
       { new: true }
     ).populate("seller", "email");
 

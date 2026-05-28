@@ -43,8 +43,8 @@ export const getApprovedMaterials = async (req, res) => {
   try {
     const { category, condition, minPrice, maxPrice, county, search } = req.query;
 
-    // ✅ FIXED: Accept both "approved" (from admin) and "active" (manual DB changes)
-    let filter = { status: { $in: ["approved", "active"] } };
+    // ✅ FIXED: Only show materials with status "active"
+    let filter = { status: "active" };
 
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
