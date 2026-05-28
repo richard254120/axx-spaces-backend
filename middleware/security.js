@@ -62,9 +62,6 @@ const generalLimiter = rateLimit({
   skip: (req) => {
     // Skip rate limiting for trusted IPs if needed
     return false;
-  },
-  keyGenerator: (req) => {
-    return req.ip + ':' + req.path;      // Rate limit per IP per path
   }
 });
 
