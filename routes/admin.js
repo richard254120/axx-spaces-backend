@@ -388,4 +388,175 @@ router.delete("/movers/:id", protect, adminOnly, async (req, res) => {
   }
 });
 
+// ====================== VIEW STATISTICS ======================
+router.get("/view-stats", protect, adminOnly, async (req, res) => {
+  try {
+    const { type, category, startDate, endDate } = req.query;
+
+    let data = {};
+    const dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+    }
+
+    switch (type) {
+      case "properties":
+        const propertyFilter = { ...dateFilter };
+        if (category) propertyFilter.propertyType = category;
+        data = await Property.aggregate([
+          { $match: propertyFilter },
+          {
+            $group: {
+              _id: "$propertyType",
+              totalViews: { $sum: "$views" },
+              totalItems: { $sum: 1 },
+              avgViews: { $avg: "$views" }
+            }
+          },
+          { $sort: { totalViews: -1 } }
+        ]);
+        break;
+
+      case "materials":
+        const materialFilter = { ...dateFilter };
+        if (category) materialFilter.category = category;
+        data = await Material.aggregate([
+          { $match: materialFilter },
+          {
+            $group: {
+              _id: "$category",
+              totalViews: { $sum: "$views" },
+              totalItems: { $sum: 1 },
+              avgViews: { $avg: "$views" }
+            }
+          },
+          { $sort: { totalViews: -1 } }
+        ]);
+        break;
+
+      case "tourism":
+        const tourismFilter = { ...dateFilter };
+        if (category) tourismFilter.category = category;
+        data = await TourismListing.aggregate([
+          { $match: tourismFilter },
+          {
+            $group: {
+              _id: "$category",
+              totalViews: { $sum: "$views" },
+              totalItems: { $sum: 1 },
+              avgViews: { $avg: "$views" }
+            }
+          },
+          { $sort: { totalViews: -1 } }
+        ]);
+        break;
+
+      default:
+        // Get all stats
+        const propertyStats = await Property.aggregate([
+          { $match: dateFilter },
+          {
+            $group: {
+              _id: "$propertyType",
+              totalViews: { $sum: "$views" },
+              totalItems: { $sum: 1 }
+            }
+          }
+        ]);
+
+        const materialStats = await Material.aggregate([
+          { $match: dateFilter },
+          {
+            $group: {
+              _id: "$category",
+              totalViews: { $sum: "$views" },
+              totalItems: { $sum: 1 }
+            }
+          }
+        ]);
+
+        const tourismStats = await TourismListing.aggregate([
+          { $match: dateFilter },
+          {
+            $group: {
+              _id: "$category",
+              totalViews: { $sum: "$views" },
+              totalItems: { $sum: 1 }
+            }
+          }
+        ]);
+
+        data = {
+          properties: propertyStats,
+          materials: materialStats,
+          tourism: tourismStats
+        };
+    }
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("❌ Get view stats error:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch view statistics" });
+  }
+});
+
+// ====================== TOP VIEWED ITEMS ======================
+router.get("/top-viewed", protect, adminOnly, async (req, res) => {
+  try {
+    const { type, limit = 10 } = req.query;
+    const limitNum = parseInt(limit);
+
+    let data = {};
+
+    switch (type) {
+      case "properties":
+        data = await Property.find()
+          .sort({ views: -1 })
+          .limit(limitNum)
+          .populate("owner", "name email")
+          .select("title location propertyType views owner createdAt");
+        break;
+
+      case "materials":
+        data = await Material.find()
+          .sort({ views: -1 })
+          .limit(limitNum)
+          .populate("seller", "name email")
+          .select("title category condition views seller createdAt");
+        break;
+
+      case "tourism":
+        data = await TourismListing.find()
+          .sort({ views: -1 })
+          .limit(limitNum)
+          .populate("owner", "name email")
+          .select("title category location views owner createdAt");
+        break;
+
+      default:
+        data = {
+          properties: await Property.find()
+            .sort({ views: -1 })
+            .limit(limitNum)
+            .select("title location propertyType views createdAt"),
+          materials: await Material.find()
+            .sort({ views: -1 })
+            .limit(limitNum)
+            .select("title category condition views createdAt"),
+          tourism: await TourismListing.find()
+            .sort({ views: -1 })
+            .limit(limitNum)
+            .select("title category location views createdAt")
+        };
+    }
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("❌ Get top viewed error:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch top viewed items" });
+  }
+});
+
 export default router;

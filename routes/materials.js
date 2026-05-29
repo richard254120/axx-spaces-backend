@@ -2,10 +2,12 @@ import express from "express";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import security from "../middleware/security.js";
+import { trackMaterialView } from "../middleware/viewTracking.js";
 import {
   createMaterial,
   getApprovedMaterials,
   getMyMaterials,
+  getMaterialById,
   approveMaterial,
   rejectMaterial,
   markAsSold,
@@ -16,6 +18,7 @@ const router = express.Router();
 
 router.post("/create", auth, security.uploadLimiter, upload.array("images", 8), createMaterial);
 router.get("/", getApprovedMaterials);
+router.get("/:id", trackMaterialView, getMaterialById);
 router.get("/seller/my-materials", auth, getMyMaterials);
 router.patch("/:id/approve", auth, approveMaterial);
 router.patch("/:id/reject", auth, rejectMaterial);

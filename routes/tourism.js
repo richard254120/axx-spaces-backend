@@ -2,6 +2,7 @@ import express from "express";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import security from "../middleware/security.js";
+import { trackTourismView } from "../middleware/viewTracking.js";
 import tourismUpload from "../config/multerTourism.js";
 import profileUpload from "../config/multerProfile.js";
 import {
@@ -49,7 +50,7 @@ router.get("/", getListings);
 router.post("/register", upload.array("images", 10), registerProviderListing);
 router.post("/", auth, upload.array("images", 10), createListing);
 
-router.get("/:id", getListingById);
+router.get("/:id", trackTourismView, getListingById);
 router.patch("/:id/view", incrementView);
 router.post("/:id/reviews", addReview);
 router.patch("/:id/status", auth, updateListingStatus);

@@ -5,6 +5,7 @@ import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import { sendPropertyEmail, sendPropertyApprovalEmail } from "../utils/email.js";
 import security from "../middleware/security.js";
+import { trackPropertyView } from "../middleware/viewTracking.js";
 
 const router = express.Router();
 
@@ -164,7 +165,7 @@ router.get("/", async (req, res) => {
 
 // ====================== GET SINGLE PROPERTY ======================
 // Used by MapView "View listing →" links and detail pages
-router.get("/:id", async (req, res) => {
+router.get("/:id", trackPropertyView, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id)
       .populate("owner", "name phone email");

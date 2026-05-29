@@ -84,6 +84,21 @@ export const getMyMaterials = async (req, res) => {
   }
 };
 
+// ============ GET SINGLE MATERIAL BY ID ============
+export const getMaterialById = async (req, res) => {
+  try {
+    const material = await Material.findById(req.params.id)
+      .populate("seller", "name phone email isApproved");
+
+    if (!material) return res.status(404).json({ error: "Material not found" });
+
+    res.json(material);
+  } catch (error) {
+    console.error("❌ Get material by ID error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // ============ ADMIN — APPROVE MATERIAL ============
 export const approveMaterial = async (req, res) => {
   try {
