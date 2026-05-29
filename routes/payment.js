@@ -13,12 +13,14 @@ const router = express.Router();
 const getMpesaConfig = async () => {
   try {
     const shortcode = await Config.getConfig("mpesa_shortcode");
+    const accountNumber = await Config.getConfig("mpesa_account_number");
     const passkey = await Config.getConfig("mpesa_passkey");
     const consumerKey = await Config.getConfig("mpesa_consumer_key");
     const consumerSecret = await Config.getConfig("mpesa_consumer_secret");
 
     return {
-      MPESA_SHORTCODE: shortcode || process.env.MPESA_SHORTCODE || "174379",
+      MPESA_SHORTCODE: shortcode || process.env.MPESA_SHORTCODE || "542542",
+      MPESA_ACCOUNT_NUMBER: accountNumber || process.env.MPESA_ACCOUNT_NUMBER || "03507214611250",
       MPESA_PASSKEY: passkey || process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
       MPESA_CONSUMER_KEY: consumerKey || process.env.MPESA_CONSUMER_KEY,
       MPESA_CONSUMER_SECRET: consumerSecret || process.env.MPESA_CONSUMER_SECRET,
@@ -26,7 +28,8 @@ const getMpesaConfig = async () => {
   } catch (err) {
     console.error("Error fetching M-Pesa config:", err);
     return {
-      MPESA_SHORTCODE: process.env.MPESA_SHORTCODE || "174379",
+      MPESA_SHORTCODE: process.env.MPESA_SHORTCODE || "542542",
+      MPESA_ACCOUNT_NUMBER: process.env.MPESA_ACCOUNT_NUMBER || "03507214611250",
       MPESA_PASSKEY: process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
       MPESA_CONSUMER_KEY: process.env.MPESA_CONSUMER_KEY,
       MPESA_CONSUMER_SECRET: process.env.MPESA_CONSUMER_SECRET,
@@ -45,7 +48,7 @@ const getAccessToken = async () => {
     ).toString("base64");
 
     const response = await axios.get(
-      "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+      "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
       { headers: { Authorization: `Basic ${authString}` } }
     );
     return response.data.access_token;
@@ -79,12 +82,12 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
       PartyB: config.MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
-      AccountReference: `AX${propertyId || materialId || subscriptionType || "Wallet"}`,
+      AccountReference: config.MPESA_ACCOUNT_NUMBER,
       TransactionDesc: plan || subscriptionType || "Axxspace Payment",
     };
 
     const mpesaResponse = await axios.post(
-      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
       payload,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -176,6 +179,77 @@ router.post("/callback", async (req, res) => {
           user.subscriptionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
         }
 
+        // If payment was for property booking, create booking record
+        if (payment.type === "property_booking" && payment.propertyId) {
+          const property = await Property.findById(payment.propertyId);
+          if (property) {
+            user.bookings = user.bookings || [];
+            user.bookings.push({
+              propertyId: payment.propertyId,
+              amount: payment.amount,
+              status: "confirmed",
+              bookingDate: new Date(),
+            });
+            property.bookings = property.bookings || [];
+            property.bookings.push({
+              userId: user._id,
+              amount: payment.amount,
+              status: "confirmed",
+              bookingDate: new Date(),
+            });
+            await property.save();
+          }
+        }
+
+        // If payment was for material purchase, create purchase record
+        if (payment.type === "material_purchase" && payment.materialId) {
+          const material = await Material.findById(payment.materialId);
+          if (material) {
+            user.purchases = user.purchases || [];
+            user.purchases.push({
+              materialId: payment.materialId,
+              amount: payment.amount,
+              status: "confirmed",
+              purchaseDate: new Date(),
+            });
+            material.purchases = material.purchases || [];
+            material.purchases.push({
+              userId: user._id,
+              amount: payment.amount,
+              status: "confirmed",
+              purchaseDate: new Date(),
+            });
+            await material.save();
+          }
+        }
+
+        // If payment was for tourism booking, create booking record
+        if (payment.type === "tourism_booking" && payment.tourismId) {
+          const TourismListing = await import("../models/TourismListing.js").then(m => m.default);
+          const tourism = await TourismListing.findById(payment.tourismId);
+          if (tourism) {
+            user.tourismBookings = user.tourismBookings || [];
+            user.tourismBookings.push({
+              tourismId: payment.tourismId,
+              amount: payment.amount,
+              checkIn: payment.checkIn,
+              checkOut: payment.checkOut,
+              status: "confirmed",
+              bookingDate: new Date(),
+            });
+            tourism.bookings = tourism.bookings || [];
+            tourism.bookings.push({
+              userId: user._id,
+              amount: payment.amount,
+              checkIn: payment.checkIn,
+              checkOut: payment.checkOut,
+              status: "confirmed",
+              bookingDate: new Date(),
+            });
+            await tourism.save();
+          }
+        }
+
         // If payment was for mover profile boost (no materialId, no propertyId, no subscriptionType)
         if (!payment.propertyId && !payment.materialId && !payment.subscriptionType && payment.plan && payment.plan.includes("Profile Boost")) {
           user.isFeaturedMover = true;
@@ -200,6 +274,201 @@ router.post("/callback", async (req, res) => {
   } catch (err) {
     console.error("❌ Callback Processing Error:", err);
     res.status(500).json("Error");
+  }
+});
+
+// ====================== PROPERTY BOOKING PAYMENT ======================
+router.post("/book-property", auth, async (req, res) => {
+  try {
+    const { propertyId, phone, amount } = req.body;
+
+    if (!propertyId || !phone || !amount) {
+      return res.status(400).json({ error: "❌ Property ID, phone, and amount are required" });
+    }
+
+    const property = await Property.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: "❌ Property not found" });
+    }
+
+    const token = await getAccessToken();
+    const config = await getMpesaConfig();
+    const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
+
+    const payload = {
+      BusinessShortCode: config.MPESA_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerPayBillOnline",
+      Amount: Math.round(Number(amount)),
+      PartyA: phone.replace(/\s+/g, ""),
+      PartyB: config.MPESA_SHORTCODE,
+      PhoneNumber: phone.replace(/\s+/g, ""),
+      CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
+      AccountReference: config.MPESA_ACCOUNT_NUMBER,
+      TransactionDesc: `Property Booking: ${property.title}`,
+    };
+
+    const mpesaResponse = await axios.post(
+      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      payload,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    await User.findByIdAndUpdate(req.user.id, {
+      $push: {
+        paymentHistory: {
+          transactionId: mpesaResponse.data.CheckoutRequestID,
+          amount,
+          propertyId,
+          status: "pending",
+          date: new Date(),
+          type: "property_booking",
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "✅ M-Pesa prompt sent! Enter PIN on your phone to complete property booking.",
+      checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
+    });
+
+  } catch (error) {
+    console.error("Property Booking Payment Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to initiate property booking payment" });
+  }
+});
+
+// ====================== MATERIAL PURCHASE PAYMENT ======================
+router.post("/purchase-material", auth, async (req, res) => {
+  try {
+    const { materialId, phone, amount } = req.body;
+
+    if (!materialId || !phone || !amount) {
+      return res.status(400).json({ error: "❌ Material ID, phone, and amount are required" });
+    }
+
+    const material = await Material.findById(materialId);
+    if (!material) {
+      return res.status(404).json({ error: "❌ Material not found" });
+    }
+
+    const token = await getAccessToken();
+    const config = await getMpesaConfig();
+    const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
+
+    const payload = {
+      BusinessShortCode: config.MPESA_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerPayBillOnline",
+      Amount: Math.round(Number(amount)),
+      PartyA: phone.replace(/\s+/g, ""),
+      PartyB: config.MPESA_SHORTCODE,
+      PhoneNumber: phone.replace(/\s+/g, ""),
+      CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
+      AccountReference: config.MPESA_ACCOUNT_NUMBER,
+      TransactionDesc: `Material Purchase: ${material.title}`,
+    };
+
+    const mpesaResponse = await axios.post(
+      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      payload,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    await User.findByIdAndUpdate(req.user.id, {
+      $push: {
+        paymentHistory: {
+          transactionId: mpesaResponse.data.CheckoutRequestID,
+          amount,
+          materialId,
+          status: "pending",
+          date: new Date(),
+          type: "material_purchase",
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "✅ M-Pesa prompt sent! Enter PIN on your phone to complete material purchase.",
+      checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
+    });
+
+  } catch (error) {
+    console.error("Material Purchase Payment Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to initiate material purchase payment" });
+  }
+});
+
+// ====================== TOURISM BOOKING PAYMENT ======================
+router.post("/book-tourism", auth, async (req, res) => {
+  try {
+    const { tourismId, phone, amount, checkIn, checkOut } = req.body;
+
+    if (!tourismId || !phone || !amount) {
+      return res.status(400).json({ error: "❌ Tourism ID, phone, and amount are required" });
+    }
+
+    const TourismListing = await import("../models/TourismListing.js").then(m => m.default);
+    const tourism = await TourismListing.findById(tourismId);
+    if (!tourism) {
+      return res.status(404).json({ error: "❌ Tourism listing not found" });
+    }
+
+    const token = await getAccessToken();
+    const config = await getMpesaConfig();
+    const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
+
+    const payload = {
+      BusinessShortCode: config.MPESA_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerPayBillOnline",
+      Amount: Math.round(Number(amount)),
+      PartyA: phone.replace(/\s+/g, ""),
+      PartyB: config.MPESA_SHORTCODE,
+      PhoneNumber: phone.replace(/\s+/g, ""),
+      CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
+      AccountReference: config.MPESA_ACCOUNT_NUMBER,
+      TransactionDesc: `Tourism Booking: ${tourism.name}`,
+    };
+
+    const mpesaResponse = await axios.post(
+      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      payload,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    await User.findByIdAndUpdate(req.user.id, {
+      $push: {
+        paymentHistory: {
+          transactionId: mpesaResponse.data.CheckoutRequestID,
+          amount,
+          tourismId,
+          checkIn,
+          checkOut,
+          status: "pending",
+          date: new Date(),
+          type: "tourism_booking",
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "✅ M-Pesa prompt sent! Enter PIN on your phone to complete tourism booking.",
+      checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
+    });
+
+  } catch (error) {
+    console.error("Tourism Booking Payment Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to initiate tourism booking payment" });
   }
 });
 
@@ -324,12 +593,12 @@ router.post("/subscribe", auth, async (req, res) => {
       PartyB: config.MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
-      AccountReference: `AXX-${subscriptionType}-${req.user.role}`,
+      AccountReference: config.MPESA_ACCOUNT_NUMBER,
       TransactionDesc: plan.name,
     };
 
     const mpesaResponse = await axios.post(
-      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
       payload,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -407,12 +676,12 @@ router.post("/boost-material", auth, async (req, res) => {
       PartyB: config.MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
-      AccountReference: `AXX-Material-${materialId}`,
+      AccountReference: config.MPESA_ACCOUNT_NUMBER,
       TransactionDesc: boostPlan.name,
     };
 
     const mpesaResponse = await axios.post(
-      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
       payload,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -484,12 +753,12 @@ router.post("/boost-mover", auth, async (req, res) => {
       PartyB: config.MPESA_SHORTCODE,
       PhoneNumber: phone.replace(/\s+/g, ""),
       CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
-      AccountReference: `AXX-Mover-${req.user._id}`,
+      AccountReference: config.MPESA_ACCOUNT_NUMBER,
       TransactionDesc: boostPlan.name,
     };
 
     const mpesaResponse = await axios.post(
-      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
       payload,
       { headers: { Authorization: `Bearer ${token}` } }
     );
