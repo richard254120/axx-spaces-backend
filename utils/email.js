@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
+const resend = new Resend("re_cNBKicJ4_PNvPqdJQMLuPbMD1z6xMGdbC");
 
 const ADMIN_EMAILS = [
   "admin@axxspace.com",
