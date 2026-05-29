@@ -16,7 +16,7 @@ const getMpesaConfig = async () => {
     const passkey = await Config.getConfig("mpesa_passkey");
     const consumerKey = await Config.getConfig("mpesa_consumer_key");
     const consumerSecret = await Config.getConfig("mpesa_consumer_secret");
-    
+
     return {
       MPESA_SHORTCODE: shortcode || process.env.MPESA_SHORTCODE || "174379",
       MPESA_PASSKEY: passkey || process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
@@ -137,7 +137,7 @@ router.post("/callback", async (req, res) => {
 
       if (user) {
         const payment = user.paymentHistory.find(p => p.transactionId === CheckoutRequestID);
-        
+
         payment.status = "success";
         payment.mpesaReceipt = receipt;
         user.walletBalance = (user.walletBalance || 0) + amount;
@@ -269,10 +269,10 @@ router.get("/subscription", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     const now = new Date();
-    
+
     // Check if subscription is still active
     const isActive = user.subscriptionEndDate && user.subscriptionEndDate > now;
-    
+
     res.json({
       subscriptionTier: user.subscriptionTier,
       subscriptionStartDate: user.subscriptionStartDate,
@@ -289,7 +289,7 @@ router.get("/subscription", auth, async (req, res) => {
 router.post("/subscribe", auth, async (req, res) => {
   try {
     const { subscriptionType, phone } = req.body;
-    
+
     if (!subscriptionType || !phone) {
       return res.status(400).json({ error: "❌ Subscription type and phone are required" });
     }
@@ -366,7 +366,7 @@ router.post("/subscribe", auth, async (req, res) => {
 router.post("/boost-material", auth, async (req, res) => {
   try {
     const { materialId, plan, phone } = req.body;
-    
+
     if (!materialId || !plan || !phone) {
       return res.status(400).json({ error: "❌ Material ID, plan, and phone are required" });
     }
@@ -449,7 +449,7 @@ router.post("/boost-material", auth, async (req, res) => {
 router.post("/boost-mover", auth, async (req, res) => {
   try {
     const { plan, phone } = req.body;
-    
+
     if (!plan || !phone) {
       return res.status(400).json({ error: "❌ Plan and phone are required" });
     }
@@ -555,6 +555,187 @@ router.get("/featured-movers", async (req, res) => {
     res.json(featured);
   } catch (err) {
     res.status(500).json({ error: err.message || "Failed to fetch featured movers" });
+  }
+});
+
+// ====================== BANK TRANSFER PAYMENT ENDPOINTS ======================
+
+// Get bank payment information
+router.get("/bank-info", async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      bankInfo: {
+        bankName: process.env.BANK_NAME || "I&M BANK",
+        paybill: process.env.BANK_PAYBILL || "542542",
+        accountNumber: process.env.BANK_ACCOUNT_NUMBER || "03507214611250",
+        instructions: "1. Go to M-Pesa menu\n2. Select Pay Bill\n3. Enter Paybill: 542542\n4. Enter Account Number: 03507214611250\n5. Enter Amount\n6. Enter your M-Pesa PIN\n7. Wait for confirmation SMS"
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to fetch bank information" });
+  }
+});
+
+// Initiate bank transfer payment
+router.post("/bank-transfer", auth, async (req, res) => {
+  try {
+    const { amount, propertyId, materialId, plan, subscriptionType, transactionRef } = req.body;
+
+    if (!amount || !transactionRef) {
+      return res.status(400).json({ error: "❌ Amount and transaction reference are required" });
+    }
+
+    // Save pending bank transfer transaction
+    await User.findByIdAndUpdate(req.user.id, {
+      $push: {
+        paymentHistory: {
+          transactionId: `BANK-${Date.now()}`,
+          amount,
+          plan,
+          propertyId: propertyId || null,
+          materialId: materialId || null,
+          subscriptionType: subscriptionType || null,
+          status: "pending",
+          paymentMethod: "bank_transfer",
+          transactionRef,
+          date: new Date(),
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "✅ Bank transfer payment initiated. Please complete the payment and use your transaction reference for verification.",
+      bankInfo: {
+        bankName: process.env.BANK_NAME || "I&M BANK",
+        paybill: process.env.BANK_PAYBILL || "542542",
+        accountNumber: process.env.BANK_ACCOUNT_NUMBER || "03507214611250",
+      }
+    });
+
+  } catch (error) {
+    console.error("Bank Transfer Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to initiate bank transfer payment" });
+  }
+});
+
+// Verify bank transfer payment (Admin only)
+router.post("/verify-bank-payment", auth, async (req, res) => {
+  try {
+    const { transactionRef, userId, approve } = req.body;
+
+    if (!transactionRef || !userId) {
+      return res.status(400).json({ error: "❌ Transaction reference and user ID are required" });
+    }
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can verify payments" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "❌ User not found" });
+    }
+
+    const payment = user.paymentHistory.find(
+      p => p.transactionRef === transactionRef && p.paymentMethod === "bank_transfer"
+    );
+
+    if (!payment) {
+      return res.status(404).json({ error: "❌ Payment not found" });
+    }
+
+    if (approve) {
+      payment.status = "success";
+      user.walletBalance = (user.walletBalance || 0) + payment.amount;
+
+      // If payment was for a property boost, update the property
+      if (payment.propertyId) {
+        const property = await Property.findById(payment.propertyId);
+        if (property) {
+          property.isFeatured = true;
+          property.promotionStartDate = new Date();
+          const durationDays = payment.plan === "boost-7days" ? 7 : 30;
+          property.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+          property.promotionTier = payment.plan;
+          await property.save();
+        }
+      }
+
+      // If payment was for a material boost, update the material
+      if (payment.materialId) {
+        const material = await Material.findById(payment.materialId);
+        if (material) {
+          material.isFeatured = true;
+          material.promotionStartDate = new Date();
+          const durationDays = payment.plan === "boost-7days" ? 7 : 30;
+          material.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+          material.promotionTier = payment.plan;
+          await material.save();
+        }
+      }
+
+      // If payment was for a subscription, update user subscription
+      if (payment.subscriptionType) {
+        const durationDays = payment.subscriptionType === "basic" ? 30 : 90;
+        user.subscriptionTier = payment.subscriptionType;
+        user.subscriptionStartDate = new Date();
+        user.subscriptionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+      }
+
+      // If payment was for mover profile boost
+      if (!payment.propertyId && !payment.materialId && !payment.subscriptionType && payment.plan && payment.plan.includes("Profile Boost")) {
+        user.isFeaturedMover = true;
+        user.featuredStartDate = new Date();
+        const durationDays = payment.plan.includes("7-Day") ? 7 : 30;
+        user.featuredEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+      }
+
+      await user.save();
+      res.json({ success: true, message: "✅ Payment verified and processed successfully" });
+    } else {
+      payment.status = "failed";
+      await user.save();
+      res.json({ success: true, message: "✅ Payment rejected" });
+    }
+
+  } catch (error) {
+    console.error("Bank Payment Verification Error:", error.message);
+    res.status(500).json({ error: "Failed to verify bank payment" });
+  }
+});
+
+// Get pending bank payments for admin
+router.get("/pending-bank-payments", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can view pending payments" });
+    }
+
+    const users = await User.find({
+      "paymentHistory.paymentMethod": "bank_transfer",
+      "paymentHistory.status": "pending"
+    }).select("-password");
+
+    const pendingPayments = [];
+    users.forEach(user => {
+      user.paymentHistory.forEach(payment => {
+        if (payment.paymentMethod === "bank_transfer" && payment.status === "pending") {
+          pendingPayments.push({
+            ...payment.toObject(),
+            userId: user._id,
+            userName: user.name,
+            userEmail: user.email,
+            userPhone: user.phone,
+          });
+        }
+      });
+    });
+
+    res.json({ success: true, pendingPayments });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to fetch pending payments" });
   }
 });
 
