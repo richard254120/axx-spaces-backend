@@ -6,9 +6,7 @@ dotenv.config();
 const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
 
 const ADMIN_EMAILS = [
-  "ogudarichard254@gmail.com",
-  "lucyleemaish@gmail.com",
-  "kenfredmugo1@gmail.com",
+  "admin@axxspace.com",
 ];
 
 export const sendPropertyEmail = async (property, owner) => {
@@ -32,7 +30,7 @@ export const sendPropertyEmail = async (property, owner) => {
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axxspace <onboarding@resend.dev>",
+        from: "Axxspace <admin@axxspace.com>",
         to: email,
         subject: `New Property: ${property.title}`,
         html: getEmailHtml(property, owner),
@@ -66,7 +64,7 @@ export const sendMaterialEmail = async (material, seller) => {
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axxspace <onboarding@resend.dev>",
+        from: "Axxspace <admin@axxspace.com>",
         to: email,
         subject: `New Material: ${material.title}`,
         html: getEmailHtml(material, seller),
@@ -103,7 +101,7 @@ export const sendTourismRegistrationEmail = async (tourismData) => {
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axxspace <onboarding@resend.dev>",
+        from: "Axxspace <admin@axxspace.com>",
         to: email,
         subject: `New Tourism Provider: ${tourismData.name}`,
         html: getEmailHtml(tourismData),
@@ -139,7 +137,7 @@ export const sendMoverRegistrationEmail = async (mover) => {
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axxspace <onboarding@resend.dev>",
+        from: "Axxspace <admin@axxspace.com>",
         to: email,
         subject: `New Mover: ${mover.name}`,
         html: getEmailHtml(mover),
@@ -173,7 +171,7 @@ export const sendSellerRegistrationEmail = async (seller) => {
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axxspace <onboarding@resend.dev>",
+        from: "Axxspace <admin@axxspace.com>",
         to: email,
         subject: `New Seller: ${seller.name}`,
         html: getEmailHtml(seller),
@@ -208,7 +206,7 @@ export const sendTourismApprovalEmail = async (email, propertyName) => {
 
   try {
     await resend.emails.send({
-      from: "Axxspace <onboarding@resend.dev>",
+      from: "Axxspace <admin@axxspace.com>",
       to: email,
       subject: "Your Tourism Provider Account Has Been Approved",
       html: getEmailHtml(propertyName),
@@ -241,7 +239,7 @@ export const sendMoverApprovalEmail = async (email, name) => {
 
   try {
     await resend.emails.send({
-      from: "Axxspace <onboarding@resend.dev>",
+      from: "Axxspace <admin@axxspace.com>",
       to: email,
       subject: "Your Mover Account Has Been Approved",
       html: getEmailHtml(name),
@@ -275,7 +273,7 @@ export const sendMaterialApprovalEmail = async (email, materialTitle) => {
 
   try {
     await resend.emails.send({
-      from: "Axxspace <onboarding@resend.dev>",
+      from: "Axxspace <admin@axxspace.com>",
       to: email,
       subject: "Your Material Has Been Approved",
       html: getEmailHtml(materialTitle),
@@ -309,7 +307,7 @@ export const sendPropertyApprovalEmail = async (email, propertyTitle) => {
 
   try {
     await resend.emails.send({
-      from: "Axxspace <onboarding@resend.dev>",
+      from: "Axxspace <admin@axxspace.com>",
       to: email,
       subject: "Your Property Has Been Approved",
       html: getEmailHtml(propertyTitle),
