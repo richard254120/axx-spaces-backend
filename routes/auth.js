@@ -124,8 +124,8 @@ router.post("/login", async (req, res) => {
 
     // 🔒 MOVER APPROVAL GATEKEEPER
     if (user.role === "mover" && !user.isApproved) {
-      return res.status(403).json({ 
-        error: "⏳ Your account is pending admin approval. You will be able to log in once approved." 
+      return res.status(403).json({
+        error: "⏳ Your account is pending admin approval. You will be able to log in once approved."
       });
     }
 
