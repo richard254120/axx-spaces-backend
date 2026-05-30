@@ -26,7 +26,6 @@ router.post("/", async (req, res) => {
     console.log("Business name:", name);
     console.log("Categories:", categories);
 
-    // For anonymous submissions, set owner to null and always require approval
     const business = new Business({
       owner: null,
       name,
@@ -48,13 +47,13 @@ router.post("/", async (req, res) => {
     await business.save();
 
     console.log("Business saved successfully. ID:", business._id);
-    console.log("Is first upload:", isFirstUpload);
+    console.log("Is first upload:", business.isFirstUpload); // ← FIX: was `isFirstUpload` (undefined variable)
     console.log("Status:", business.status);
     console.log("=== BUSINESS SUBMISSION END ===");
 
     res.json({
       success: true,
-      message: isFirstUpload
+      message: business.isFirstUpload  // ← FIX: was `isFirstUpload` (undefined variable)
         ? "✅ Business submitted for approval. It will be visible once approved by admin."
         : "✅ Business created successfully and is now visible.",
       business,
@@ -62,8 +61,9 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error("=== BUSINESS SUBMISSION ERROR ===");
     console.error("Error:", error.message);
+    console.error("Stack:", error.stack);
     console.error("===============================");
-    res.status(500).json({ error: "Failed to create business" });
+    res.status(500).json({ error: "Failed to create business", details: error.message });
   }
 });
 
@@ -128,7 +128,6 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ error: "Business not found" });
     }
 
-    // Increment view count
     business.views += 1;
     await business.save();
 
@@ -216,13 +215,7 @@ router.post("/:id/offers", auth, async (req, res) => {
 
     const { title, description, discount, validUntil } = req.body;
 
-    business.offers.push({
-      title,
-      description,
-      discount,
-      validUntil,
-    });
-
+    business.offers.push({ title, description, discount, validUntil });
     await business.save();
 
     res.json({ success: true, message: "✅ Offer added successfully", business });
@@ -246,11 +239,7 @@ router.post("/:id/announcements", auth, async (req, res) => {
 
     const { title, content } = req.body;
 
-    business.announcements.push({
-      title,
-      content,
-    });
-
+    business.announcements.push({ title, content });
     await business.save();
 
     res.json({ success: true, message: "✅ Announcement added successfully", business });
@@ -297,14 +286,9 @@ router.patch("/admin/:id/status", auth, async (req, res) => {
 
     business.status = status;
     business.isApproved = status === "approved";
-
     await business.save();
 
-    res.json({
-      success: true,
-      message: `✅ Business ${status} successfully`,
-      business,
-    });
+    res.json({ success: true, message: `✅ Business ${status} successfully`, business });
   } catch (error) {
     res.status(500).json({ error: "Failed to update business status" });
   }
@@ -320,12 +304,8 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
     const { badgeType } = req.body;
 
     const validBadges = [
-      "student_verified",
-      "identity_verified",
-      "business_verified",
-      "online_verified",
-      "location_verified",
-      "premium_verified",
+      "student_verified", "identity_verified", "business_verified",
+      "online_verified", "location_verified", "premium_verified",
     ];
 
     if (!validBadges.includes(badgeType)) {
@@ -338,9 +318,7 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
       return res.status(404).json({ error: "Business not found" });
     }
 
-    // Check if badge already exists
     const existingBadge = business.verificationBadges.find((b) => b.type === badgeType);
-
     if (existingBadge) {
       return res.status(400).json({ error: "Badge already exists" });
     }
@@ -353,11 +331,7 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
 
     await business.save();
 
-    res.json({
-      success: true,
-      message: `✅ Verification badge added successfully`,
-      business,
-    });
+    res.json({ success: true, message: `✅ Verification badge added successfully`, business });
   } catch (error) {
     res.status(500).json({ error: "Failed to add verification badge" });
   }
@@ -382,14 +356,9 @@ router.post("/admin/:id/feature", auth, async (req, res) => {
 
     business.featured = true;
     business.featuredUntil = featuredUntil;
-
     await business.save();
 
-    res.json({
-      success: true,
-      message: `✅ Business featured for ${days || 30} days`,
-      business,
-    });
+    res.json({ success: true, message: `✅ Business featured for ${days || 30} days`, business });
   } catch (error) {
     res.status(500).json({ error: "Failed to feature business" });
   }
