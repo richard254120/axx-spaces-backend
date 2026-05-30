@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import Property from "../models/Property.js";
 import Material from "../models/Material.js";
 import Config from "../models/Config.js";
+import Notification from "../models/Notification.js";
 
 const router = express.Router();
 
@@ -260,6 +261,37 @@ router.post("/callback", async (req, res) => {
 
         await user.save();
         console.log("✅ Database updated: Payment Successful");
+
+        // Create notification for admin dashboard
+        try {
+          const notificationData = {
+            type: payment.type,
+            userId: user._id,
+            userName: user.name,
+            userPhone: user.phone,
+            userEmail: user.email,
+            amount: payment.amount,
+            transactionId: payment.transactionId,
+            mpesaRef: payment.mpesaRef,
+            status: "confirmed",
+          };
+
+          if (payment.type === "property_booking") {
+            notificationData.propertyId = payment.propertyId;
+          } else if (payment.type === "material_purchase") {
+            notificationData.materialId = payment.materialId;
+          } else if (payment.type === "tourism_booking") {
+            notificationData.tourismId = payment.tourismId;
+            notificationData.checkIn = payment.checkIn;
+            notificationData.checkOut = payment.checkOut;
+          }
+
+          const notification = new Notification(notificationData);
+          await notification.save();
+          console.log("✅ Notification created for admin dashboard");
+        } catch (notifError) {
+          console.error("❌ Failed to create notification:", notifError);
+        }
       }
     } else {
       // Mark as failed in DB
@@ -1005,6 +1037,50 @@ router.get("/pending-bank-payments", auth, async (req, res) => {
     res.json({ success: true, pendingPayments });
   } catch (err) {
     res.status(500).json({ error: err.message || "Failed to fetch pending payments" });
+  }
+});
+
+// Get notifications for admin dashboard
+router.get("/notifications", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can view notifications" });
+    }
+
+    const notifications = await Notification.find()
+      .populate("userId", "name phone email")
+      .populate("propertyId", "title")
+      .populate("materialId", "title")
+      .populate("tourismId", "title")
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.json({ success: true, notifications });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to fetch notifications" });
+  }
+});
+
+// Mark notification as read
+router.put("/notifications/:id/read", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can update notifications" });
+    }
+
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { read: true },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ error: "❌ Notification not found" });
+    }
+
+    res.json({ success: true, notification });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to update notification" });
   }
 });
 
