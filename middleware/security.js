@@ -55,7 +55,7 @@ const corsOptions = {
 // Rate Limiters - Enhanced with different limits for different endpoints
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,              // 15 minutes
-  max: 100,                              // 100 requests per window
+  max: 500,                             // 500 requests per window
   message: { error: "Too many requests from this IP, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -74,7 +74,7 @@ const authLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,              // 1 minute
-  max: 30,                              // 30 requests per minute
+  max: 200,                             // 200 requests per minute
   message: { error: "Too many API requests, please slow down." },
   standardHeaders: true,
   legacyHeaders: false,

@@ -161,7 +161,7 @@ const ipBlocker = (req, res, next) => {
 // Enhanced Rate Limiter with IP tracking
 const enhancedRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   message: { error: "Too many requests from this IP, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
