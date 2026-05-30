@@ -384,6 +384,49 @@ router.post("/:id/announcements", auth, async (req, res) => {
   }
 });
 
+// ====================== ADD GENERAL ANNOUNCEMENT (not tied to business) ======================
+router.post("/announcements", auth, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: "Title and content are required" });
+    }
+
+    // Create a new general announcement
+    const announcement = {
+      title,
+      content,
+      status: "pending",
+      createdAt: new Date(),
+      submittedBy: req.user.id,
+      isGeneral: true,
+    };
+
+    // Store in a temporary collection or use the first business as a placeholder
+    // For now, we'll use a special business ID for general announcements
+    let generalBusiness = await Business.findOne({ name: "General Announcements" });
+    if (!generalBusiness) {
+      generalBusiness = new Business({
+        name: "General Announcements",
+        description: "Platform-wide announcements",
+        categories: ["General"],
+        location: { county: "Nairobi", town: "Nairobi" },
+        status: "approved",
+        announcements: [],
+      });
+    }
+
+    generalBusiness.announcements.push(announcement);
+    await generalBusiness.save();
+
+    res.json({ success: true, message: "Announcement submitted for approval" });
+  } catch (error) {
+    console.error("Add general announcement error:", error);
+    res.status(500).json({ error: "Failed to add announcement" });
+  }
+});
+
 // ====================== ADMIN: APPROVE/REJECT ANNOUNCEMENT ======================
 router.patch("/admin/:businessId/announcements/:announcementId/status", auth, async (req, res) => {
   try {
