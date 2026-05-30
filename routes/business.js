@@ -380,7 +380,9 @@ router.post("/announcements", async (req, res) => {
         description: "Platform-wide announcements",
         categories: ["General"],
         location: { county: "Nairobi", town: "Nairobi" },
+        contact: { phone: "0000000000" },
         status: "approved",
+        isApproved: true,
         announcements: [],
       });
     }
