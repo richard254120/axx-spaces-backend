@@ -325,12 +325,136 @@ router.get("/admin/rejected", auth, async (req, res) => {
 // ====================== GET ALL ANNOUNCEMENTS ======================
 router.get("/announcements", async (req, res) => {
   try {
+    const businesses = await Business.find({ status: "approved", "announcements.status": "approved" })
+      .select("name announcements")
+      .sort({ createdAt: -1 });
+
     const allAnnouncements = [];
+    businesses.forEach(business => {
+      business.announcements.forEach(announcement => {
+        if (announcement.status === "approved") {
+          allAnnouncements.push({
+            businessName: business.name,
+            businessId: business._id,
+            title: announcement.title,
+            content: announcement.content,
+            createdAt: announcement.createdAt,
+          });
+        }
+      });
+    });
+
+    allAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({ success: true, announcements: allAnnouncements });
   } catch (error) {
     console.error("Announcements error:", error);
     res.status(500).json({ error: "Failed to fetch announcements" });
+  }
+});
+
+// ====================== ADD ANNOUNCEMENT TO BUSINESS ======================
+router.post("/:id/announcements", auth, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: "Title and content are required" });
+    }
+
+    const business = await Business.findById(req.params.id);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    // Check if user is the owner or admin
+    if (business.owner && business.owner.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only business owner or admin can add announcements" });
+    }
+
+    business.announcements.push({
+      title,
+      content,
+      status: "pending",
+      createdAt: new Date(),
+    });
+
+    await business.save();
+
+    res.json({ success: true, message: "Announcement submitted for approval", business });
+  } catch (error) {
+    console.error("Add announcement error:", error);
+    res.status(500).json({ error: "Failed to add announcement" });
+  }
+});
+
+// ====================== ADMIN: APPROVE/REJECT ANNOUNCEMENT ======================
+router.patch("/admin/:businessId/announcements/:announcementId/status", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can approve/reject announcements" });
+    }
+
+    const { status } = req.body;
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const business = await Business.findById(req.params.businessId);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const announcement = business.announcements.id(req.params.announcementId);
+
+    if (!announcement) {
+      return res.status(404).json({ error: "Announcement not found" });
+    }
+
+    announcement.status = status;
+    await business.save();
+
+    res.json({ success: true, message: `✅ Announcement ${status} successfully`, business });
+  } catch (error) {
+    console.error("Approve/reject announcement error:", error);
+    res.status(500).json({ error: "Failed to update announcement status" });
+  }
+});
+
+// ====================== ADMIN: GET PENDING ANNOUNCEMENTS ======================
+router.get("/admin/announcements/pending", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can view pending announcements" });
+    }
+
+    const businesses = await Business.find({ "announcements.status": "pending" })
+      .select("name announcements")
+      .sort({ createdAt: -1 });
+
+    const pendingAnnouncements = [];
+    businesses.forEach(business => {
+      business.announcements.forEach(announcement => {
+        if (announcement.status === "pending") {
+          pendingAnnouncements.push({
+            businessName: business.name,
+            businessId: business._id,
+            announcementId: announcement._id,
+            title: announcement.title,
+            content: announcement.content,
+            createdAt: announcement.createdAt,
+          });
+        }
+      });
+    });
+
+    res.json({ success: true, announcements: pendingAnnouncements });
+  } catch (error) {
+    console.error("Get pending announcements error:", error);
+    res.status(500).json({ error: "Failed to fetch pending announcements" });
   }
 });
 

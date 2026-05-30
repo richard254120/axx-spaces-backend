@@ -118,6 +118,11 @@ const businessSchema = new mongoose.Schema({
   announcements: [{
     title: String,
     content: String,
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
     createdAt: {
       type: Date,
       default: Date.now,
