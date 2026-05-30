@@ -265,6 +265,40 @@ router.get("/admin/pending", auth, async (req, res) => {
   }
 });
 
+// ====================== ADMIN: GET APPROVED BUSINESSES ======================
+router.get("/admin/approved", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can view approved businesses" });
+    }
+
+    const businesses = await Business.find({ status: "approved" })
+      .populate("owner", "name email phone")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, businesses });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch approved businesses" });
+  }
+});
+
+// ====================== ADMIN: GET REJECTED BUSINESSES ======================
+router.get("/admin/rejected", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can view rejected businesses" });
+    }
+
+    const businesses = await Business.find({ status: "rejected" })
+      .populate("owner", "name email phone")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, businesses });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch rejected businesses" });
+  }
+});
+
 // ====================== ADMIN: APPROVE/REJECT BUSINESS ======================
 router.patch("/admin/:id/status", auth, async (req, res) => {
   try {

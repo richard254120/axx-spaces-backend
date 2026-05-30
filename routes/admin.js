@@ -4,6 +4,7 @@ import Material from "../models/Material.js";
 import User from "../models/User.js";
 import TourismListing from "../models/TourismListing.js";
 import SellerVerification from "../models/SellerVerification.js";
+import Business from "../models/Business.js";
 import { protect, adminOnly } from "../middleware/auth.js";
 import { sendPropertyApprovalEmail, sendMaterialApprovalEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 
@@ -12,12 +13,13 @@ const router = express.Router();
 // ====================== GET ALL PENDING ITEMS ======================
 router.get("/pending", protect, adminOnly, async (req, res) => {
   try {
-    const [pendingProperties, pendingMaterials, pendingTourism, pendingMovers, pendingSellers] = await Promise.all([
+    const [pendingProperties, pendingMaterials, pendingTourism, pendingMovers, pendingSellers, pendingBusinesses] = await Promise.all([
       Property.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
       Material.find({ status: "pending" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
       TourismListing.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
       User.find({ role: "mover", status: "pending" }).sort({ createdAt: -1 }),
       SellerVerification.find({ status: "pending" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
+      Business.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
     ]);
 
     res.json({
@@ -26,6 +28,7 @@ router.get("/pending", protect, adminOnly, async (req, res) => {
       tourism: pendingTourism,
       movers: pendingMovers,
       sellers: pendingSellers,
+      businesses: pendingBusinesses,
     });
   } catch (error) {
     console.error("❌ Get pending items error:", error);
@@ -288,6 +291,8 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
       pendingMovers,
       totalSellers,
       pendingSellers,
+      totalBusinesses,
+      pendingBusinesses,
     ] = await Promise.all([
       Property.countDocuments(),
       Property.countDocuments({ status: "pending" }),
@@ -299,6 +304,8 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
       User.countDocuments({ role: "mover", status: "pending" }),
       SellerVerification.countDocuments(),
       SellerVerification.countDocuments({ status: "pending" }),
+      Business.countDocuments(),
+      Business.countDocuments({ status: "pending" }),
     ]);
 
     res.json({
@@ -307,6 +314,7 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
       tourism: { total: totalTourism, pending: pendingTourism },
       movers: { total: totalMovers, pending: pendingMovers },
       sellers: { total: totalSellers, pending: pendingSellers },
+      businesses: { total: totalBusinesses, pending: pendingBusinesses },
     });
   } catch (error) {
     console.error("❌ Get stats error:", error);
