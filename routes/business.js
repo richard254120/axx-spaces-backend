@@ -156,6 +156,8 @@ router.get("/announcements", async (req, res) => {
             businessId: business._id,
             title: announcement.title,
             content: announcement.content,
+            submitterName: announcement.submitterName,
+            organizationName: announcement.organizationName,
             createdAt: announcement.createdAt,
           });
         }
@@ -356,7 +358,7 @@ router.get("/admin/rejected", auth, async (req, res) => {
 // ====================== ADD GENERAL ANNOUNCEMENT (not tied to business) ======================
 router.post("/announcements", async (req, res) => {
   try {
-    const { title, content } = req.body;
+    const { title, content, submitterName, organizationName } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: "Title and content are required" });
@@ -366,6 +368,8 @@ router.post("/announcements", async (req, res) => {
     const announcement = {
       title,
       content,
+      submitterName,
+      organizationName,
       status: "pending",
       createdAt: new Date(),
       isGeneral: true,
@@ -463,37 +467,67 @@ router.patch("/admin/:businessId/announcements/:announcementId/status", auth, as
   }
 });
 
-// ====================== ADMIN: GET PENDING ANNOUNCEMENTS ======================
-router.get("/admin/announcements/pending", auth, async (req, res) => {
+// ====================== ADMIN: GET ALL ANNOUNCEMENTS ======================
+router.get("/admin/announcements", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can view pending announcements" });
+      return res.status(403).json({ error: "❌ Only admins can view announcements" });
     }
 
-    const businesses = await Business.find({ "announcements.status": "pending" })
+    const businesses = await Business.find({ "announcements.0": { $exists: true } })
       .select("name announcements")
       .sort({ createdAt: -1 });
 
-    const pendingAnnouncements = [];
+    const allAnnouncements = [];
     businesses.forEach(business => {
       business.announcements.forEach(announcement => {
-        if (announcement.status === "pending") {
-          pendingAnnouncements.push({
-            businessName: business.name,
-            businessId: business._id,
-            announcementId: announcement._id,
-            title: announcement.title,
-            content: announcement.content,
-            createdAt: announcement.createdAt,
-          });
-        }
+        allAnnouncements.push({
+          businessName: business.name,
+          businessId: business._id,
+          announcementId: announcement._id,
+          title: announcement.title,
+          content: announcement.content,
+          submitterName: announcement.submitterName,
+          organizationName: announcement.organizationName,
+          status: announcement.status,
+          createdAt: announcement.createdAt,
+        });
       });
     });
 
-    res.json({ success: true, announcements: pendingAnnouncements });
+    allAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({ success: true, announcements: allAnnouncements });
   } catch (error) {
-    console.error("Get pending announcements error:", error);
-    res.status(500).json({ error: "Failed to fetch pending announcements" });
+    console.error("Get announcements error:", error);
+    res.status(500).json({ error: "Failed to fetch announcements" });
+  }
+});
+
+// ====================== ADMIN: DELETE ANNOUNCEMENT ======================
+router.delete("/admin/:businessId/announcements/:announcementId", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can delete announcements" });
+    }
+
+    const { businessId, announcementId } = req.params;
+
+    const business = await Business.findById(businessId);
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    business.announcements = business.announcements.filter(
+      announcement => announcement._id.toString() !== announcementId
+    );
+
+    await business.save();
+
+    res.json({ success: true, message: "✅ Announcement deleted successfully" });
+  } catch (error) {
+    console.error("Delete announcement error:", error);
+    res.status(500).json({ error: "Failed to delete announcement" });
   }
 });
 
