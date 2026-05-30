@@ -353,37 +353,6 @@ router.get("/announcements", async (req, res) => {
   }
 });
 
-// ====================== ADD ANNOUNCEMENT TO BUSINESS ======================
-router.post("/:id/announcements", auth, async (req, res) => {
-  try {
-    const { title, content } = req.body;
-
-    if (!title || !content) {
-      return res.status(400).json({ error: "Title and content are required" });
-    }
-
-    const business = await Business.findById(req.params.id);
-
-    if (!business) {
-      return res.status(404).json({ error: "Business not found" });
-    }
-
-    business.announcements.push({
-      title,
-      content,
-      status: "pending",
-      createdAt: new Date(),
-    });
-
-    await business.save();
-
-    res.json({ success: true, message: "Announcement submitted for approval", business });
-  } catch (error) {
-    console.error("Add announcement error:", error);
-    res.status(500).json({ error: "Failed to add announcement" });
-  }
-});
-
 // ====================== ADD GENERAL ANNOUNCEMENT (not tied to business) ======================
 router.post("/announcements", auth, async (req, res) => {
   try {
@@ -423,6 +392,37 @@ router.post("/announcements", auth, async (req, res) => {
     res.json({ success: true, message: "Announcement submitted for approval" });
   } catch (error) {
     console.error("Add general announcement error:", error);
+    res.status(500).json({ error: "Failed to add announcement" });
+  }
+});
+
+// ====================== ADD ANNOUNCEMENT TO BUSINESS ======================
+router.post("/:id/announcements", auth, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: "Title and content are required" });
+    }
+
+    const business = await Business.findById(req.params.id);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    business.announcements.push({
+      title,
+      content,
+      status: "pending",
+      createdAt: new Date(),
+    });
+
+    await business.save();
+
+    res.json({ success: true, message: "Announcement submitted for approval", business });
+  } catch (error) {
+    console.error("Add announcement error:", error);
     res.status(500).json({ error: "Failed to add announcement" });
   }
 });
