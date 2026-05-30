@@ -881,14 +881,16 @@ router.get("/bank-info", async (req, res) => {
 // Initiate bank transfer payment
 router.post("/bank-transfer", auth, async (req, res) => {
   try {
-    const { amount, propertyId, materialId, plan, subscriptionType, transactionRef } = req.body;
+    const { amount, propertyId, materialId, plan, subscriptionType, transactionRef, bankMessage } = req.body;
+
+    console.log("Bank transfer submission received:", { amount, propertyId, plan, transactionRef, bankMessage: bankMessage?.substring(0, 50) });
 
     if (!amount || !transactionRef) {
       return res.status(400).json({ error: "❌ Amount and transaction reference are required" });
     }
 
     // Save pending bank transfer transaction
-    await User.findByIdAndUpdate(req.user.id, {
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, {
       $push: {
         paymentHistory: {
           transactionId: `BANK-${Date.now()}`,
@@ -900,10 +902,14 @@ router.post("/bank-transfer", auth, async (req, res) => {
           status: "pending",
           paymentMethod: "bank_transfer",
           transactionRef,
+          bankMessage: bankMessage || "",
           date: new Date(),
         },
       },
-    });
+    }, { new: true });
+
+    console.log("Payment saved to user paymentHistory. User ID:", req.user.id);
+    console.log("Updated paymentHistory count:", updatedUser.paymentHistory.length);
 
     res.json({
       success: true,
@@ -1010,7 +1016,10 @@ router.post("/verify-bank-payment", auth, async (req, res) => {
 // Get pending bank payments for admin
 router.get("/pending-bank-payments", auth, async (req, res) => {
   try {
+    console.log("Fetching pending bank payments for admin:", req.user.email);
+
     if (req.user.role !== "admin") {
+      console.log("Access denied: User is not admin");
       return res.status(403).json({ error: "❌ Only admins can view pending payments" });
     }
 
@@ -1018,6 +1027,8 @@ router.get("/pending-bank-payments", auth, async (req, res) => {
       "paymentHistory.paymentMethod": "bank_transfer",
       "paymentHistory.status": "pending"
     }).select("-password");
+
+    console.log("Found users with pending bank payments:", users.length);
 
     const pendingPayments = [];
     users.forEach(user => {
@@ -1034,8 +1045,11 @@ router.get("/pending-bank-payments", auth, async (req, res) => {
       });
     });
 
+    console.log("Total pending payments found:", pendingPayments.length);
+
     res.json({ success: true, pendingPayments });
   } catch (err) {
+    console.error("Error fetching pending bank payments:", err);
     res.status(500).json({ error: err.message || "Failed to fetch pending payments" });
   }
 });
