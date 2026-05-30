@@ -354,7 +354,7 @@ router.get("/admin/rejected", auth, async (req, res) => {
 });
 
 // ====================== ADD GENERAL ANNOUNCEMENT (not tied to business) ======================
-router.post("/announcements", auth, async (req, res) => {
+router.post("/announcements", async (req, res) => {
   try {
     const { title, content } = req.body;
 
@@ -368,7 +368,6 @@ router.post("/announcements", auth, async (req, res) => {
       content,
       status: "pending",
       createdAt: new Date(),
-      submittedBy: req.user.id,
       isGeneral: true,
     };
 
