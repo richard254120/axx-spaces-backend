@@ -5,6 +5,10 @@ const businessSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
+  submitterName: {
+    type: String,
+    trim: true,
+  },
   name: {
     type: String,
     required: true,

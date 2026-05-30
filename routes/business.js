@@ -20,11 +20,13 @@ router.post("/", async (req, res) => {
       businessHours,
       socialMedia,
       images,
+      submitterName,
     } = req.body;
 
     console.log("=== BUSINESS SUBMISSION START ===");
     console.log("Business name:", name);
     console.log("Categories:", categories);
+    console.log("Submitter name:", submitterName);
 
     const business = new Business({
       owner: null,
@@ -39,6 +41,7 @@ router.post("/", async (req, res) => {
       businessHours,
       socialMedia,
       images,
+      submitterName,
       isFirstUpload: true,
       status: "pending",
       isApproved: false,
@@ -296,6 +299,34 @@ router.get("/admin/rejected", auth, async (req, res) => {
     res.json({ success: true, businesses });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch rejected businesses" });
+  }
+});
+
+// ====================== GET ALL ANNOUNCEMENTS ======================
+router.get("/announcements", async (req, res) => {
+  try {
+    const businesses = await Business.find({ status: "approved", announcements: { $exists: true, $ne: [] } })
+      .select("name announcements")
+      .sort({ "announcements.createdAt": -1 });
+
+    const allAnnouncements = [];
+    businesses.forEach(business => {
+      business.announcements.forEach(announcement => {
+        allAnnouncements.push({
+          businessName: business.name,
+          businessId: business._id,
+          title: announcement.title,
+          content: announcement.content,
+          createdAt: announcement.createdAt,
+        });
+      });
+    });
+
+    allAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({ success: true, announcements: allAnnouncements });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch announcements" });
   }
 });
 
