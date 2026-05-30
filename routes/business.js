@@ -368,11 +368,6 @@ router.post("/:id/announcements", auth, async (req, res) => {
       return res.status(404).json({ error: "Business not found" });
     }
 
-    // Check if user is the owner or admin
-    if (business.owner && business.owner.toString() !== req.user.id && req.user.role !== "admin") {
-      return res.status(403).json({ error: "Only business owner or admin can add announcements" });
-    }
-
     business.announcements.push({
       title,
       content,
