@@ -140,6 +140,37 @@ router.get("/my", auth, async (req, res) => {
   }
 });
 
+// ====================== GET ALL ANNOUNCEMENTS ======================
+router.get("/announcements", async (req, res) => {
+  try {
+    const businesses = await Business.find({ status: "approved", "announcements.status": "approved" })
+      .select("name announcements")
+      .sort({ createdAt: -1 });
+
+    const allAnnouncements = [];
+    businesses.forEach(business => {
+      business.announcements.forEach(announcement => {
+        if (announcement.status === "approved") {
+          allAnnouncements.push({
+            businessName: business.name,
+            businessId: business._id,
+            title: announcement.title,
+            content: announcement.content,
+            createdAt: announcement.createdAt,
+          });
+        }
+      });
+    });
+
+    allAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({ success: true, announcements: allAnnouncements });
+  } catch (error) {
+    console.error("Announcements error:", error);
+    res.status(500).json({ error: "Failed to fetch announcements" });
+  }
+});
+
 // ====================== GET SINGLE BUSINESS ======================
 router.get("/:id", async (req, res) => {
   try {
@@ -319,37 +350,6 @@ router.get("/admin/rejected", auth, async (req, res) => {
     res.json({ success: true, businesses });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch rejected businesses" });
-  }
-});
-
-// ====================== GET ALL ANNOUNCEMENTS ======================
-router.get("/announcements", async (req, res) => {
-  try {
-    const businesses = await Business.find({ status: "approved", "announcements.status": "approved" })
-      .select("name announcements")
-      .sort({ createdAt: -1 });
-
-    const allAnnouncements = [];
-    businesses.forEach(business => {
-      business.announcements.forEach(announcement => {
-        if (announcement.status === "approved") {
-          allAnnouncements.push({
-            businessName: business.name,
-            businessId: business._id,
-            title: announcement.title,
-            content: announcement.content,
-            createdAt: announcement.createdAt,
-          });
-        }
-      });
-    });
-
-    allAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    res.json({ success: true, announcements: allAnnouncements });
-  } catch (error) {
-    console.error("Announcements error:", error);
-    res.status(500).json({ error: "Failed to fetch announcements" });
   }
 });
 
