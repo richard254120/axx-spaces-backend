@@ -73,7 +73,7 @@ router.post("/", async (req, res) => {
 // ====================== GET ALL BUSINESSES ======================
 router.get("/", async (req, res) => {
   try {
-    const { category, county, search, featured } = req.query;
+    const { category, county, search, featured, sort } = req.query;
 
     const filter = { isApproved: true };
 
@@ -89,6 +89,8 @@ router.get("/", async (req, res) => {
       filter.$or = [
         { name: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
+        { categories: { $regex: search, $options: "i" } },
+        { "location.town": { $regex: search, $options: "i" } },
       ];
     }
 
@@ -97,9 +99,27 @@ router.get("/", async (req, res) => {
       filter.featuredUntil = { $gt: new Date() };
     }
 
+    let sortOption = { createdAt: -1 };
+    switch (sort) {
+      case "oldest":
+        sortOption = { createdAt: 1 };
+        break;
+      case "rating":
+        sortOption = { rating: -1 };
+        break;
+      case "views":
+        sortOption = { views: -1 };
+        break;
+      case "name":
+        sortOption = { name: 1 };
+        break;
+      default:
+        sortOption = { createdAt: -1 };
+    }
+
     const businesses = await Business.find(filter)
       .populate("owner", "name email phone")
-      .sort({ createdAt: -1 });
+      .sort(sortOption);
 
     res.json({ success: true, businesses });
   } catch (error) {
