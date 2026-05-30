@@ -325,27 +325,11 @@ router.get("/admin/rejected", auth, async (req, res) => {
 // ====================== GET ALL ANNOUNCEMENTS ======================
 router.get("/announcements", async (req, res) => {
   try {
-    const businesses = await Business.find({ status: "approved", announcements: { $exists: true, $ne: [] } })
-      .select("name announcements")
-      .sort({ "announcements.createdAt": -1 });
-
     const allAnnouncements = [];
-    businesses.forEach(business => {
-      business.announcements.forEach(announcement => {
-        allAnnouncements.push({
-          businessName: business.name,
-          businessId: business._id,
-          title: announcement.title,
-          content: announcement.content,
-          createdAt: announcement.createdAt,
-        });
-      });
-    });
-
-    allAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({ success: true, announcements: allAnnouncements });
   } catch (error) {
+    console.error("Announcements error:", error);
     res.status(500).json({ error: "Failed to fetch announcements" });
   }
 });
