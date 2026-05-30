@@ -22,6 +22,7 @@ import tourismRoutes from "./routes/tourism.js";
 import profileRoutes from "./routes/profile.js";
 import reviewRoutes from "./routes/reviews.js";
 import adminRoutes from "./routes/admin.js";
+import paymentVerificationRoutes from "./routes/paymentVerification.js";
 
 dotenv.config();
 
@@ -57,6 +58,7 @@ app.use("/api/tourism", security.apiLimiter, tourismRoutes);
 app.use("/api/profile", security.apiLimiter, profileRoutes);
 app.use("/api/reviews", security.apiLimiter, reviewRoutes);
 app.use("/api/admin", security.apiLimiter, adminRoutes);
+app.use("/api/payment-verification", security.apiLimiter, paymentVerificationRoutes);
 
 app.get("/api/health", (req, res) =>
   res.json({ status: "OK", timestamp: new Date().toISOString() })
