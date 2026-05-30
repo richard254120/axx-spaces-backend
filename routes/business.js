@@ -6,7 +6,7 @@ import User from "../models/User.js";
 const router = express.Router();
 
 // ====================== CREATE BUSINESS ======================
-router.post("/", auth, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const {
       name,
@@ -20,16 +20,12 @@ router.post("/", auth, async (req, res) => {
     } = req.body;
 
     console.log("=== BUSINESS SUBMISSION START ===");
-    console.log("User ID:", req.user.id);
     console.log("Business name:", name);
     console.log("Categories:", categories);
 
-    // Check if this is the user's first business
-    const existingBusinesses = await Business.find({ owner: req.user.id });
-    const isFirstUpload = existingBusinesses.length === 0;
-
+    // For anonymous submissions, set owner to null and always require approval
     const business = new Business({
-      owner: req.user.id,
+      owner: null,
       name,
       description,
       categories,
@@ -38,9 +34,9 @@ router.post("/", auth, async (req, res) => {
       businessHours,
       socialMedia,
       images,
-      isFirstUpload,
-      status: isFirstUpload ? "pending" : "approved",
-      isApproved: !isFirstUpload,
+      isFirstUpload: true,
+      status: "pending",
+      isApproved: false,
     });
 
     await business.save();
