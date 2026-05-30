@@ -883,11 +883,17 @@ router.post("/bank-transfer", auth, async (req, res) => {
   try {
     const { amount, propertyId, materialId, plan, subscriptionType, transactionRef, bankMessage } = req.body;
 
-    console.log("Bank transfer submission received:", { amount, propertyId, plan, transactionRef, bankMessage: bankMessage?.substring(0, 50) });
+    console.log("=== BANK TRANSFER SUBMISSION START ===");
+    console.log("User ID:", req.user?.id);
+    console.log("User Email:", req.user?.email);
+    console.log("Request body:", { amount, propertyId, plan, transactionRef, bankMessage: bankMessage?.substring(0, 50) });
 
     if (!amount || !transactionRef) {
+      console.log("Validation failed: Missing amount or transactionRef");
       return res.status(400).json({ error: "❌ Amount and transaction reference are required" });
     }
+
+    console.log("Validation passed. Saving to database...");
 
     // Save pending bank transfer transaction
     const updatedUser = await User.findByIdAndUpdate(req.user.id, {
@@ -908,8 +914,9 @@ router.post("/bank-transfer", auth, async (req, res) => {
       },
     }, { new: true });
 
-    console.log("Payment saved to user paymentHistory. User ID:", req.user.id);
+    console.log("Payment saved successfully. User ID:", req.user.id);
     console.log("Updated paymentHistory count:", updatedUser.paymentHistory.length);
+    console.log("=== BANK TRANSFER SUBMISSION END ===");
 
     res.json({
       success: true,
@@ -922,7 +929,10 @@ router.post("/bank-transfer", auth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Bank Transfer Error:", error.response?.data || error.message);
+    console.error("=== BANK TRANSFER ERROR ===");
+    console.error("Error details:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("===============================");
     res.status(500).json({ error: "Failed to initiate bank transfer payment" });
   }
 });
