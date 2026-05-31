@@ -78,6 +78,27 @@ const businessSchema = new mongoose.Schema({
   images: [{
     type: String,
   }],
+  logo: {
+    type: String,
+  },
+  products: [{
+    name: {
+      type: String,
+      required: true,
+    },
+    description: String,
+    price: Number,
+    category: String,
+    imageUrl: String,
+  }],
+  pricelist: {
+    url: String,
+    name: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
   videoTour: {
     url: String,
     thumbnail: String,

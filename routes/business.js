@@ -20,6 +20,9 @@ router.post("/", async (req, res) => {
       businessHours,
       socialMedia,
       images,
+      logo,
+      products,
+      pricelist,
       submitterName,
     } = req.body;
 
@@ -41,6 +44,9 @@ router.post("/", async (req, res) => {
       businessHours,
       socialMedia,
       images,
+      logo,
+      products,
+      pricelist,
       submitterName,
       isFirstUpload: true,
       status: "pending",
