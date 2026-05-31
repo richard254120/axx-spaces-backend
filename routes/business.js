@@ -171,13 +171,18 @@ router.get("/my", auth, async (req, res) => {
 // ====================== GET ALL ANNOUNCEMENTS ======================
 router.get("/announcements", async (req, res) => {
   try {
-    const businesses = await Business.find({ status: "approved", "announcements.status": "approved" })
+    console.log("=== GET ANNOUNCEMENTS START ===");
+    // Find all businesses that have announcements (regardless of business status)
+    const businesses = await Business.find({ "announcements.0": { $exists: true } })
       .select("name announcements")
       .sort({ createdAt: -1 });
+
+    console.log(`Found ${businesses.length} businesses with announcements`);
 
     const allAnnouncements = [];
     businesses.forEach(business => {
       business.announcements.forEach(announcement => {
+        console.log(`Announcement: ${announcement.title}, Status: ${announcement.status}`);
         if (announcement.status === "approved") {
           allAnnouncements.push({
             businessName: business.name,
@@ -192,6 +197,7 @@ router.get("/announcements", async (req, res) => {
       });
     });
 
+    console.log(`Total approved announcements: ${allAnnouncements.length}`);
     allAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({ success: true, announcements: allAnnouncements });
@@ -545,6 +551,10 @@ router.get("/admin/announcements", auth, async (req, res) => {
 // ====================== ADMIN: APPROVE/REJECT ANNOUNCEMENT ======================
 router.patch("/admin/announcements/:businessId/:announcementIndex", auth, async (req, res) => {
   try {
+    console.log("=== APPROVE/REJECT ANNOUNCEMENT START ===");
+    console.log("Request params:", req.params);
+    console.log("Request body:", req.body);
+
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "❌ Only admins can moderate announcements" });
     }
@@ -561,16 +571,21 @@ router.patch("/admin/announcements/:businessId/:announcementIndex", auth, async 
       return res.status(404).json({ error: "Business not found" });
     }
 
+    console.log(`Business found: ${business.name}, Total announcements: ${business.announcements.length}`);
+
     // Find the announcement by title and createdAt to handle filtered arrays
     const announcement = business.announcements.find(
       a => a.title === title && new Date(a.createdAt).getTime() === new Date(createdAt).getTime()
     );
 
     if (!announcement) {
+      console.log("Announcement not found with provided title and createdAt");
       return res.status(404).json({ error: "Announcement not found" });
     }
 
+    console.log(`Announcement found: ${announcement.title}, Current status: ${announcement.status}`);
     announcement.status = status;
+    console.log(`Updated status to: ${status}`);
     await business.save();
 
     res.json({ success: true, message: `Announcement ${status} successfully` });
