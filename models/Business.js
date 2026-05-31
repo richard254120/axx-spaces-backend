@@ -78,10 +78,36 @@ const businessSchema = new mongoose.Schema({
   images: [{
     type: String,
   }],
+  videoTour: {
+    url: String,
+    thumbnail: String,
+    duration: Number,
+  },
+  documents: [{
+    type: {
+      type: String,
+      enum: ["business_registration", "tax_compliance", "insurance", "license", "other"],
+    },
+    url: String,
+    name: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+  }],
   verificationBadges: [{
     type: {
       type: String,
-      enum: ["student_verified", "identity_verified", "business_verified", "online_verified", "location_verified", "premium_verified"],
+      enum: ["student_verified", "identity_verified", "business_verified", "online_verified", "location_verified", "premium_verified", "bronze", "silver", "gold"],
+    },
+    tier: {
+      type: String,
+      enum: ["basic", "bronze", "silver", "gold"],
+      default: "basic",
     },
     verifiedAt: {
       type: Date,
@@ -91,6 +117,7 @@ const businessSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    documents: [String],
   }],
   status: {
     type: String,
@@ -110,6 +137,82 @@ const businessSchema = new mongoose.Schema({
     description: String,
     discount: Number,
     validUntil: Date,
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
+  events: [{
+    title: {
+      type: String,
+      required: true,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      required: true,
+    },
+    location: String,
+    imageUrl: String,
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: String,
+      enum: ["upcoming", "ongoing", "completed", "cancelled"],
+      default: "upcoming",
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
+  promotions: [{
+    title: {
+      type: String,
+      required: true,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+    discountType: {
+      type: String,
+      enum: ["percentage", "fixed", "buy-one-get-one"],
+      default: "percentage",
+    },
+    discountValue: {
+      type: Number,
+      required: true,
+    },
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      required: true,
+    },
+    terms: String,
+    imageUrl: String,
+    code: String,
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: String,
+      enum: ["active", "expired", "scheduled"],
+      default: "active",
+    },
     createdAt: {
       type: Date,
       default: Date.now,
@@ -148,6 +251,18 @@ const businessSchema = new mongoose.Schema({
   reviewCount: {
     type: Number,
     default: 0,
+  },
+  analytics: {
+    profileViews: { type: Number, default: 0 },
+    contactClicks: { type: Number, default: 0 },
+    websiteClicks: { type: Number, default: 0 },
+    mapClicks: { type: Number, default: 0 },
+    favorites: { type: Number, default: 0 },
+    inquiries: { type: Number, default: 0 },
+    dailyViews: [{
+      date: { type: Date },
+      count: { type: Number, default: 0 },
+    }],
   },
   createdAt: {
     type: Date,

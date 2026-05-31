@@ -24,6 +24,11 @@ import reviewRoutes from "./routes/reviews.js";
 import adminRoutes from "./routes/admin.js";
 import paymentVerificationRoutes from "./routes/paymentVerification.js";
 import businessRoutes from "./routes/business.js";
+import businessReviewRoutes from "./routes/businessReviews.js";
+import favoritesRoutes from "./routes/favorites.js";
+import businessInquiryRoutes from "./routes/businessInquiries.js";
+import businessAnalyticsRoutes from "./routes/businessAnalytics.js";
+import businessSubscriptionRoutes from "./routes/businessSubscriptions.js";
 
 dotenv.config();
 
@@ -61,6 +66,11 @@ app.use("/api/reviews", security.apiLimiter, reviewRoutes);
 app.use("/api/admin", security.apiLimiter, adminRoutes);
 app.use("/api/payment-verification", security.apiLimiter, paymentVerificationRoutes);
 app.use("/api/business", security.apiLimiter, businessRoutes);
+app.use("/api/business-reviews", security.apiLimiter, businessReviewRoutes);
+app.use("/api/favorites", security.apiLimiter, favoritesRoutes);
+app.use("/api/business-inquiries", security.apiLimiter, businessInquiryRoutes);
+app.use("/api/business-analytics", security.apiLimiter, businessAnalyticsRoutes);
+app.use("/api/business-subscriptions", security.apiLimiter, businessSubscriptionRoutes);
 
 app.get("/api/health", (req, res) =>
   res.json({ status: "OK", timestamp: new Date().toISOString() })

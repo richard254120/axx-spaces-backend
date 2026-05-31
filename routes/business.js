@@ -73,7 +73,7 @@ router.post("/", async (req, res) => {
 // ====================== GET ALL BUSINESSES ======================
 router.get("/", async (req, res) => {
   try {
-    const { category, county, search, featured, sort } = req.query;
+    const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification } = req.query;
 
     const filter = { isApproved: true };
 
@@ -99,6 +99,31 @@ router.get("/", async (req, res) => {
       filter.featuredUntil = { $gt: new Date() };
     }
 
+    if (minRating) {
+      filter.rating = { $gte: parseFloat(minRating) };
+    }
+
+    if (maxRating) {
+      if (!filter.rating) filter.rating = {};
+      filter.rating.$lte = parseFloat(maxRating);
+    }
+
+    if (priceRange) {
+      filter.priceRange = priceRange;
+    }
+
+    if (openNow === "true") {
+      const now = new Date();
+      const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const currentTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      filter[`businessHours.${currentDay}.closed`] = false;
+    }
+
+    if (verification) {
+      filter["verificationBadges.type"] = verification;
+    }
+
     let sortOption = { createdAt: -1 };
     switch (sort) {
       case "oldest":
@@ -112,6 +137,9 @@ router.get("/", async (req, res) => {
         break;
       case "name":
         sortOption = { name: 1 };
+        break;
+      case "reviews":
+        sortOption = { reviewCount: -1 };
         break;
       default:
         sortOption = { createdAt: -1 };
@@ -514,6 +542,44 @@ router.get("/admin/announcements", auth, async (req, res) => {
   }
 });
 
+// ====================== ADMIN: APPROVE/REJECT ANNOUNCEMENT ======================
+router.patch("/admin/announcements/:businessId/:announcementIndex", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can moderate announcements" });
+    }
+
+    const { businessId, announcementIndex } = req.params;
+    const { status, title, createdAt } = req.body;
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const business = await Business.findById(businessId);
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    // Find the announcement by title and createdAt to handle filtered arrays
+    const announcement = business.announcements.find(
+      a => a.title === title && new Date(a.createdAt).getTime() === new Date(createdAt).getTime()
+    );
+
+    if (!announcement) {
+      return res.status(404).json({ error: "Announcement not found" });
+    }
+
+    announcement.status = status;
+    await business.save();
+
+    res.json({ success: true, message: `Announcement ${status} successfully` });
+  } catch (error) {
+    console.error("Moderate announcement error:", error);
+    res.status(500).json({ error: "Failed to moderate announcement" });
+  }
+});
+
 // ====================== ADMIN: DELETE ANNOUNCEMENT ======================
 router.delete("/admin/:businessId/announcements/:announcementId", auth, async (req, res) => {
   try {
@@ -577,11 +643,12 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
       return res.status(403).json({ error: "❌ Only admins can verify businesses" });
     }
 
-    const { badgeType } = req.body;
+    const { badgeType, tier, documents } = req.body;
 
     const validBadges = [
       "student_verified", "identity_verified", "business_verified",
       "online_verified", "location_verified", "premium_verified",
+      "bronze", "silver", "gold",
     ];
 
     if (!validBadges.includes(badgeType)) {
@@ -601,8 +668,10 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
 
     business.verificationBadges.push({
       type: badgeType,
+      tier: tier || "basic",
       verifiedAt: Date.now(),
       verifiedBy: req.user.id,
+      documents: documents || [],
     });
 
     await business.save();
@@ -610,6 +679,265 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
     res.json({ success: true, message: `✅ Verification badge added successfully`, business });
   } catch (error) {
     res.status(500).json({ error: "Failed to add verification badge" });
+  }
+});
+
+// ====================== UPLOAD VIDEO TOUR ======================
+router.post("/:id/video-tour", auth, async (req, res) => {
+  try {
+    const business = await Business.findById(req.params.id);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    if (business.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to upload video tour" });
+    }
+
+    const { url, thumbnail, duration } = req.body;
+
+    business.videoTour = {
+      url,
+      thumbnail,
+      duration,
+    };
+
+    await business.save();
+
+    res.json({ success: true, message: "Video tour uploaded successfully", business });
+  } catch (error) {
+    console.error("Upload video tour error:", error);
+    res.status(500).json({ error: "Failed to upload video tour" });
+  }
+});
+
+// ====================== UPLOAD DOCUMENT ======================
+router.post("/:id/documents", auth, async (req, res) => {
+  try {
+    const business = await Business.findById(req.params.id);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    if (business.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to upload documents" });
+    }
+
+    const { type, url, name } = req.body;
+
+    business.documents.push({
+      type,
+      url,
+      name,
+      verified: false,
+    });
+
+    await business.save();
+
+    res.json({ success: true, message: "Document uploaded successfully", business });
+  } catch (error) {
+    console.error("Upload document error:", error);
+    res.status(500).json({ error: "Failed to upload document" });
+  }
+});
+
+// ====================== GENERATE QR CODE ======================
+router.get("/:id/qr-code", async (req, res) => {
+  try {
+    const business = await Business.findById(req.params.id);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const businessUrl = `https://axxspace.com/business/${business._id}`;
+
+    // Generate QR code (using a simple approach - in production, use a QR code library)
+    const qrCodeData = {
+      businessId: business._id,
+      businessName: business.name,
+      url: businessUrl,
+      generatedAt: new Date(),
+    };
+
+    res.json({ success: true, qrCodeData });
+  } catch (error) {
+    console.error("Generate QR code error:", error);
+    res.status(500).json({ error: "Failed to generate QR code" });
+  }
+});
+
+// ====================== ADD EVENT TO BUSINESS ======================
+router.post("/:id/events", auth, async (req, res) => {
+  try {
+    const business = await Business.findById(req.params.id);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    if (business.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to add events to this business" });
+    }
+
+    const { title, description, startDate, endDate, location, imageUrl, isFeatured } = req.body;
+
+    business.events.push({
+      title,
+      description,
+      startDate,
+      endDate,
+      location,
+      imageUrl,
+      isFeatured: isFeatured || false,
+      status: "upcoming",
+    });
+
+    await business.save();
+
+    res.json({ success: true, message: "Event added successfully", business });
+  } catch (error) {
+    console.error("Add event error:", error);
+    res.status(500).json({ error: "Failed to add event" });
+  }
+});
+
+// ====================== ADD PROMOTION TO BUSINESS ======================
+router.post("/:id/promotions", auth, async (req, res) => {
+  try {
+    const business = await Business.findById(req.params.id);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    if (business.owner.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to add promotions to this business" });
+    }
+
+    const { title, description, discountType, discountValue, startDate, endDate, terms, imageUrl, code, isFeatured } = req.body;
+
+    business.promotions.push({
+      title,
+      description,
+      discountType: discountType || "percentage",
+      discountValue,
+      startDate,
+      endDate,
+      terms,
+      imageUrl,
+      code,
+      isFeatured: isFeatured || false,
+      status: "active",
+    });
+
+    await business.save();
+
+    res.json({ success: true, message: "Promotion added successfully", business });
+  } catch (error) {
+    console.error("Add promotion error:", error);
+    res.status(500).json({ error: "Failed to add promotion" });
+  }
+});
+
+// ====================== GET ALL EVENTS ======================
+router.get("/events/all", async (req, res) => {
+  try {
+    const { status, featured } = req.query;
+    const filter = { isApproved: true };
+
+    if (status) filter["events.status"] = status;
+    if (featured === "true") filter["events.isFeatured"] = true;
+
+    const businesses = await Business.find(filter)
+      .select("name events")
+      .sort({ createdAt: -1 });
+
+    const allEvents = [];
+    businesses.forEach(business => {
+      business.events.forEach(event => {
+        if ((!status || event.status === status) && (!featured || event.isFeatured)) {
+          allEvents.push({
+            businessName: business.name,
+            businessId: business._id,
+            ...event.toObject(),
+          });
+        }
+      });
+    });
+
+    allEvents.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+    res.json({ success: true, events: allEvents });
+  } catch (error) {
+    console.error("Get events error:", error);
+    res.status(500).json({ error: "Failed to fetch events" });
+  }
+});
+
+// ====================== COMPARE BUSINESSES ======================
+router.get("/compare", async (req, res) => {
+  try {
+    const { ids } = req.query;
+
+    if (!ids) {
+      return res.status(400).json({ error: "Business IDs are required" });
+    }
+
+    const businessIds = ids.split(",");
+
+    const businesses = await Business.find({
+      _id: { $in: businessIds },
+      isApproved: true,
+    })
+      .populate("owner", "name email phone")
+      .select("name description categories location contact rating reviewCount priceRange employeeCount yearEstablished verificationBadges images");
+
+    if (businesses.length === 0) {
+      return res.status(404).json({ error: "No businesses found" });
+    }
+
+    res.json({ success: true, businesses });
+  } catch (error) {
+    console.error("Compare businesses error:", error);
+    res.status(500).json({ error: "Failed to compare businesses" });
+  }
+});
+
+// ====================== GET ALL PROMOTIONS ======================
+router.get("/promotions/all", async (req, res) => {
+  try {
+    const { status, featured } = req.query;
+    const filter = { isApproved: true };
+
+    if (status) filter["promotions.status"] = status;
+    if (featured === "true") filter["promotions.isFeatured"] = true;
+
+    const businesses = await Business.find(filter)
+      .select("name promotions")
+      .sort({ createdAt: -1 });
+
+    const allPromotions = [];
+    businesses.forEach(business => {
+      business.promotions.forEach(promotion => {
+        if ((!status || promotion.status === status) && (!featured || promotion.isFeatured)) {
+          allPromotions.push({
+            businessName: business.name,
+            businessId: business._id,
+            ...promotion.toObject(),
+          });
+        }
+      });
+    });
+
+    allPromotions.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+    res.json({ success: true, promotions: allPromotions });
+  } catch (error) {
+    console.error("Get promotions error:", error);
+    res.status(500).json({ error: "Failed to fetch promotions" });
   }
 });
 
