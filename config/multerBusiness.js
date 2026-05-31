@@ -28,6 +28,19 @@ const logoStorage = new CloudinaryStorage({
   },
 });
 
+// ============ CLOUDINARY STORAGE FOR BUSINESS PHOTOS (MULTIPLE) ============
+const businessPhotosStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "axx-spaces/business/photos",
+    resource_type: "image",
+    format: async (req, file) => "jpg",
+    public_id: (req, file) => {
+      return `photo-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    },
+  },
+});
+
 // ============ CLOUDINARY STORAGE FOR PRODUCT IMAGES ============
 const productStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -111,6 +124,15 @@ const uploadLogo = multer({
   },
 });
 
+const uploadBusinessPhotos = multer({
+  storage: businessPhotosStorage,
+  fileFilter: imageFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit per photo
+    files: 18, // Maximum 18 photos
+  },
+});
+
 const uploadProductImage = multer({
   storage: productStorage,
   fileFilter: imageFileFilter,
@@ -137,4 +159,4 @@ const uploadBusinessFiles = multer({
 
 console.log("✅ Multer configured for business uploads");
 
-export { uploadLogo, uploadProductImage, uploadPricelist, uploadBusinessFiles };
+export { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist, uploadBusinessFiles };

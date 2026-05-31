@@ -1,5 +1,5 @@
 import express from "express";
-import { uploadLogo, uploadProductImage, uploadPricelist } from "../config/multerBusiness.js";
+import { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist } from "../config/multerBusiness.js";
 
 const router = express.Router();
 
@@ -19,6 +19,29 @@ router.post("/logo", uploadLogo.single("logo"), (req, res) => {
   } catch (error) {
     console.error("Logo upload error:", error);
     res.status(500).json({ error: "Failed to upload logo" });
+  }
+});
+
+// ====================== UPLOAD BUSINESS PHOTOS (MULTIPLE - UP TO 18) ======================
+router.post("/business-photos", uploadBusinessPhotos.array("photos", 18), (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    const uploadedUrls = req.files.map(file => file.path);
+    const uploadedIds = req.files.map(file => file.filename);
+
+    res.json({
+      success: true,
+      urls: uploadedUrls,
+      publicIds: uploadedIds,
+      count: req.files.length,
+      message: `${req.files.length} photo(s) uploaded successfully`,
+    });
+  } catch (error) {
+    console.error("Business photos upload error:", error);
+    res.status(500).json({ error: "Failed to upload business photos" });
   }
 });
 
