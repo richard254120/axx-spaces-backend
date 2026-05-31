@@ -895,6 +895,9 @@ router.get("/events/all", async (req, res) => {
 // ====================== COMPARE BUSINESSES ======================
 router.get("/compare", async (req, res) => {
   try {
+    console.log("=== COMPARE BUSINESSES START ===");
+    console.log("Request query:", req.query);
+
     const { ids } = req.query;
 
     if (!ids) {
@@ -902,13 +905,16 @@ router.get("/compare", async (req, res) => {
     }
 
     const businessIds = ids.split(",");
+    console.log("Business IDs to compare:", businessIds);
 
     const businesses = await Business.find({
       _id: { $in: businessIds },
-      isApproved: true,
+      status: "approved",
     })
       .populate("owner", "name email phone")
       .select("name description categories location contact rating reviewCount priceRange employeeCount yearEstablished verificationBadges images");
+
+    console.log(`Found ${businesses.length} businesses for comparison`);
 
     if (businesses.length === 0) {
       return res.status(404).json({ error: "No businesses found" });
@@ -917,6 +923,7 @@ router.get("/compare", async (req, res) => {
     res.json({ success: true, businesses });
   } catch (error) {
     console.error("Compare businesses error:", error);
+    console.error("Error stack:", error.stack);
     res.status(500).json({ error: "Failed to compare businesses" });
   }
 });
