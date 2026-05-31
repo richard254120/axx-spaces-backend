@@ -358,9 +358,13 @@ router.get("/admin/rejected", auth, async (req, res) => {
 // ====================== ADD GENERAL ANNOUNCEMENT (not tied to business) ======================
 router.post("/announcements", async (req, res) => {
   try {
+    console.log("=== ANNOUNCEMENT SUBMISSION START ===");
+    console.log("Request body:", req.body);
+
     const { title, content, submitterName, organizationName } = req.body;
 
     if (!title || !content) {
+      console.log("Validation failed: Missing title or content");
       return res.status(400).json({ error: "Title and content are required" });
     }
 
@@ -375,10 +379,12 @@ router.post("/announcements", async (req, res) => {
       isGeneral: true,
     };
 
+    console.log("Looking for General Announcements business...");
     // Store in a temporary collection or use the first business as a placeholder
     // For now, we'll use a special business ID for general announcements
     let generalBusiness = await Business.findOne({ name: "General Announcements" });
     if (!generalBusiness) {
+      console.log("Creating General Announcements business...");
       generalBusiness = new Business({
         name: "General Announcements",
         description: "Platform-wide announcements",
@@ -391,13 +397,17 @@ router.post("/announcements", async (req, res) => {
       });
     }
 
+    console.log("Adding announcement to business...");
     generalBusiness.announcements.push(announcement);
     await generalBusiness.save();
 
+    console.log("Announcement saved successfully");
     res.json({ success: true, message: "Announcement submitted for approval" });
   } catch (error) {
-    console.error("Add general announcement error:", error);
-    res.status(500).json({ error: "Failed to add announcement" });
+    console.error("=== ANNOUNCEMENT SUBMISSION ERROR ===");
+    console.error("Error:", error.message);
+    console.error("Stack:", error.stack);
+    res.status(500).json({ error: "Failed to add announcement", details: error.message });
   }
 });
 
