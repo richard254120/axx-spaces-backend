@@ -31,6 +31,8 @@ router.post("/", auth, async (req, res) => {
     console.log("Categories:", categories);
     console.log("Submitter name:", submitterName);
     console.log("User ID:", req.user?.id);
+    console.log("Images:", images);
+    console.log("Images length:", images?.length);
 
     const business = new Business({
       owner: req.user?.id || null,
