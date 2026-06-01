@@ -6,7 +6,7 @@ import User from "../models/User.js";
 const router = express.Router();
 
 // ====================== CREATE BUSINESS ======================
-router.post("/", async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
     const {
       name,
@@ -30,9 +30,10 @@ router.post("/", async (req, res) => {
     console.log("Business name:", name);
     console.log("Categories:", categories);
     console.log("Submitter name:", submitterName);
+    console.log("User ID:", req.user?.id);
 
     const business = new Business({
-      owner: null,
+      owner: req.user?.id || null,
       name,
       description,
       categories,
@@ -56,13 +57,14 @@ router.post("/", async (req, res) => {
     await business.save();
 
     console.log("Business saved successfully. ID:", business._id);
-    console.log("Is first upload:", business.isFirstUpload); // ← FIX: was `isFirstUpload` (undefined variable)
+    console.log("Is first upload:", business.isFirstUpload);
     console.log("Status:", business.status);
+    console.log("Owner:", business.owner);
     console.log("=== BUSINESS SUBMISSION END ===");
 
     res.json({
       success: true,
-      message: business.isFirstUpload  // ← FIX: was `isFirstUpload` (undefined variable)
+      message: business.isFirstUpload
         ? "✅ Business submitted for approval. It will be visible once approved by admin."
         : "✅ Business created successfully and is now visible.",
       business,
