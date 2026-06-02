@@ -254,21 +254,35 @@ router.put("/:id", auth, async (req, res) => {
       name,
       description,
       categories,
+      yearEstablished,
+      employeeCount,
+      priceRange,
       location,
       contact,
       businessHours,
       socialMedia,
       images,
+      logo,
+      products,
+      pricelist,
+      submitterName,
     } = req.body;
 
     business.name = name || business.name;
     business.description = description || business.description;
     business.categories = categories || business.categories;
+    business.yearEstablished = yearEstablished ? parseInt(yearEstablished) : business.yearEstablished;
+    business.employeeCount = employeeCount || business.employeeCount;
+    business.priceRange = priceRange || business.priceRange;
     business.location = location || business.location;
     business.contact = contact || business.contact;
     business.businessHours = businessHours || business.businessHours;
     business.socialMedia = socialMedia || business.socialMedia;
     business.images = images || business.images;
+    business.logo = logo || business.logo;
+    business.products = products !== undefined ? products : business.products;
+    business.pricelist = pricelist || business.pricelist;
+    business.submitterName = submitterName || business.submitterName;
     business.updatedAt = Date.now();
 
     await business.save();
