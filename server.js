@@ -35,6 +35,12 @@ dotenv.config();
 
 const app = express();
 
+// ====================== TRUST PROXY ======================
+// Required for Render (and any reverse proxy) so that express-rate-limit
+// correctly identifies users by their real IP via X-Forwarded-For,
+// and so req.protocol returns "https" in production.
+app.set("trust proxy", 1);
+
 // ====================== SECURITY MIDDLEWARE ======================
 security.applyTo(app);
 
@@ -83,24 +89,27 @@ app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
 });
 
-// ====================== START SERVER ======================
-const PORT = process.env.PORT || 1000;
-
-// HTTPS enforcement in production
-if (process.env.NODE_ENV === 'production') {
+// ====================== HTTPS ENFORCEMENT ======================
+// Must be registered before app.listen, but after routes.
+// On Render, the proxy handles TLS — req.protocol is set correctly
+// only after trust proxy is enabled (done above).
+if (process.env.NODE_ENV === "production") {
   app.use((req, res, next) => {
-    if (req.protocol === 'http') {
+    if (req.protocol === "http") {
       return res.redirect(301, `https://${req.headers.host}${req.url}`);
     }
     next();
   });
 }
 
+// ====================== START SERVER ======================
+const PORT = process.env.PORT || 1000;
+
 app.listen(PORT, () => {
   console.log("==================================");
   console.log("🚀 AXX SPACES SERVER STARTED");
   console.log("==================================");
   console.log(`📍 Port: ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log("🔒 Security: Active (Helmet + Rate Limiting + Sanitization + CSP + Auth)");
 });
