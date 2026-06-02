@@ -186,6 +186,11 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
+    console.log("📧 Sending password reset email:");
+    console.log("  From:", process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev");
+    console.log("  To:", email);
+    console.log("  Reset URL:", resetUrl);
+
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
       to: email,
