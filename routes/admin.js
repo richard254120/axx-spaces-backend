@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import TourismListing from "../models/TourismListing.js";
 import SellerVerification from "../models/SellerVerification.js";
 import Business from "../models/Business.js";
+import Notification from "../models/Notification.js";
 import { protect, adminOnly } from "../middleware/auth.js";
 import { sendPropertyApprovalEmail, sendMaterialApprovalEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 
@@ -564,6 +565,127 @@ router.get("/top-viewed", protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error("❌ Get top viewed error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch top viewed items" });
+  }
+});
+
+// ====================== GET ALL NOTIFICATIONS (Unified) ======================
+router.get("/notifications", protect, adminOnly, async (req, res) => {
+  try {
+    // Fetch payment notifications
+    const paymentNotifications = await Notification.find({ read: false })
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    // Fetch pending approval items
+    const [
+      pendingProperties,
+      pendingMaterials,
+      pendingTourism,
+      pendingMovers,
+      pendingSellers,
+      pendingBusinesses,
+    ] = await Promise.all([
+      Property.find({ status: "pending" })
+        .populate("owner", "name email phone")
+        .sort({ createdAt: -1 })
+        .limit(20),
+      Material.find({ status: "pending" })
+        .populate("seller", "name email phone")
+        .sort({ createdAt: -1 })
+        .limit(20),
+      TourismListing.find({ status: "pending" })
+        .populate("owner", "name email phone")
+        .sort({ createdAt: -1 })
+        .limit(20),
+      User.find({ role: "mover", status: "pending" })
+        .sort({ createdAt: -1 })
+        .limit(20),
+      SellerVerification.find({ status: "pending" })
+        .populate("seller", "name email phone")
+        .sort({ createdAt: -1 })
+        .limit(20),
+      Business.find({ status: "pending" })
+        .populate("owner", "name email phone")
+        .sort({ createdAt: -1 })
+        .limit(20),
+    ]);
+
+    // Fetch pending announcements from businesses
+    const businessesWithPendingAnnouncements = await Business.find({
+      "announcements.status": "pending"
+    }).populate("owner", "name email phone");
+
+    const pendingAnnouncements = [];
+    businessesWithPendingAnnouncements.forEach(business => {
+      business.announcements.forEach(announcement => {
+        if (announcement.status === "pending") {
+          pendingAnnouncements.push({
+            ...announcement.toObject(),
+            businessId: business._id,
+            businessName: business.name,
+            owner: business.owner,
+          });
+        }
+      });
+    });
+
+    // Transform pending items into notification format
+    const transformToNotification = (item, type) => ({
+      _id: item._id,
+      type,
+      title: item.title || item.name || item.businessName || "—",
+      category: item.category || item.county || item.vehicleType || "—",
+      owner: item.owner || item.seller,
+      ownerName: item.owner?.name || item.seller?.name || item.name || "—",
+      ownerPhone: item.owner?.phone || item.seller?.phone || item.phone || "—",
+      ownerEmail: item.owner?.email || item.seller?.email || item.email || "—",
+      status: "pending",
+      createdAt: item.createdAt,
+      isPayment: false,
+    });
+
+    const allNotifications = [
+      ...paymentNotifications.map(n => ({ ...n.toObject(), isPayment: true })),
+      ...pendingProperties.map(p => transformToNotification(p, "property")),
+      ...pendingMaterials.map(m => transformToNotification(m, "material")),
+      ...pendingTourism.map(t => transformToNotification(t, "tourism")),
+      ...pendingMovers.map(m => transformToNotification(m, "mover")),
+      ...pendingSellers.map(s => transformToNotification(s, "seller")),
+      ...pendingBusinesses.map(b => transformToNotification(b, "business")),
+      ...pendingAnnouncements.map(a => ({
+        ...a,
+        type: "announcement",
+        title: a.title,
+        businessName: a.businessName,
+        owner: a.owner,
+        ownerName: a.owner?.name || a.submitterName || "—",
+        ownerPhone: a.owner?.phone || "—",
+        ownerEmail: a.owner?.email || "—",
+        status: "pending",
+        isPayment: false,
+      })),
+    ];
+
+    // Sort by createdAt descending
+    allNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({
+      notifications: allNotifications,
+      summary: {
+        total: allNotifications.length,
+        payments: paymentNotifications.length,
+        properties: pendingProperties.length,
+        materials: pendingMaterials.length,
+        tourism: pendingTourism.length,
+        movers: pendingMovers.length,
+        sellers: pendingSellers.length,
+        businesses: pendingBusinesses.length,
+        announcements: pendingAnnouncements.length,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Get notifications error:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch notifications" });
   }
 });
 
