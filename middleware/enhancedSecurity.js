@@ -229,13 +229,6 @@ const validateInput = (req, res, next) => {
     /javascript:/gi,
     /on\w+\s*=/gi,
     /eval\(/gi,
-    /document\./gi,
-    /window\./gi,
-    /\.\./gi,
-    /union.*select/gi,
-    /drop.*table/gi,
-    /delete.*from/gi,
-    /insert.*into/gi,
   ];
 
   const checkValue = (value) => {

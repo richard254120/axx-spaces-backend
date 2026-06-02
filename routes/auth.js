@@ -226,6 +226,12 @@ router.post("/forgot-password", security.passwordResetLimiter, async (req, res) 
       `,
     });
 
+    // Check for Resend API errors
+    if (sendResult.error) {
+      console.error("❌ Resend API error:", sendResult.error);
+      throw new Error(sendResult.error.message || "Failed to send email via Resend");
+    }
+
     // Log Resend's response so you can see exactly what happened
     console.log("📬 Resend response:", JSON.stringify(sendResult, null, 2));
     console.log(`✅ Password reset email sent to: ${email}`);
