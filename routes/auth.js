@@ -9,7 +9,14 @@ import { Resend } from "resend";
 import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 
 const router = express.Router();
-const resend = new Resend(process.env.RESEND_API_KEY || "re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
+
+// ── No hardcoded fallback key — if RESEND_API_KEY is missing the app should
+//    fail loudly at startup, not silently use a revoked/wrong key.
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ── Single source of truth for the sender address.
+//    Always reads from env — no "onboarding@resend.dev" fallback.
+const FROM_EMAIL = `AxxSpace <${process.env.RESEND_FROM_EMAIL}>`;
 
 // ====================== REGISTER ======================
 router.post("/register", async (req, res) => {
@@ -30,7 +37,6 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate email verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
@@ -51,10 +57,10 @@ router.post("/register", async (req, res) => {
 
     await newUser.save();
 
-    // Send email verification email
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+      from: FROM_EMAIL,
       to: email,
       subject: "📧 Verify Your Email - Axxspace",
       html: `
@@ -84,7 +90,6 @@ router.post("/register", async (req, res) => {
       `,
     });
 
-    // Send email notification for mover or seller registration
     if (role === "mover") {
       await sendMoverRegistrationEmail(newUser);
     } else if (role === "seller") {
@@ -122,7 +127,6 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // 🔒 MOVER APPROVAL GATEKEEPER
     if (user.role === "mover" && !user.isApproved) {
       return res.status(403).json({
         error: "⏳ Your account is pending admin approval. You will be able to log in once approved."
@@ -155,9 +159,7 @@ router.get("/me", auth, async (req, res) => {
     if (!req.user) {
       return res.status(404).json({ error: "User not found" });
     }
-
     res.json({ user: formatUserResponse(req.user) });
-
   } catch (err) {
     console.error("❌ Profile fetch error:", err);
     res.status(500).json({ error: "Failed to fetch user profile" });
@@ -175,6 +177,7 @@ router.post("/forgot-password", async (req, res) => {
 
     const user = await User.findOne({ email });
 
+    // Always return the same message to prevent email enumeration
     if (!user) {
       return res.json({ message: "✅ If that email exists, a reset link has been sent." });
     }
@@ -187,12 +190,12 @@ router.post("/forgot-password", async (req, res) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     console.log("📧 Sending password reset email:");
-    console.log("  From:", process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev");
+    console.log("  From:", FROM_EMAIL);
     console.log("  To:", email);
     console.log("  Reset URL:", resetUrl);
 
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+    const sendResult = await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
       subject: "🔐 Reset Your Axx Spaces Password",
       html: `
@@ -222,11 +225,15 @@ router.post("/forgot-password", async (req, res) => {
       `,
     });
 
-    console.log(`📧 Password reset email sent to: ${email}`);
+    // Log Resend's response so you can see exactly what happened
+    console.log("📬 Resend response:", JSON.stringify(sendResult, null, 2));
+    console.log(`✅ Password reset email sent to: ${email}`);
+
     res.json({ message: "✅ If that email exists, a reset link has been sent." });
 
   } catch (err) {
     console.error("❌ Forgot password error:", err);
+    console.error("❌ Resend error details:", err?.response?.data || err?.message);
     res.status(500).json({ error: "Failed to send reset email" });
   }
 });
@@ -311,17 +318,17 @@ router.post("/resend-verification", async (req, res) => {
       return res.status(400).json({ error: "Email is already verified" });
     }
 
-    // Generate new verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000;
 
     user.emailVerificationToken = verificationToken;
     user.emailVerificationExpiry = verificationExpiry;
     await user.save();
 
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+      from: FROM_EMAIL,
       to: email,
       subject: "📧 Verify Your Email - Axxspace",
       html: `
@@ -369,31 +376,23 @@ router.post("/google", async (req, res) => {
       return res.status(400).json({ error: "Google ID, email, and name are required" });
     }
 
-    // Check if user exists with this Google ID
     let user = await User.findOne({ googleId });
 
     if (user) {
-      // User exists, log them in
       const token = jwt.sign(
         { userId: user._id, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: "7d" }
       );
-
-      return res.json({
-        token,
-        user: formatUserResponse(user),
-      });
+      return res.json({ token, user: formatUserResponse(user) });
     }
 
-    // Check if user exists with this email (but no Google ID)
     user = await User.findOne({ email });
 
     if (user) {
-      // Link Google account to existing user
       user.googleId = googleId;
       user.isGoogleUser = true;
-      user.isEmailVerified = true; // Google emails are verified
+      user.isEmailVerified = true;
       await user.save();
 
       const token = jwt.sign(
@@ -401,22 +400,15 @@ router.post("/google", async (req, res) => {
         process.env.JWT_SECRET,
         { expiresIn: "7d" }
       );
-
-      return res.json({
-        token,
-        user: formatUserResponse(user),
-      });
+      return res.json({ token, user: formatUserResponse(user) });
     }
 
-    // Create new user with Google account
     const newUser = new User({
-      name,
-      email,
-      googleId,
+      name, email, googleId,
       isGoogleUser: true,
-      isEmailVerified: true, // Google emails are verified
-      phone: "", // Will need to be filled later
-      password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10), // Random password
+      isEmailVerified: true,
+      phone: "",
+      password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
       role: "landlord",
     });
 
@@ -431,7 +423,7 @@ router.post("/google", async (req, res) => {
     res.status(201).json({
       token,
       user: formatUserResponse(newUser),
-      requiresPhone: true, // Indicate that phone number needs to be added
+      requiresPhone: true,
     });
 
   } catch (err) {
@@ -456,7 +448,7 @@ router.patch("/:id/approve-tourism-provider", auth, async (req, res) => {
     if (approve) {
       await sendTourismApprovalEmail(user.email, user.name);
     }
-    res.json({ success: true, message: `Tourism provider ${approve ? 'approved' : 'rejected'}`, user });
+    res.json({ success: true, message: `Tourism provider ${approve ? "approved" : "rejected"}`, user });
   } catch (err) {
     console.error("❌ Approve tourism provider error:", err);
     res.status(500).json({ error: err.message });
@@ -479,7 +471,7 @@ router.patch("/:id/approve-mover", auth, async (req, res) => {
     if (approve) {
       await sendMoverApprovalEmail(user.email, user.name);
     }
-    res.json({ success: true, message: `Mover ${approve ? 'approved' : 'rejected'}`, user });
+    res.json({ success: true, message: `Mover ${approve ? "approved" : "rejected"}`, user });
   } catch (err) {
     console.error("❌ Approve mover error:", err);
     res.status(500).json({ error: err.message });
