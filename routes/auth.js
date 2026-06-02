@@ -54,7 +54,7 @@ router.post("/register", async (req, res) => {
     // Send email verification email
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
     await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
       to: email,
       subject: "📧 Verify Your Email - Axxspace",
       html: `
@@ -187,7 +187,7 @@ router.post("/forgot-password", async (req, res) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
       to: email,
       subject: "🔐 Reset Your Axx Spaces Password",
       html: `
@@ -316,7 +316,7 @@ router.post("/resend-verification", async (req, res) => {
 
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
     await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
       to: email,
       subject: "📧 Verify Your Email - Axxspace",
       html: `
