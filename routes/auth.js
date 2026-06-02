@@ -9,7 +9,7 @@ import { Resend } from "resend";
 import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 
 const router = express.Router();
-const resend = new Resend("re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
+const resend = new Resend(process.env.RESEND_API_KEY || "re_6qT1yhNw_Ey9TNVw6T3HqCbBGjL4YzMBc");
 
 // ====================== REGISTER ======================
 router.post("/register", async (req, res) => {
