@@ -7,6 +7,7 @@ import { protect as auth } from "../middleware/auth.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
 import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
+import security from "../middleware/enhancedSecurity.js";
 
 const router = express.Router();
 
@@ -108,7 +109,7 @@ router.post("/register", async (req, res) => {
 });
 
 // ====================== LOGIN ======================
-router.post("/login", async (req, res) => {
+router.post("/login", security.authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -167,7 +168,7 @@ router.get("/me", auth, async (req, res) => {
 });
 
 // ====================== FORGOT PASSWORD ======================
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", security.passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 

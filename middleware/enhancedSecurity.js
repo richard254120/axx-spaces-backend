@@ -214,6 +214,14 @@ const authLimiter = rateLimit({
   },
 });
 
+// More lenient rate limiter for password reset (allows more attempts since it's less sensitive)
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "Too many password reset attempts. Try again in 15 minutes." },
+  skipSuccessfulRequests: true,
+});
+
 // Input Validation Middleware
 const validateInput = (req, res, next) => {
   const suspiciousPatterns = [
@@ -390,7 +398,6 @@ function applyTo(app) {
   app.use(ipBlocker);
   app.use(enhancedRateLimit);
   app.use(validateInput);
-  app.use(sqlInjectionPrevention);
   app.use(mongoSanitize());
   app.use(xss());
   app.use(hpp());
@@ -403,7 +410,6 @@ function applyTo(app) {
   console.log("   - IP Blocking");
   console.log("   - Rate Limiting");
   console.log("   - Input Validation");
-  console.log("   - SQL Injection Prevention");
   console.log("   - XSS Protection");
   console.log("   - MongoDB Sanitization");
   console.log("   - Security Logging");
@@ -413,6 +419,7 @@ export default {
   applyTo,
   generalLimiter: enhancedRateLimit,
   authLimiter,
+  passwordResetLimiter,
   csrfProtection,
   attachCSRFToken,
   generateCSRFToken,

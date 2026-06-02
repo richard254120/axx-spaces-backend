@@ -53,7 +53,7 @@ mongoose.connect(process.env.MONGO_URI)
   });
 
 // ====================== ROUTES ======================
-app.use("/api/auth", security.authLimiter, authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/properties", security.apiLimiter, propertyRoutes);
 app.use("/api/payment", security.apiLimiter, paymentRoutes);
 app.use("/api/movers", security.apiLimiter, moverRoutes);
