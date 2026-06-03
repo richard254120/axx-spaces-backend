@@ -73,20 +73,10 @@ router.get("/my", auth, async (req, res) => {
 });
 
 // ====================== CREATE REVIEW ======================
-router.post("/business/:businessId", auth, async (req, res) => {
+router.post("/business/:businessId", async (req, res) => {
   try {
     const { businessId } = req.params;
-    const { rating, title, comment, pros, cons, images } = req.body;
-
-    // Check if user already reviewed this business
-    const existingReview = await BusinessReview.findOne({
-      business: businessId,
-      user: req.user.id,
-    });
-
-    if (existingReview) {
-      return res.status(400).json({ error: "You have already reviewed this business" });
-    }
+    const { rating, title, comment, pros, cons, images, userName } = req.body;
 
     // Check if business exists
     const business = await Business.findById(businessId);
@@ -96,8 +86,8 @@ router.post("/business/:businessId", auth, async (req, res) => {
 
     const review = new BusinessReview({
       business: businessId,
-      user: req.user.id,
-      userName: req.user.name || "Anonymous",
+      user: null, // Allow anonymous reviews
+      userName: userName || "Anonymous",
       rating,
       title,
       comment,
@@ -180,8 +170,8 @@ router.delete("/:reviewId", auth, async (req, res) => {
     // Recalculate business rating
     const business = await Business.findById(review.business);
     const allReviews = await BusinessReview.find({ business: review.business, status: "approved" });
-    const avgRating = allReviews.length > 0 
-      ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length 
+    const avgRating = allReviews.length > 0
+      ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
       : 0;
     business.rating = Math.round(avgRating * 10) / 10;
     business.reviewCount = allReviews.length;
