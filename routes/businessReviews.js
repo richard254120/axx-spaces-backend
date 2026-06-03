@@ -109,7 +109,7 @@ router.post("/business/:businessId", async (req, res) => {
     res.json({ success: true, message: "Review submitted successfully", review });
   } catch (error) {
     console.error("Create review error:", error);
-    res.status(500).json({ error: "Failed to submit review" });
+    res.status(500).json({ error: error.message || "Failed to submit review" });
   }
 });
 
