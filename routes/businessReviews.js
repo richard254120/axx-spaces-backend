@@ -169,12 +169,11 @@ router.delete("/:reviewId", async (req, res) => {
 
     // Allow deletion if:
     // 1. User is logged in and is the review owner, OR
-    // 2. User provides matching userName for anonymous review
-    const { userName } = req.body;
+    // 2. Review is anonymous (no user) - allow deletion for anonymous reviews
     const isOwner = req.user && review.user && review.user.toString() === req.user.id;
-    const isAnonymousMatch = !review.user && userName === review.userName;
+    const isAnonymousReview = !review.user;
 
-    if (!isOwner && !isAnonymousMatch) {
+    if (!isOwner && !isAnonymousReview) {
       return res.status(403).json({ error: "Not authorized to delete this review" });
     }
 
