@@ -153,7 +153,7 @@ router.put("/:reviewId", auth, async (req, res) => {
 });
 
 // ====================== DELETE REVIEW ======================
-router.delete("/:reviewId", auth, async (req, res) => {
+router.delete("/:reviewId", async (req, res) => {
   try {
     const review = await BusinessReview.findById(req.params.reviewId);
 
@@ -161,7 +161,14 @@ router.delete("/:reviewId", auth, async (req, res) => {
       return res.status(404).json({ error: "Review not found" });
     }
 
-    if (review.user.toString() !== req.user.id) {
+    // Allow deletion if:
+    // 1. User is logged in and is the review owner, OR
+    // 2. User provides matching userName for anonymous review
+    const { userName } = req.body;
+    const isOwner = req.user && review.user && review.user.toString() === req.user.id;
+    const isAnonymousMatch = !review.user && userName === review.userName;
+
+    if (!isOwner && !isAnonymousMatch) {
       return res.status(403).json({ error: "Not authorized to delete this review" });
     }
 
