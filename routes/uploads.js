@@ -1,5 +1,15 @@
 import express from "express";
 import { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist } from "../config/multerBusiness.js";
+import { v2 as cloudinary } from "cloudinary";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const router = express.Router();
 
@@ -81,6 +91,29 @@ router.post("/pricelist", uploadPricelist.single("pricelist"), (req, res) => {
   } catch (error) {
     console.error("Pricelist upload error:", error);
     res.status(500).json({ error: "Failed to upload pricelist" });
+  }
+});
+
+// ====================== DOWNLOAD PRICELIST DOCUMENT ======================
+router.get("/pricelist/:publicId", async (req, res) => {
+  try {
+    const { publicId } = req.params;
+
+    // Generate a signed URL for the Cloudinary resource (works for both public and private)
+    const url = cloudinary.url(publicId, {
+      resource_type: "auto",
+      secure: true,
+      sign_url: true, // Generate signed URL that bypasses authentication
+      transformation: [
+        { flags: "attachment" } // Force download instead of display
+      ]
+    });
+
+    // Redirect to the Cloudinary URL
+    res.redirect(url);
+  } catch (error) {
+    console.error("Pricelist download error:", error);
+    res.status(500).json({ error: "Failed to generate download link" });
   }
 });
 

@@ -93,6 +93,7 @@ const businessSchema = new mongoose.Schema({
   }],
   pricelist: {
     url: String,
+    publicId: String,
     name: String,
     uploadedAt: {
       type: Date,

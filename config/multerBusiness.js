@@ -60,6 +60,8 @@ const pricelistStorage = new CloudinaryStorage({
   params: {
     folder: "axx-spaces/business/pricelists",
     resource_type: "auto",
+    type: "upload",
+    access_mode: "public",
     public_id: (req, file) => {
       const ext = file.originalname.split('.').pop();
       return `pricelist-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
