@@ -114,7 +114,7 @@ router.post("/business/:businessId", async (req, res) => {
 });
 
 // ====================== UPDATE REVIEW ======================
-router.put("/:reviewId", auth, async (req, res) => {
+router.put("/:reviewId", async (req, res) => {
   try {
     const review = await BusinessReview.findById(req.params.reviewId);
 
@@ -122,11 +122,17 @@ router.put("/:reviewId", auth, async (req, res) => {
       return res.status(404).json({ error: "Review not found" });
     }
 
-    if (review.user.toString() !== req.user.id) {
+    const { rating, title, comment, pros, cons, images, userName } = req.body;
+
+    // Allow update if:
+    // 1. User is logged in and is the review owner, OR
+    // 2. User provides matching userName for anonymous review
+    const isOwner = req.user && review.user && review.user.toString() === req.user.id;
+    const isAnonymousMatch = !review.user && userName === review.userName;
+
+    if (!isOwner && !isAnonymousMatch) {
       return res.status(403).json({ error: "Not authorized to update this review" });
     }
-
-    const { rating, title, comment, pros, cons, images } = req.body;
 
     review.rating = rating || review.rating;
     review.title = title || review.title;
@@ -148,7 +154,7 @@ router.put("/:reviewId", auth, async (req, res) => {
     res.json({ success: true, message: "Review updated successfully", review });
   } catch (error) {
     console.error("Update review error:", error);
-    res.status(500).json({ error: "Failed to update review" });
+    res.status(500).json({ error: error.message || "Failed to update review" });
   }
 });
 
