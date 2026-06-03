@@ -323,6 +323,26 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
   }
 });
 
+// ====================== GET ALL USERS ======================
+router.get("/users", protect, adminOnly, async (req, res) => {
+  try {
+    const { role, status } = req.query;
+    
+    let filter = {};
+    if (role) filter.role = role;
+    if (status) filter.status = status;
+
+    const users = await User.find(filter)
+      .select("-password")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, users });
+  } catch (error) {
+    console.error("❌ Get users error:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch users" });
+  }
+});
+
 // ====================== DELETE USER ======================
 router.delete("/users/:id", protect, adminOnly, async (req, res) => {
   try {
