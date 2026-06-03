@@ -86,6 +86,29 @@ router.post("/business/:businessId", auth, async (req, res) => {
     if (tier !== "basic") {
       business.isApproved = true;
       business.status = "approved";
+
+      // Add verification badge based on tier
+      const badgeTypeMap = {
+        bronze: "business_verified",
+        silver: "premium_verified",
+        gold: "premium_verified",
+        platinum: "premium_verified"
+      };
+
+      const badgeType = badgeTypeMap[tier];
+      if (badgeType) {
+        // Check if badge already exists
+        const existingBadge = business.verificationBadges.find(b => b.type === badgeType);
+        if (!existingBadge) {
+          business.verificationBadges.push({
+            type: badgeType,
+            tier: tier,
+            verifiedAt: Date.now(),
+            verifiedBy: req.user.id,
+            documents: []
+          });
+        }
+      }
     }
 
     await business.save();

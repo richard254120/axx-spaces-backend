@@ -151,8 +151,13 @@ router.get("/", async (req, res) => {
       case "reviews":
         sortOption = { reviewCount: -1 };
         break;
+      case "verified":
+        // Sort by verification badges first, then by rating
+        sortOption = { "verificationBadges.0": -1, rating: -1 };
+        break;
       default:
-        sortOption = { createdAt: -1 };
+        // Default: sort by verification badges first, then by creation date
+        sortOption = { "verificationBadges.0": -1, createdAt: -1 };
     }
 
     const businesses = await Business.find(filter)
