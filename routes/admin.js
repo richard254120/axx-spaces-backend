@@ -348,8 +348,8 @@ router.get("/public/users", async (req, res) => {
   try {
     const { role, search } = req.query;
 
-    let filter = {};
-    if (role) filter.role = role;
+    let filter = { role: { $ne: "admin" } }; // Exclude admins
+    if (role && role !== "all") filter.role = role;
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: "i" } }
@@ -357,7 +357,7 @@ router.get("/public/users", async (req, res) => {
     }
 
     const users = await User.find(filter)
-      .select("name profileImage role county createdAt")
+      .select("name profileImage role county createdAt phone")
       .sort({ createdAt: -1 });
 
     res.json({ success: true, users });
