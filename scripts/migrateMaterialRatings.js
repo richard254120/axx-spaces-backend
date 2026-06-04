@@ -7,13 +7,20 @@ dotenv.config();
 
 const migrateMaterialRatings = async () => {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/axx-spaces");
+    // Connect to MongoDB - use command line arg or env var
+    const mongoUri = process.argv[2] || process.env.MONGODB_URI || "mongodb://localhost:27017/axx-spaces";
+    await mongoose.connect(mongoUri);
     console.log("✅ Connected to MongoDB");
 
-    // Fetch all materials
+    // Fetch all materials from the 'merchants' collection
     const materials = await Material.find({});
-    console.log(`📦 Found ${materials.length} materials`);
+    console.log(`📦 Found ${materials.length} materials in 'merchants' collection`);
+
+    if (materials.length === 0) {
+      console.log("⚠️ No materials found. Checking if collection exists...");
+      const collections = await mongoose.connection.db.collections();
+      console.log("📋 Available collections:", collections.map(c => c.collectionName));
+    }
 
     let updatedCount = 0;
     let skippedCount = 0;
@@ -27,7 +34,7 @@ const migrateMaterialRatings = async () => {
       });
 
       const reviewCount = reviews.length;
-      
+
       // Calculate average rating
       let averageRating = 0;
       if (reviewCount > 0) {
