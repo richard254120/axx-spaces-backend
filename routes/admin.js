@@ -327,7 +327,7 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
 router.get("/users", protect, adminOnly, async (req, res) => {
   try {
     const { role, status } = req.query;
-    
+
     let filter = {};
     if (role) filter.role = role;
     if (status) filter.status = status;
@@ -339,6 +339,31 @@ router.get("/users", protect, adminOnly, async (req, res) => {
     res.json({ success: true, users });
   } catch (error) {
     console.error("❌ Get users error:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch users" });
+  }
+});
+
+// ====================== GET PUBLIC USERS (for main website) ======================
+router.get("/public/users", async (req, res) => {
+  try {
+    const { role, search } = req.query;
+
+    let filter = {};
+    if (role) filter.role = role;
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const users = await User.find(filter)
+      .select("name email phone profileImage role county createdAt")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, users });
+  } catch (error) {
+    console.error("❌ Get public users error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch users" });
   }
 });
