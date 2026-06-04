@@ -1108,4 +1108,170 @@ router.put("/notifications/:id/read", auth, async (req, res) => {
   }
 });
 
+// ====================== AXXWALLET ROUTES ======================
+
+// Withdraw funds from wallet
+router.post("/withdraw", auth, async (req, res) => {
+  try {
+    const { amount } = req.body;
+
+    if (!amount || amount < 100) {
+      return res.status(400).json({ error: "❌ Minimum withdrawal is KES 100" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "❌ User not found" });
+    }
+
+    if (user.walletBalance < amount) {
+      return res.status(400).json({ error: "❌ Insufficient wallet balance" });
+    }
+
+    // Deduct from wallet balance
+    user.walletBalance -= amount;
+
+    // Add to payment history
+    user.paymentHistory.push({
+      transactionId: `WTH-${Date.now()}`,
+      amount,
+      plan: "Wallet Withdrawal",
+      status: "pending",
+      date: new Date(),
+      type: "withdrawal",
+    });
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "✅ Withdrawal request submitted. Funds will be transferred to your M-Pesa account within 24 hours.",
+      balance: user.walletBalance,
+    });
+  } catch (error) {
+    console.error("Withdrawal Error:", error.message);
+    res.status(500).json({ error: "Failed to process withdrawal" });
+  }
+});
+
+// Transfer funds to another user
+router.post("/transfer", auth, async (req, res) => {
+  try {
+    const { amount, recipientPhone } = req.body;
+
+    if (!amount || amount < 10) {
+      return res.status(400).json({ error: "❌ Minimum transfer is KES 10" });
+    }
+
+    if (!recipientPhone) {
+      return res.status(400).json({ error: "❌ Recipient phone number is required" });
+    }
+
+    const sender = await User.findById(req.user.id);
+    if (!sender) {
+      return res.status(404).json({ error: "❌ Sender not found" });
+    }
+
+    if (sender.walletBalance < amount) {
+      return res.status(400).json({ error: "❌ Insufficient wallet balance" });
+    }
+
+    // Find recipient by phone
+    const recipient = await User.findOne({ phone: recipientPhone });
+    if (!recipient) {
+      return res.status(404).json({ error: "❌ Recipient not found" });
+    }
+
+    if (recipient._id.toString() === sender._id.toString()) {
+      return res.status(400).json({ error: "❌ Cannot transfer to yourself" });
+    }
+
+    // Perform transfer
+    sender.walletBalance -= amount;
+    recipient.walletBalance += amount;
+
+    const transactionId = `TRF-${Date.now()}`;
+
+    // Add to sender's payment history
+    sender.paymentHistory.push({
+      transactionId,
+      amount,
+      plan: "Wallet Transfer",
+      status: "success",
+      date: new Date(),
+      type: "transfer_sent",
+      recipientPhone: recipientPhone,
+      recipientName: recipient.name,
+    });
+
+    // Add to recipient's payment history
+    recipient.paymentHistory.push({
+      transactionId,
+      amount,
+      plan: "Wallet Transfer Received",
+      status: "success",
+      date: new Date(),
+      type: "transfer_received",
+      senderPhone: sender.phone,
+      senderName: sender.name,
+    });
+
+    await sender.save();
+    await recipient.save();
+
+    res.json({
+      success: true,
+      message: `✅ KES ${amount} transferred successfully to ${recipient.name}`,
+      balance: sender.walletBalance,
+    });
+  } catch (error) {
+    console.error("Transfer Error:", error.message);
+    res.status(500).json({ error: "Failed to process transfer" });
+  }
+});
+
+// Get wallet statistics
+router.get("/wallet-stats", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "❌ User not found" });
+    }
+
+    const transactions = user.paymentHistory || [];
+    const successfulTransactions = transactions.filter(t => t.status === "success");
+    const totalSpent = successfulTransactions
+      .filter(t => t.type !== "transfer_received")
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+    const totalReceived = successfulTransactions
+      .filter(t => t.type === "transfer_received")
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    // Calculate this month's transactions
+    const now = new Date();
+    const thisMonthTransactions = successfulTransactions.filter(t => {
+      const txDate = new Date(t.date);
+      return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+    });
+    const thisMonthTotal = thisMonthTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    res.json({
+      success: true,
+      stats: {
+        balance: user.walletBalance || 0,
+        totalTransactions: transactions.length,
+        successfulTransactions: successfulTransactions.length,
+        successRate: transactions.length > 0 ? Math.round((successfulTransactions.length / transactions.length) * 100) : 0,
+        totalSpent,
+        totalReceived,
+        thisMonthTotal,
+        averageTransaction: successfulTransactions.length > 0 ? Math.round(totalSpent / successfulTransactions.length) : 0,
+      },
+    });
+  } catch (error) {
+    console.error("Wallet Stats Error:", error.message);
+    res.status(500).json({ error: "Failed to fetch wallet statistics" });
+  }
+});
+
 export default router;
