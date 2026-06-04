@@ -31,6 +31,10 @@ const tourismListingSchema = new mongoose.Schema(
     town: { type: String, default: "" },
     address: { type: String, default: "" },
     mapLink: { type: String, default: "" },
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
 
     price: { type: Number, required: true, min: 0 },
     weekendPrice: { type: Number },

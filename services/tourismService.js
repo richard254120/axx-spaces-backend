@@ -254,6 +254,14 @@ export async function updateOwnerListing(listingId, ownerId, body, files = []) {
     peakPrice: body.peakPrice != null && body.peakPrice !== "" ? parseFloat(body.peakPrice) : undefined,
   };
 
+  // Handle GPS coordinates
+  if (body.lat != null || body.lng != null) {
+    listing.coordinates = {
+      lat: body.lat != null ? parseFloat(body.lat) : listing.coordinates?.lat,
+      lng: body.lng != null ? parseFloat(body.lng) : listing.coordinates?.lng,
+    };
+  }
+
   Object.entries(fields).forEach(([key, val]) => {
     if (val !== undefined && val !== "") listing[key] = val;
   });
@@ -357,6 +365,10 @@ export async function buildAndSaveListing(body, user, files = []) {
     town: town || "",
     address: body.address || "",
     mapLink: body.mapLink || "",
+    coordinates: {
+      lat: body.lat ? parseFloat(body.lat) : undefined,
+      lng: body.lng ? parseFloat(body.lng) : undefined,
+    },
     price: basePrice,
     weekendPrice: body.weekendPrice ? parseFloat(body.weekendPrice) : undefined,
     peakPrice: body.peakPrice ? parseFloat(body.peakPrice) : undefined,
