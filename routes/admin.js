@@ -352,13 +352,12 @@ router.get("/public/users", async (req, res) => {
     if (role) filter.role = role;
     if (search) {
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } }
+        { name: { $regex: search, $options: "i" } }
       ];
     }
 
     const users = await User.find(filter)
-      .select("name email phone profileImage role county createdAt")
+      .select("name profileImage role county createdAt")
       .sort({ createdAt: -1 });
 
     res.json({ success: true, users });
