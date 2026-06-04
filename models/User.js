@@ -30,10 +30,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    // ✅ ROLE IDENTIFICATION — added "seller"
+    // ✅ ROLE IDENTIFICATION — added "seller" and "team"
     role: {
       type: String,
-      enum: ["user", "mover", "admin", "landlord", "seller", "seller"],
+      enum: ["user", "mover", "admin", "landlord", "seller", "team"],
       default: "user",
     },
 
