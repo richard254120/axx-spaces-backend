@@ -27,17 +27,19 @@ export const sendPropertyEmail = async (property, owner) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send property email for: ${property.title}`);
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axxspace <admin@axxspace.com>",
+        from: FROM_EMAIL,
         to: email,
         subject: `New Property: ${property.title}`,
         html: getEmailHtml(property, owner),
       });
-      console.log(`✅ Email sent to: ${email}`);
+      console.log(`✅ Property email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Email failed to ${email}:`, err.message);
+      console.error(`❌ Property email failed to ${email}:`, err.message);
+      console.error(`❌ Full error:`, err);
     }
   }
 };
@@ -61,6 +63,7 @@ export const sendMaterialEmail = async (material, seller) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send material email for: ${material.title}`);
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -69,9 +72,10 @@ export const sendMaterialEmail = async (material, seller) => {
         subject: `New Material: ${material.title}`,
         html: getEmailHtml(material, seller),
       });
-      console.log(`✅ Email sent to: ${email}`);
+      console.log(`✅ Material email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Email failed to ${email}:`, err.message);
+      console.error(`❌ Material email failed to ${email}:`, err.message);
+      console.error(`❌ Full error:`, err);
     }
   }
 };
@@ -98,17 +102,19 @@ export const sendTourismRegistrationEmail = async (tourismData) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send tourism registration email for: ${tourismData.name}`);
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axxspace <admin@axxspace.com>",
+        from: FROM_EMAIL,
         to: email,
         subject: `New Tourism Provider: ${tourismData.name}`,
         html: getEmailHtml(tourismData),
       });
-      console.log(`✅ Email sent to: ${email}`);
+      console.log(`✅ Tourism registration email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Email failed to ${email}:`, err.message);
+      console.error(`❌ Tourism registration email failed to ${email}:`, err.message);
+      console.error(`❌ Full error:`, err);
     }
   }
 };
@@ -134,17 +140,19 @@ export const sendMoverRegistrationEmail = async (mover) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send mover registration email for: ${mover.name}`);
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
-        from: "Axxspace <admin@axxspace.com>",
+        from: FROM_EMAIL,
         to: email,
         subject: `New Mover: ${mover.name}`,
         html: getEmailHtml(mover),
       });
-      console.log(`✅ Email sent to: ${email}`);
+      console.log(`✅ Mover registration email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Email failed to ${email}:`, err.message);
+      console.error(`❌ Mover registration email failed to ${email}:`, err.message);
+      console.error(`❌ Full error:`, err);
     }
   }
 };
@@ -168,6 +176,7 @@ export const sendSellerRegistrationEmail = async (seller) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send seller registration email for: ${seller.name}`);
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -176,9 +185,10 @@ export const sendSellerRegistrationEmail = async (seller) => {
         subject: `New Seller: ${seller.name}`,
         html: getEmailHtml(seller),
       });
-      console.log(`✅ Email sent to: ${email}`);
+      console.log(`✅ Seller registration email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Email failed to ${email}:`, err.message);
+      console.error(`❌ Seller registration email failed to ${email}:`, err.message);
+      console.error(`❌ Full error:`, err);
     }
   }
 };
@@ -204,16 +214,18 @@ export const sendTourismApprovalEmail = async (email, propertyName) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send tourism approval email to: ${email}`);
   try {
     await resend.emails.send({
-      from: "Axxspace <admin@axxspace.com>",
+      from: FROM_EMAIL,
       to: email,
       subject: "Your Tourism Provider Account Has Been Approved",
       html: getEmailHtml(propertyName),
     });
-    console.log(`✅ Approval email sent to: ${email}`);
+    console.log(`✅ Tourism approval email sent to: ${email}`);
   } catch (err) {
-    console.error(`❌ Email failed to ${email}:`, err.message);
+    console.error(`❌ Tourism approval email failed to ${email}:`, err.message);
+    console.error(`❌ Full error:`, err);
   }
 };
 
@@ -237,6 +249,7 @@ export const sendMoverApprovalEmail = async (email, name) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send mover approval email to: ${email}`);
   try {
     await resend.emails.send({
       from: "Axxspace <admin@axxspace.com>",
@@ -244,9 +257,10 @@ export const sendMoverApprovalEmail = async (email, name) => {
       subject: "Your Mover Account Has Been Approved",
       html: getEmailHtml(name),
     });
-    console.log(`✅ Approval email sent to: ${email}`);
+    console.log(`✅ Mover approval email sent to: ${email}`);
   } catch (err) {
-    console.error(`❌ Email failed to ${email}:`, err.message);
+    console.error(`❌ Mover approval email failed to ${email}:`, err.message);
+    console.error(`❌ Full error:`, err);
   }
 };
 
@@ -271,16 +285,18 @@ export const sendMaterialApprovalEmail = async (email, materialTitle) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send material approval email to: ${email}`);
   try {
     await resend.emails.send({
-      from: "Axxspace <admin@axxspace.com>",
+      from: FROM_EMAIL,
       to: email,
       subject: "Your Material Has Been Approved",
       html: getEmailHtml(materialTitle),
     });
-    console.log(`✅ Approval email sent to: ${email}`);
+    console.log(`✅ Material approval email sent to: ${email}`);
   } catch (err) {
-    console.error(`❌ Email failed to ${email}:`, err.message);
+    console.error(`❌ Material approval email failed to ${email}:`, err.message);
+    console.error(`❌ Full error:`, err);
   }
 };
 
@@ -305,15 +321,90 @@ export const sendPropertyApprovalEmail = async (email, propertyTitle) => {
     </div>
   `;
 
+  console.log(`📧 Attempting to send property approval email to: ${email}`);
   try {
     await resend.emails.send({
-      from: "Axxspace <admin@axxspace.com>",
+      from: FROM_EMAIL,
       to: email,
       subject: "Your Property Has Been Approved",
       html: getEmailHtml(propertyTitle),
     });
-    console.log(`✅ Approval email sent to: ${email}`);
+    console.log(`✅ Property approval email sent to: ${email}`);
   } catch (err) {
-    console.error(`❌ Email failed to ${email}:`, err.message);
+    console.error(`❌ Property approval email failed to ${email}:`, err.message);
+    console.error(`❌ Full error:`, err);
+  }
+};
+
+export const sendBusinessRegistrationEmail = async (business, owner) => {
+  const getEmailHtml = (business, owner) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">🏢 New Business Submitted</h1>
+      </div>
+      <div style="background: white; padding: 24px;">
+        <h2>Business Details</h2>
+        <p><strong>Business Name:</strong> ${business.name}</p>
+        <p><strong>Categories:</strong> ${business.categories?.join(", ") || "N/A"}</p>
+        <p><strong>County:</strong> ${business.location?.county || "N/A"}</p>
+        <p><strong>Town:</strong> ${business.location?.town || "N/A"}</p>
+        <p><strong>Description:</strong> ${business.description?.substring(0, 200) || "N/A"}...</p>
+        <p><strong>Owner:</strong> ${owner?.name || business.submitterName || "N/A"} (${owner?.email || "N/A"})</p>
+        <p><strong>Owner Phone:</strong> ${owner?.phone || "N/A"}</p>
+        <hr>
+        <p>Review this business in the <a href="${process.env.FRONTEND_URL}/dashboard">Admin Dashboard</a></p>
+      </div>
+    </div>
+  `;
+
+  console.log(`📧 Attempting to send business registration email for: ${business.name}`);
+  for (const email of ADMIN_EMAILS) {
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: email,
+        subject: `New Business: ${business.name}`,
+        html: getEmailHtml(business, owner),
+      });
+      console.log(`✅ Business registration email sent to: ${email}`);
+    } catch (err) {
+      console.error(`❌ Business email failed to ${email}:`, err.message);
+      console.error(`❌ Full error:`, err);
+    }
+  }
+};
+
+export const sendLandlordRegistrationEmail = async (landlord) => {
+  const getEmailHtml = (landlord) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">🏠 New Landlord Registration</h1>
+      </div>
+      <div style="background: white; padding: 24px;">
+        <h2>Landlord Details</h2>
+        <p><strong>Name:</strong> ${landlord.name}</p>
+        <p><strong>Email:</strong> ${landlord.email}</p>
+        <p><strong>Phone:</strong> ${landlord.phone}</p>
+        <p><strong>Role:</strong> Landlord</p>
+        <hr>
+        <p>Review this landlord in the <a href="${process.env.FRONTEND_URL}/dashboard">Admin Dashboard</a></p>
+      </div>
+    </div>
+  `;
+
+  console.log(`📧 Attempting to send landlord registration email for: ${landlord.name}`);
+  for (const email of ADMIN_EMAILS) {
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: email,
+        subject: `New Landlord: ${landlord.name}`,
+        html: getEmailHtml(landlord),
+      });
+      console.log(`✅ Landlord registration email sent to: ${email}`);
+    } catch (err) {
+      console.error(`❌ Landlord email failed to ${email}:`, err.message);
+      console.error(`❌ Full error:`, err);
+    }
   }
 };

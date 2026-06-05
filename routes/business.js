@@ -2,6 +2,7 @@ import express from "express";
 import { auth } from "../middleware/auth.js";
 import Business from "../models/Business.js";
 import User from "../models/User.js";
+import { sendBusinessRegistrationEmail } from "../utils/email.js";
 
 const router = express.Router();
 
@@ -63,6 +64,12 @@ router.post("/", auth, async (req, res) => {
     console.log("Status:", business.status);
     console.log("Owner:", business.owner);
     console.log("=== BUSINESS SUBMISSION END ===");
+
+    // Send email notification to admin
+    if (business.isFirstUpload) {
+      const owner = req.user ? await User.findById(req.user.id).select("name email phone") : null;
+      await sendBusinessRegistrationEmail(business, owner);
+    }
 
     res.json({
       success: true,

@@ -6,7 +6,7 @@ import User from "../models/User.js";
 import { protect as auth } from "../middleware/auth.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
-import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
+import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendLandlordRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 import security from "../middleware/enhancedSecurity.js";
 
 const router = express.Router();
@@ -95,6 +95,8 @@ router.post("/register", async (req, res) => {
       await sendMoverRegistrationEmail(newUser);
     } else if (role === "seller") {
       await sendSellerRegistrationEmail(newUser);
+    } else if (role === "landlord") {
+      await sendLandlordRegistrationEmail(newUser);
     }
 
     res.status(201).json({
