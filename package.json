@@ -40,6 +40,7 @@
     "nodemailer": "^6.10.1",
     "react-leaflet": "^5.0.0",
     "resend": "^6.12.3",
+    "sharp": "^0.34.5",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {

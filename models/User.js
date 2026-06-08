@@ -127,6 +127,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // ✅ KYC VERIFICATION FIELDS
+    verificationLevel: {
+      type: Number,
+      enum: [1, 2, 3, 4],
+      default: 1,
+    },
+    verificationStatus: {
+      type: String,
+      enum: ["pending", "under_review", "approved", "rejected"],
+      default: "pending",
+    },
   },
   { timestamps: true }
 );
