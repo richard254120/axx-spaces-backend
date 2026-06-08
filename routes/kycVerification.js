@@ -10,7 +10,7 @@ import {
   resubmitVerification,
 } from "../controllers/verificationController.js";
 import { auth, adminOnly } from "../middleware/auth.js";
-import { uploadVerificationDocuments, processVerificationUploads } from "../middleware/verificationUpload.js";
+import uploadVerificationDocuments, { processVerificationUploads } from "../middleware/verificationUpload.js";
 
 const router = express.Router();
 
