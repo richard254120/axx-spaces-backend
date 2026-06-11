@@ -102,6 +102,10 @@ app.use("/api/business-analytics", security.apiLimiter, businessAnalyticsRoutes)
 app.use("/api/business-subscriptions", security.apiLimiter, businessSubscriptionRoutes);
 app.use("/api/uploads", security.apiLimiter, uploadRoutes);
 
+// ====================== STATIC FILE SERVING ======================
+// Serve uploaded files
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 app.get("/api/health", (req, res) =>
   res.json({ status: "OK", timestamp: new Date().toISOString() })
 );
