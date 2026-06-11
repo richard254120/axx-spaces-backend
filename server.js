@@ -5,9 +5,15 @@ import mongoose from "mongoose";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Security Middleware
 import security from "./middleware/security.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Routes
 import authRoutes from "./routes/auth.js";
@@ -33,6 +39,20 @@ import businessSubscriptionRoutes from "./routes/businessSubscriptions.js";
 import uploadRoutes from "./routes/uploads.js";
 
 dotenv.config();
+
+// Create necessary directories
+const uploadsDir = path.join(__dirname, 'uploads');
+const verificationDir = path.join(uploadsDir, 'verification');
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('✅ Created uploads directory');
+}
+
+if (!fs.existsSync(verificationDir)) {
+  fs.mkdirSync(verificationDir, { recursive: true });
+  console.log('✅ Created uploads/verification directory');
+}
 
 const app = express();
 
