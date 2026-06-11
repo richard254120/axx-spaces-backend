@@ -60,7 +60,7 @@ export const processVerificationUploads = (req, res, next) => {
   if (req.files.idDocument && req.files.idDocument[0]) {
     const file = req.files.idDocument[0];
     uploadedDocuments.push({
-      type: "id_document",
+      type: "national_id",
       url: `/uploads/verification/${file.filename}`,
       filename: file.filename,
       mimetype: file.mimetype,
@@ -72,7 +72,7 @@ export const processVerificationUploads = (req, res, next) => {
   if (req.files.addressDocument && req.files.addressDocument[0]) {
     const file = req.files.addressDocument[0];
     uploadedDocuments.push({
-      type: "address_document",
+      type: "utility_bill",
       url: `/uploads/verification/${file.filename}`,
       filename: file.filename,
       mimetype: file.mimetype,
