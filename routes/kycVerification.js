@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import {
   submitVerification,
   getVerificationStatus,
@@ -15,10 +16,37 @@ import uploadVerificationDocuments, { processVerificationUploads } from "../midd
 const router = express.Router();
 
 // User routes
-router.post("/submit", auth, uploadVerificationDocuments, processVerificationUploads, submitVerification);
+router.post("/submit", auth, (req, res, next) => {
+  uploadVerificationDocuments(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      // Multer error (file size, file type, etc.)
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: 'File size exceeds 15MB limit' });
+      }
+      return res.status(400).json({ success: false, message: err.message });
+    } else if (err) {
+      // Other errors
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    // No error, continue to next middleware
+    next();
+  });
+}, processVerificationUploads, submitVerification);
 router.get("/status", auth, getVerificationStatus);
 router.get("/history", auth, getVerificationHistory);
-router.post("/resubmit/:id", auth, uploadVerificationDocuments, processVerificationUploads, resubmitVerification);
+router.post("/resubmit/:id", auth, (req, res, next) => {
+  uploadVerificationDocuments(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: 'File size exceeds 15MB limit' });
+      }
+      return res.status(400).json({ success: false, message: err.message });
+    } else if (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    next();
+  });
+}, processVerificationUploads, resubmitVerification);
 
 // Admin routes
 router.get("/admin/pending", auth, adminOnly, getPendingVerifications);
