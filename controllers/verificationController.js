@@ -43,7 +43,7 @@ export const submitVerification = async (req, res) => {
           req.uploadedSelfie.url,
           req.uploadedDocuments[0].url
         );
-        
+
         verification.selfie.faceMatchScore = faceMatchResult.score;
         await verification.save();
       } catch (error) {
@@ -127,10 +127,18 @@ export const getVerificationHistory = async (req, res) => {
 // @access  Private (Admin only)
 export const getPendingVerifications = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, status = "pending" } = req.query;
+
+    // Build query based on status
+    let statusFilter;
+    if (status === "pending") {
+      statusFilter = { $in: ["pending", "under_review"] };
+    } else {
+      statusFilter = status;
+    }
 
     const verifications = await Verification.find({
-      status: { $in: ["pending", "under_review"] },
+      status: statusFilter,
     })
       .populate("user", "name email phone profileImage")
       .sort({ submittedAt: -1 })
@@ -138,7 +146,7 @@ export const getPendingVerifications = async (req, res) => {
       .limit(parseInt(limit));
 
     const total = await Verification.countDocuments({
-      status: { $in: ["pending", "under_review"] },
+      status: statusFilter,
     });
 
     res.status(200).json({
