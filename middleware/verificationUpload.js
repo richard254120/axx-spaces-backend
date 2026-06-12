@@ -41,6 +41,7 @@ const uploadVerificationDocuments = multer({
   },
   fileFilter: fileFilter,
 }).fields([
+  { name: "studentIdDocument", maxCount: 1 },
   { name: "idDocument", maxCount: 1 },
   { name: "addressDocument", maxCount: 1 },
   { name: "businessRegistration", maxCount: 1 },
@@ -55,6 +56,18 @@ export const processVerificationUploads = (req, res, next) => {
 
   const uploadedDocuments = [];
   let uploadedSelfie = null;
+
+  // Process Student ID document
+  if (req.files.studentIdDocument && req.files.studentIdDocument[0]) {
+    const file = req.files.studentIdDocument[0];
+    uploadedDocuments.push({
+      type: "student_id",
+      url: `/uploads/verification/${file.filename}`,
+      filename: file.filename,
+      mimetype: file.mimetype,
+      size: file.size,
+    });
+  }
 
   // Process ID document
   if (req.files.idDocument && req.files.idDocument[0]) {

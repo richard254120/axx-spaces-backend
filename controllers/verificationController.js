@@ -7,37 +7,40 @@ import { faceMatchService } from "../services/faceMatchService.js";
 // @access  Private
 export const submitVerification = async (req, res) => {
   try {
-    const { verificationLevel, idType, businessName, taxId } = req.body;
+    const { verificationLevel, idType, businessName, taxId, physicalDetails } = req.body;
     const userId = req.user._id;
+    const level = parseInt(verificationLevel, 10) || 1;
 
-    // Check if there's a pending verification
+    // Check if there's a pending verification for this specific level
     const existingVerification = await Verification.findOne({
       user: userId,
+      verificationLevel: level,
       status: { $in: ["pending", "under_review"] },
     });
 
     if (existingVerification) {
       return res.status(400).json({
         success: false,
-        message: "You already have a verification pending review",
+        message: `You already have a Level ${level} verification pending review`,
       });
     }
 
     // Create new verification
     const verification = await Verification.create({
       user: userId,
-      verificationLevel,
+      verificationLevel: level,
       idType,
       businessName,
       taxId,
+      physicalDetails,
       documents: req.uploadedDocuments || [],
       selfie: req.uploadedSelfie || null,
       ipAddress: req.ip,
       userAgent: req.get("user-agent"),
     });
 
-    // Perform face matching if selfie is uploaded
-    if (req.uploadedSelfie && req.uploadedDocuments?.length > 0) {
+    // Perform face matching if standard identity verification (level 2) and selfie is uploaded
+    if (level === 2 && req.uploadedSelfie && req.uploadedDocuments?.length > 0) {
       try {
         const faceMatchResult = await faceMatchService.compareFaces(
           req.uploadedSelfie.url,
@@ -48,9 +51,20 @@ export const submitVerification = async (req, res) => {
         await verification.save();
       } catch (error) {
         console.error("Face matching error:", error);
-        // Don't fail the verification if face matching fails
       }
     }
+
+    // Update user status field
+    const userField = level === 1
+      ? "studentVerificationStatus"
+      : level === 2
+        ? "standardVerificationStatus"
+        : "premiumVerificationStatus";
+
+    await User.findByIdAndUpdate(userId, {
+      [userField]: "pending",
+      verificationStatus: "pending"
+    });
 
     res.status(201).json({
       success: true,
@@ -72,24 +86,32 @@ export const getVerificationStatus = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const verification = await Verification.findOne({ user: userId })
+    const verifications = await Verification.find({ user: userId })
       .sort({ submittedAt: -1 })
       .populate("reviewedBy", "name email");
 
-    if (!verification) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          verificationLevel: 1,
-          status: "pending",
-          documents: [],
-        },
-      });
+    const latestByLevel = {};
+    for (const v of verifications) {
+      if (!latestByLevel[v.verificationLevel]) {
+        latestByLevel[v.verificationLevel] = v;
+      }
     }
 
     res.status(200).json({
       success: true,
-      data: verification,
+      data: {
+        verificationLevel: req.user.verificationLevel || 1,
+        verificationStatus: req.user.verificationStatus || "pending",
+        verificationBadges: req.user.verificationBadges || [],
+        studentVerificationStatus: req.user.studentVerificationStatus || "none",
+        standardVerificationStatus: req.user.standardVerificationStatus || "none",
+        premiumVerificationStatus: req.user.premiumVerificationStatus || "none",
+        levels: {
+          student: latestByLevel[1] || null,
+          standard: latestByLevel[2] || null,
+          premium: latestByLevel[3] || null,
+        }
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -129,7 +151,6 @@ export const getPendingVerifications = async (req, res) => {
   try {
     const { page = 1, limit = 10, status = "pending" } = req.query;
 
-    // Build query based on status
     let statusFilter;
     if (status === "pending") {
       statusFilter = { $in: ["pending", "under_review"] };
@@ -189,12 +210,35 @@ export const approveVerification = async (req, res) => {
     verification.status = "approved";
     verification.reviewedAt = new Date();
     verification.reviewedBy = adminId;
-    verification.adminNotes = adminNotes || "";
+    verification.adminNotes = adminNotes || "Approved by admin";
 
-    // Update user verification level
-    await User.findByIdAndUpdate(verification.user, {
-      verificationLevel: verification.verificationLevel,
+    const level = verification.verificationLevel;
+    const userField = level === 1
+      ? "studentVerificationStatus"
+      : level === 2
+        ? "standardVerificationStatus"
+        : "premiumVerificationStatus";
+
+    const badge = level === 1
+      ? "student_verified"
+      : level === 2
+        ? "standard_verified"
+        : "premium_verified";
+
+    const updateObj = {
+      [userField]: "approved",
       verificationStatus: "approved",
+    };
+
+    // Only increase user's general verificationLevel, do not downgrade
+    const currentUser = await User.findById(verification.user);
+    if (currentUser && level > (currentUser.verificationLevel || 1)) {
+      updateObj.verificationLevel = level;
+    }
+
+    await User.findByIdAndUpdate(verification.user, {
+      $set: updateObj,
+      $addToSet: { verificationBadges: badge }
     });
 
     await verification.save();
@@ -242,18 +286,34 @@ export const rejectVerification = async (req, res) => {
     verification.rejectionReason = rejectionReason;
     verification.reviewedAt = new Date();
     verification.reviewedBy = adminId;
-    verification.adminNotes = adminNotes || "";
+    verification.adminNotes = adminNotes || "Rejected by admin";
 
-    // Update user verification status
+    const level = verification.verificationLevel;
+    const userField = level === 1
+      ? "studentVerificationStatus"
+      : level === 2
+        ? "standardVerificationStatus"
+        : "premiumVerificationStatus";
+
+    const badge = level === 1
+      ? "student_verified"
+      : level === 2
+        ? "standard_verified"
+        : "premium_verified";
+
     await User.findByIdAndUpdate(verification.user, {
-      verificationStatus: "rejected",
+      $set: {
+        [userField]: "rejected",
+        verificationStatus: "rejected",
+      },
+      $pull: { verificationBadges: badge }
     });
 
     await verification.save();
 
     res.status(200).json({
       success: true,
-      message: "Verification rejected",
+      message: "Verification rejected successfully",
       data: verification,
     });
   } catch (error) {
@@ -272,7 +332,7 @@ export const getVerificationDetails = async (req, res) => {
     const { id } = req.params;
 
     const verification = await Verification.findById(id)
-      .populate("user", "name email phone profileImage role")
+      .populate("user", "name email phone profileImage role studentVerificationStatus standardVerificationStatus premiumVerificationStatus verificationBadges")
       .populate("reviewedBy", "name email");
 
     if (!verification) {
@@ -341,6 +401,18 @@ export const resubmitVerification = async (req, res) => {
     if (req.uploadedSelfie) {
       verification.selfie = req.uploadedSelfie;
     }
+
+    const level = verification.verificationLevel;
+    const userField = level === 1
+      ? "studentVerificationStatus"
+      : level === 2
+        ? "standardVerificationStatus"
+        : "premiumVerificationStatus";
+
+    await User.findByIdAndUpdate(userId, {
+      [userField]: "pending",
+      verificationStatus: "pending",
+    });
 
     await verification.save();
 

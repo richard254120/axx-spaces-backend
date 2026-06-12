@@ -139,6 +139,25 @@ const userSchema = new mongoose.Schema(
       enum: ["pending", "under_review", "approved", "rejected"],
       default: "pending",
     },
+    verificationBadges: {
+      type: [String],
+      default: [],
+    },
+    studentVerificationStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+    },
+    standardVerificationStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+    },
+    premiumVerificationStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+    },
   },
   { timestamps: true }
 );

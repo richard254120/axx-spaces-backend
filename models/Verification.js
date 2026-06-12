@@ -22,7 +22,7 @@ const verificationSchema = new mongoose.Schema(
       {
         type: {
           type: String,
-          enum: ["national_id", "passport", "driver_license", "utility_bill", "bank_statement", "business_registration"],
+          enum: ["national_id", "passport", "driver_license", "utility_bill", "bank_statement", "business_registration", "student_id", "physical_verification"],
           required: true,
         },
         url: {
@@ -94,6 +94,9 @@ const verificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
     },
     taxId: {
+      type: String,
+    },
+    physicalDetails: {
       type: String,
     },
     // Review information
