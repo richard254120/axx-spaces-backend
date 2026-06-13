@@ -37,6 +37,15 @@ const propertySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    university: {
+      type: String,
+      default: "",
+    },
+    universityId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     lat: {
       type: Number,
     },
@@ -107,13 +116,13 @@ const propertySchema = new mongoose.Schema(
 // ✅ Keep availableUnits accurate & auto-unfeature expired promotions
 propertySchema.pre("save", function (next) {
   this.availableUnits = Math.max(0, this.totalUnits - this.bookedUnits);
-  
+
   // Auto-unfeature if promotion expired
   if (this.isFeatured && this.promotionEndDate && new Date() > this.promotionEndDate) {
     this.isFeatured = false;
     this.promotionTier = "none";
   }
-  
+
   next();
 });
 

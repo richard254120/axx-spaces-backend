@@ -22,7 +22,7 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
       title, description, location, price, bedrooms, bathrooms,
       amenities, totalUnits, deposit, furnished, leaseType,
       availableFrom, rules, propertyType, county, lat, lng,
-      bookedUnits, initiallyBooked
+      bookedUnits, initiallyBooked, university, universityId
     } = req.body;
 
     if (!title || !description || !location || !price || !propertyType || !county) {
@@ -60,6 +60,8 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
       status: "pending",
       propertyType,
       county,
+      university: university || "",
+      universityId: universityId || "",
       lat: lat ? parseFloat(lat) : undefined,
       lng: lng ? parseFloat(lng) : undefined,
       deposit: deposit ? parseFloat(deposit) : undefined,
@@ -120,11 +122,13 @@ router.get("/", async (req, res) => {
       featured,
       available,
       search,
+      university,
     } = req.query;
 
     const query = { status: "approved" };
 
     if (county) query.county = county;
+    if (university) query.university = university;
     if (propertyType) query.propertyType = { $regex: new RegExp(`^${propertyType}$`, "i") };
     if (minPrice || maxPrice) {
       query.price = {};

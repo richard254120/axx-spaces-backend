@@ -24,7 +24,8 @@ router.post("/register", async (req, res) => {
   try {
     const {
       name, email, password, phone, role,
-      county, services, vehicleType, experience
+      county, services, vehicleType, experience,
+      landlordType,
     } = req.body;
 
     if (!name || !email || !password || !phone) {
@@ -44,6 +45,10 @@ router.post("/register", async (req, res) => {
     const newUser = new User({
       name, email, password: hashedPassword, phone,
       role: role || "landlord",
+      landlordType:
+        (role || "landlord") === "landlord" && landlordType === "university"
+          ? "university"
+          : "general",
       emailVerificationToken: verificationToken,
       emailVerificationExpiry: verificationExpiry,
     });
@@ -146,7 +151,8 @@ router.post("/login", security.authLimiter, async (req, res) => {
       token,
       user: {
         _id: user._id, name: user.name, email: user.email,
-        phone: user.phone, role: user.role, isApproved: user.isApproved
+        phone: user.phone, role: user.role, landlordType: user.landlordType || "general",
+        isApproved: user.isApproved
       },
     });
 
@@ -379,7 +385,7 @@ router.post("/resend-verification", async (req, res) => {
 // ====================== GOOGLE OAUTH ======================
 router.post("/google", async (req, res) => {
   try {
-    const { googleId, email, name, picture } = req.body;
+    const { googleId, email, name, picture, landlordType } = req.body;
 
     if (!googleId || !email || !name) {
       return res.status(400).json({ error: "Google ID, email, and name are required" });
@@ -419,6 +425,7 @@ router.post("/google", async (req, res) => {
       phone: "",
       password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
       role: "landlord",
+      landlordType: landlordType === "university" ? "university" : "general",
     });
 
     await newUser.save();

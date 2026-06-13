@@ -9,6 +9,7 @@ export function formatUserResponse(user) {
     email: obj.email,
     phone: obj.phone,
     role: obj.role,
+    landlordType: obj.landlordType || "general",
     profileImage: obj.profileImage || "",
     isApproved: obj.isApproved,
     walletBalance: obj.walletBalance,
