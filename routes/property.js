@@ -123,12 +123,14 @@ router.get("/", async (req, res) => {
       available,
       search,
       university,
+      universityId,
     } = req.query;
 
     const query = { status: "approved" };
 
     if (county) query.county = county;
-    if (university) query.university = university;
+    if (universityId) query.universityId = universityId;
+    else if (university) query.university = university;
     if (propertyType) query.propertyType = { $regex: new RegExp(`^${propertyType}$`, "i") };
     if (minPrice || maxPrice) {
       query.price = {};
