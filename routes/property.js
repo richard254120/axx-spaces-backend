@@ -33,6 +33,17 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
       return res.status(400).json({ error: "❌ Please upload at least one image" });
     }
 
+    const owner = await User.findById(req.user._id).select("landlordType");
+    const mustLinkUniversity =
+      owner?.landlordType === "university" || propertyType === "Hostel Room";
+
+    if (mustLinkUniversity && (!universityId || !university)) {
+      return res.status(400).json({
+        error:
+          "University is required for hostel listings and near-campus landlords. Select the university your property is linked to.",
+      });
+    }
+
     let parsedAmenities = [];
     try {
       parsedAmenities = amenities ? JSON.parse(amenities) : [];
@@ -76,7 +87,7 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
 
     await property.save();
 
-    const fullUser = await User.findById(req.user._id).select("name email phone");
+    const fullUser = await User.findById(req.user._id).select("name email phone landlordType");
     sendPropertyEmail(property, fullUser || req.user);
 
     console.log(`✅ Property created successfully | Owner: ${req.user._id}`);

@@ -36,6 +36,11 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "mover", "admin", "landlord", "seller", "team"],
       default: "user",
     },
+    landlordType: {
+      type: String,
+      enum: ["general", "university"],
+      default: "general",
+    },
 
     // ✅ MOVER SPECIFIC FIELDS
     isApproved: {

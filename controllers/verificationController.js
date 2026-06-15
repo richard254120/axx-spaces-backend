@@ -1,6 +1,29 @@
 import Verification from "../models/Verification.js";
 import User from "../models/User.js";
 import { faceMatchService } from "../services/faceMatchService.js";
+import { toAbsoluteUploadUrl } from "../utils/fileUrls.js";
+import { notifyUser } from "../utils/userNotifications.js";
+
+function enrichVerificationMedia(verification) {
+  if (!verification) return verification;
+  const data = verification.toObject ? verification.toObject() : { ...verification };
+
+  if (Array.isArray(data.documents)) {
+    data.documents = data.documents.map((doc) => ({
+      ...doc,
+      url: toAbsoluteUploadUrl(doc.url),
+    }));
+  }
+
+  if (data.selfie?.url) {
+    data.selfie = {
+      ...data.selfie,
+      url: toAbsoluteUploadUrl(data.selfie.url),
+    };
+  }
+
+  return data;
+}
 
 // @desc    Submit verification
 // @route   POST /api/verification/submit
@@ -243,6 +266,13 @@ export const approveVerification = async (req, res) => {
 
     await verification.save();
 
+    await notifyUser(verification.user, {
+      type: "kyc_approved",
+      title: "✅ Verification approved",
+      message: `Your Level ${verification.verificationLevel} verification has been approved.`,
+      data: { verificationId: String(verification._id), level: verification.verificationLevel },
+    });
+
     res.status(200).json({
       success: true,
       message: "Verification approved successfully",
@@ -311,6 +341,13 @@ export const rejectVerification = async (req, res) => {
 
     await verification.save();
 
+    await notifyUser(verification.user, {
+      type: "kyc_rejected",
+      title: "❌ Verification rejected",
+      message: `Your Level ${verification.verificationLevel} verification was rejected. Reason: ${rejectionReason}`,
+      data: { verificationId: String(verification._id), level: verification.verificationLevel },
+    });
+
     res.status(200).json({
       success: true,
       message: "Verification rejected successfully",
@@ -344,7 +381,7 @@ export const getVerificationDetails = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: verification,
+      data: enrichVerificationMedia(verification),
     });
   } catch (error) {
     res.status(500).json({

@@ -408,6 +408,7 @@ router.post("/google", async (req, res) => {
       user.googleId = googleId;
       user.isGoogleUser = true;
       user.isEmailVerified = true;
+      if (picture && !user.profileImage) user.profileImage = picture;
       await user.save();
 
       const token = jwt.sign(
@@ -419,10 +420,13 @@ router.post("/google", async (req, res) => {
     }
 
     const newUser = new User({
-      name, email, googleId,
+      name,
+      email,
+      googleId,
       isGoogleUser: true,
       isEmailVerified: true,
-      phone: "",
+      phone: `google-${googleId}`,
+      profileImage: picture || "",
       password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
       role: "landlord",
       landlordType: landlordType === "university" ? "university" : "general",

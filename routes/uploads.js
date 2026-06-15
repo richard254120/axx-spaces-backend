@@ -1,9 +1,17 @@
 import express from "express";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist } from "../config/multerBusiness.js";
 import { v2 as cloudinary } from "cloudinary";
+import { auth, adminOnly } from "../middleware/auth.js";
+import { normalizePricelistPublicId, toAbsoluteUploadUrl } from "../utils/fileUrls.js";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -12,6 +20,34 @@ cloudinary.config({
 });
 
 const router = express.Router();
+
+function redirectPricelistDownload(req, res) {
+  try {
+    const directUrl = req.query.url;
+    if (directUrl && String(directUrl).startsWith("http")) {
+      return res.redirect(String(directUrl));
+    }
+
+    const rawId = req.query.publicId || req.params?.[0];
+    const publicId = normalizePricelistPublicId(rawId);
+
+    if (!publicId) {
+      return res.status(400).json({ error: "Missing or invalid pricelist publicId" });
+    }
+
+    const downloadUrl = cloudinary.url(publicId, {
+      resource_type: "auto",
+      secure: true,
+      sign_url: true,
+      flags: "attachment",
+    });
+
+    return res.redirect(downloadUrl);
+  } catch (error) {
+    console.error("Pricelist download error:", error);
+    return res.status(500).json({ error: "Failed to generate download link" });
+  }
+}
 
 // ====================== UPLOAD BUSINESS LOGO ======================
 router.post("/logo", uploadLogo.single("logo"), (req, res) => {
@@ -39,8 +75,8 @@ router.post("/business-photos", uploadBusinessPhotos.array("photos", 18), (req, 
       return res.status(400).json({ error: "No files uploaded" });
     }
 
-    const uploadedUrls = req.files.map(file => file.path);
-    const uploadedIds = req.files.map(file => file.filename);
+    const uploadedUrls = req.files.map((file) => file.path);
+    const uploadedIds = req.files.map((file) => file.filename);
 
     res.json({
       success: true,
@@ -95,25 +131,26 @@ router.post("/pricelist", uploadPricelist.single("pricelist"), (req, res) => {
 });
 
 // ====================== DOWNLOAD PRICELIST DOCUMENT ======================
-router.get("/pricelist/:publicId", async (req, res) => {
+router.get("/pricelist/download", redirectPricelistDownload);
+router.get(/^\/pricelist\/(.+)$/, (req, res) => {
+  req.query = { ...req.query, publicId: req.params[0] };
+  return redirectPricelistDownload(req, res);
+});
+
+// ====================== KYC / VERIFICATION DOCUMENTS (ADMIN) ======================
+router.get("/verification/:filename", auth, adminOnly, (req, res) => {
   try {
-    const { publicId } = req.params;
+    const filename = path.basename(req.params.filename);
+    const filePath = path.join(__dirname, "../uploads/verification", filename);
 
-    // Generate a signed URL for the Cloudinary resource (works for both public and private)
-    const url = cloudinary.url(publicId, {
-      resource_type: "auto",
-      secure: true,
-      sign_url: true, // Generate signed URL that bypasses authentication
-      transformation: [
-        { flags: "attachment" } // Force download instead of display
-      ]
-    });
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Verification file not found" });
+    }
 
-    // Redirect to the Cloudinary URL
-    res.redirect(url);
+    return res.sendFile(filePath);
   } catch (error) {
-    console.error("Pricelist download error:", error);
-    res.status(500).json({ error: "Failed to generate download link" });
+    console.error("Verification file download error:", error);
+    return res.status(500).json({ error: "Failed to serve verification file" });
   }
 });
 
