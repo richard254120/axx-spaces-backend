@@ -180,6 +180,61 @@ router.post("/callback", async (req, res) => {
           user.subscriptionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
         }
 
+        // If payment was for business subscription, activate business subscription
+        if (payment.subscriptionType === "business" && payment.businessId) {
+          const Business = await import("../models/Business.js").then(m => m.default);
+          const BusinessSubscription = await import("../models/BusinessSubscription.js").then(m => m.default);
+
+          const business = await Business.findById(payment.businessId);
+          if (business) {
+            // Create or update business subscription
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 1); // Default to monthly
+
+            const subscription = new BusinessSubscription({
+              business: payment.businessId,
+              tier: payment.tier || "bronze",
+              status: "active",
+              startDate: new Date(),
+              endDate,
+              paymentMethod: "mpesa",
+              transactionId: payment.transactionId,
+              amount: payment.amount,
+            });
+
+            await subscription.save();
+
+            // Update business with premium features
+            if (payment.tier && payment.tier !== "basic") {
+              business.isApproved = true;
+              business.status = "approved";
+
+              const badgeTypeMap = {
+                bronze: "business_verified",
+                silver: "premium_verified",
+                gold: "premium_verified",
+                platinum: "premium_verified"
+              };
+
+              const badgeType = badgeTypeMap[payment.tier];
+              if (badgeType) {
+                const existingBadge = business.verificationBadges.find(b => b.type === badgeType);
+                if (!existingBadge) {
+                  business.verificationBadges.push({
+                    type: badgeType,
+                    tier: payment.tier,
+                    verifiedAt: Date.now(),
+                    verifiedBy: user._id,
+                    documents: []
+                  });
+                }
+              }
+            }
+
+            await business.save();
+          }
+        }
+
         // If payment was for property booking, create booking record
         if (payment.type === "property_booking" && payment.propertyId) {
           const property = await Property.findById(payment.propertyId);
@@ -540,6 +595,48 @@ router.get("/featured", async (req, res) => {
     res.json(processed);
   } catch (err) {
     res.status(500).json({ error: err.message || "Failed to fetch featured" });
+  }
+});
+
+// Get All Featured Listings (Properties, Materials, Tourism)
+router.get("/featured-all", async (req, res) => {
+  try {
+    const [featuredProperties, featuredMaterials, featuredTourism] = await Promise.all([
+      Property.find({
+        isFeatured: true,
+        promotionEndDate: { $gt: new Date() },
+        status: "approved",
+      })
+        .populate("owner", "name phone email")
+        .sort({ promotionStartDate: -1 })
+        .limit(5),
+      Material.find({
+        isFeatured: true,
+        promotionEndDate: { $gt: new Date() },
+        status: "active",
+      })
+        .populate("seller", "name phone")
+        .sort({ promotionStartDate: -1 })
+        .limit(5),
+      TourismListing.find({
+        isFeatured: true,
+        promotionEndDate: { $gt: new Date() },
+        status: "approved",
+      })
+        .populate("owner", "name phone email")
+        .sort({ promotionStartDate: -1 })
+        .limit(5),
+    ]);
+
+    const allFeatured = [
+      ...featuredProperties.map(p => ({ ...p.toObject(), type: "property" })),
+      ...featuredMaterials.map(m => ({ ...m.toObject(), type: "material" })),
+      ...featuredTourism.map(t => ({ ...t.toObject(), type: "tourism" })),
+    ].sort((a, b) => new Date(b.promotionStartDate) - new Date(a.promotionStartDate));
+
+    res.json(allFeatured);
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to fetch featured listings" });
   }
 });
 

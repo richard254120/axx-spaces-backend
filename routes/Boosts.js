@@ -46,8 +46,24 @@ router.get("/all", verifyToken, requireAdmin, async (req, res) => {
 router.post("/", verifyToken, async (req, res) => {
     try {
         const { listingId, listingModel, listingTitle, listingType, plan, amount, mpesaRef } = req.body;
-        if (!listingId || !listingModel || !plan || !amount) {
+        if (!listingId || !listingModel || !plan || !amount || !mpesaRef) {
             return res.status(400).json({ error: "Missing required fields." });
+        }
+
+        // Validate plan and amount
+        const planConfig = {
+            "3weeks": { duration: 21, price: 100 },
+            "4months": { duration: 120, price: 700 },
+            "6months": { duration: 180, price: 1000 },
+        };
+
+        const config = planConfig[plan];
+        if (!config) {
+            return res.status(400).json({ error: "Invalid plan type." });
+        }
+
+        if (amount !== config.price) {
+            return res.status(400).json({ error: `Invalid amount for ${plan} plan. Expected ${config.price} KES.` });
         }
 
         const boost = await Boost.create({
@@ -60,6 +76,8 @@ router.post("/", verifyToken, async (req, res) => {
             userPhone: req.user.phone,
             plan,
             amount,
+            planDuration: config.duration,
+            planPrice: config.price,
             mpesaRef,
             status: "pending",
         });
@@ -74,13 +92,14 @@ router.post("/", verifyToken, async (req, res) => {
 // Sets boost → approved, sets listing.isFeatured = true,
 // listing.featuredPriority = Date.now() (higher = shown first),
 // listing.featuredUntil = now + plan days
+// Also issues verification badges based on boost plan
 router.patch("/:id/approve", verifyToken, requireAdmin, async (req, res) => {
     try {
         const boost = await Boost.findById(req.params.id);
         if (!boost) return res.status(404).json({ error: "Boost not found." });
         if (boost.status !== "pending") return res.status(400).json({ error: "Boost is not pending." });
 
-        const days = boost.plan === "monthly" ? 30 : 7;
+        const days = boost.planDuration || 30;
         const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
         // Update boost record
@@ -92,11 +111,50 @@ router.patch("/:id/approve", verifyToken, requireAdmin, async (req, res) => {
         // Update the actual listing to mark it featured + set priority
         const ListingModel = modelFor(boost.listingModel);
         if (ListingModel && boost.listing) {
-            await ListingModel.findByIdAndUpdate(boost.listing, {
+            // Determine badge type based on plan
+            let badgeType = null;
+            if (boost.plan === "6months") {
+                badgeType = "premium_verified";
+            } else if (boost.plan === "4months") {
+                badgeType = "business_verified";
+            } else if (boost.plan === "3weeks") {
+                badgeType = "online_verified";
+            }
+
+            // Update listing with featured status and badges
+            const updateData = {
                 isFeatured: true,
                 featuredPriority: Date.now(),   // higher number = newer = shown first
                 featuredUntil: expiresAt,
-            });
+            };
+
+            // Add badge if applicable
+            if (badgeType) {
+                const listing = await ListingModel.findById(boost.listing);
+                if (listing) {
+                    // Check if badge already exists
+                    const existingBadge = listing.verificationBadges?.find(
+                        (b) => b.type === badgeType
+                    );
+
+                    if (!existingBadge) {
+                        // Add new badge
+                        const newBadge = {
+                            type: badgeType,
+                            verifiedAt: new Date(),
+                            verifiedBy: req.user._id,
+                        };
+
+                        if (!listing.verificationBadges) {
+                            listing.verificationBadges = [];
+                        }
+                        listing.verificationBadges.push(newBadge);
+                        await listing.save();
+                    }
+                }
+            }
+
+            await ListingModel.findByIdAndUpdate(boost.listing, updateData);
         }
 
         res.json({ success: true, boost, expiresAt });
@@ -113,6 +171,7 @@ router.patch("/:id/reject", verifyToken, requireAdmin, async (req, res) => {
 
         boost.status = "rejected";
         boost.rejectedAt = new Date();
+        boost.rejectionReason = req.body.reason || "Payment verification failed";
         await boost.save();
 
         res.json({ success: true });

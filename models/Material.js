@@ -120,6 +120,22 @@ const materialSchema = new mongoose.Schema(
     promotionEndDate: {
       type: Date,
     },
+
+    // ✅ VERIFICATION BADGES
+    verificationBadges: [{
+      type: {
+        type: String,
+        enum: ["premium_verified", "student_verified", "business_verified", "identity_verified", "location_verified", "online_verified"],
+      },
+      verifiedAt: {
+        type: Date,
+        default: Date.now,
+      },
+      verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    }]
   },
   { timestamps: true }
 );

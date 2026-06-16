@@ -1,9 +1,57 @@
 import express from "express";
+import axios from "axios";
 import { auth } from "../middleware/auth.js";
 import BusinessSubscription from "../models/BusinessSubscription.js";
 import Business from "../models/Business.js";
+import Config from "../models/Config.js";
 
 const router = express.Router();
+
+// ====================== M-PESA CONFIGURATION ======================
+const getMpesaConfig = async () => {
+  try {
+    const shortcode = await Config.getConfig("mpesa_shortcode");
+    const accountNumber = await Config.getConfig("mpesa_account_number");
+    const passkey = await Config.getConfig("mpesa_passkey");
+    const consumerKey = await Config.getConfig("mpesa_consumer_key");
+    const consumerSecret = await Config.getConfig("mpesa_consumer_secret");
+
+    return {
+      MPESA_SHORTCODE: shortcode || process.env.MPESA_SHORTCODE || "542542",
+      MPESA_ACCOUNT_NUMBER: accountNumber || process.env.MPESA_ACCOUNT_NUMBER || "03507214611250",
+      MPESA_PASSKEY: passkey || process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
+      MPESA_CONSUMER_KEY: consumerKey || process.env.MPESA_CONSUMER_KEY,
+      MPESA_CONSUMER_SECRET: consumerSecret || process.env.MPESA_CONSUMER_SECRET,
+    };
+  } catch (err) {
+    console.error("Error fetching M-Pesa config:", err);
+    return {
+      MPESA_SHORTCODE: process.env.MPESA_SHORTCODE || "542542",
+      MPESA_ACCOUNT_NUMBER: process.env.MPESA_ACCOUNT_NUMBER || "03507214611250",
+      MPESA_PASSKEY: process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
+      MPESA_CONSUMER_KEY: process.env.MPESA_CONSUMER_KEY,
+      MPESA_CONSUMER_SECRET: process.env.MPESA_CONSUMER_SECRET,
+    };
+  }
+};
+
+const getAccessToken = async () => {
+  try {
+    const config = await getMpesaConfig();
+    const authString = Buffer.from(
+      `${config.MPESA_CONSUMER_KEY}:${config.MPESA_CONSUMER_SECRET}`
+    ).toString("base64");
+
+    const response = await axios.get(
+      "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+      { headers: { Authorization: `Basic ${authString}` } }
+    );
+    return response.data.access_token;
+  } catch (error) {
+    console.error("Access Token Error:", error.response?.data || error.message);
+    throw new Error("Failed to authenticate with M-Pesa");
+  }
+};
 
 const TIER_PRICES = {
   basic: { monthly: 0, yearly: 0, features: ["basic_listing"] },
@@ -48,7 +96,7 @@ router.get("/business/:businessId", auth, async (req, res) => {
 router.post("/business/:businessId", auth, async (req, res) => {
   try {
     const { businessId } = req.params;
-    const { tier, billingCycle, paymentMethod, transactionId } = req.body;
+    const { tier, billingCycle, paymentMethod, transactionId, phone } = req.body;
 
     const business = await Business.findById(businessId);
     if (!business) {
@@ -65,6 +113,60 @@ router.post("/business/:businessId", auth, async (req, res) => {
     }
 
     const amount = billingCycle === "yearly" ? pricing.yearly : pricing.monthly;
+
+    // If M-Pesa payment, initiate STK push
+    if (paymentMethod === "mpesa" && phone) {
+      const token = await getAccessToken();
+      const config = await getMpesaConfig();
+      const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+      const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
+
+      const payload = {
+        BusinessShortCode: config.MPESA_SHORTCODE,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: "CustomerPayBillOnline",
+        Amount: Math.round(Number(amount)),
+        PartyA: phone.replace(/\s+/g, ""),
+        PartyB: config.MPESA_SHORTCODE,
+        PhoneNumber: phone.replace(/\s+/g, ""),
+        CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
+        AccountReference: config.MPESA_ACCOUNT_NUMBER,
+        TransactionDesc: `Business Subscription: ${tier} ${billingCycle}`,
+      };
+
+      const mpesaResponse = await axios.post(
+        "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Save pending transaction to user's payment history
+      const User = (await import("../models/User.js")).default;
+      await User.findByIdAndUpdate(req.user.id, {
+        $push: {
+          paymentHistory: {
+            transactionId: mpesaResponse.data.CheckoutRequestID,
+            amount,
+            tier,
+            businessId,
+            subscriptionType: "business",
+            status: "pending",
+            date: new Date(),
+          },
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: "✅ M-Pesa prompt sent! Enter PIN on your phone to complete subscription.",
+        checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
+        tier,
+        amount,
+      });
+    }
+
+    // Manual payment method (existing logic)
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + (billingCycle === "yearly" ? 12 : 1));
 

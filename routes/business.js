@@ -90,7 +90,7 @@ router.post("/", auth, async (req, res) => {
 // ====================== GET ALL BUSINESSES ======================
 router.get("/", async (req, res) => {
   try {
-    const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification } = req.query;
+    const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification, page = 1, limit = 12 } = req.query;
 
     const filter = { isApproved: true };
 
@@ -167,11 +167,20 @@ router.get("/", async (req, res) => {
         sortOption = { "verificationBadges.0": -1, createdAt: -1 };
     }
 
-    const businesses = await Business.find(filter)
-      .populate("owner", "name email phone")
-      .sort(sortOption);
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
-    res.json({ success: true, businesses });
+    const [businesses, total] = await Promise.all([
+      Business.find(filter)
+        .populate("owner", "name email phone")
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limitNum),
+      Business.countDocuments(filter)
+    ]);
+
+    res.json({ success: true, businesses, total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch businesses" });
   }

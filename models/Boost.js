@@ -11,8 +11,12 @@ const boostSchema = new mongoose.Schema({
     userName: { type: String },
     userPhone: { type: String },
 
-    plan: { type: String, enum: ["weekly", "monthly"], required: true },
+    plan: { type: String, enum: ["3weeks", "4months", "6months"], required: true },
     amount: { type: Number, required: true },
+
+    // Plan details
+    planDuration: { type: Number, required: true }, // in days
+    planPrice: { type: Number, required: true }, // in KES
 
     // M-Pesa payment details (filled by user on submission)
     mpesaRef: { type: String },
@@ -27,7 +31,8 @@ const boostSchema = new mongoose.Schema({
 
     approvedAt: { type: Date },
     rejectedAt: { type: Date },
-    expiresAt: { type: Date },              // set on approval: now + 7 or 30 days
+    rejectionReason: { type: String },
+    expiresAt: { type: Date },              // set on approval based on plan duration
 }, { timestamps: true });
 
 module.exports = mongoose.model("Boost", boostSchema);

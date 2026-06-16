@@ -38,6 +38,7 @@ import businessAnalyticsRoutes from "./routes/businessAnalytics.js";
 import businessSubscriptionRoutes from "./routes/businessSubscriptions.js";
 import uploadRoutes from "./routes/uploads.js";
 import analyticsRoutes from "./routes/analytics.js";
+import badgeRoutes from "./routes/badges.js";
 
 dotenv.config();
 
@@ -102,7 +103,9 @@ app.use("/api/business-inquiries", security.apiLimiter, businessInquiryRoutes);
 app.use("/api/business-analytics", security.apiLimiter, businessAnalyticsRoutes);
 app.use("/api/business-subscriptions", security.apiLimiter, businessSubscriptionRoutes);
 app.use("/api/uploads", security.apiLimiter, uploadRoutes);
+app.use("/api/badges", security.apiLimiter, badgeRoutes);
 app.use("/api/analytics", security.apiLimiter, analyticsRoutes);
+app.use("/api/notifications", security.apiLimiter, notificationRoutes);
 
 // ====================== STATIC FILE SERVING ======================
 // Serve uploaded files
