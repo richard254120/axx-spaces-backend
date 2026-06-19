@@ -1011,6 +1011,30 @@ router.post("/bank-transfer", auth, async (req, res) => {
       },
     }, { new: true });
 
+    // Create pending notification for admin dashboard review
+    try {
+      const user = await User.findById(req.user.id);
+      await Notification.create({
+        type: subscriptionType ? "subscription" : (plan && plan.startsWith("verification-") ? "subscription" : "boost"),
+        userId: req.user.id,
+        userName: user.name,
+        userPhone: user.phone,
+        userEmail: user.email,
+        amount,
+        transactionId: transactionRef,
+        mpesaRef: transactionRef,
+        status: "pending",
+        propertyId: propertyId || undefined,
+        materialId: materialId || undefined,
+        plan: plan || undefined,
+        subscriptionType: subscriptionType || undefined,
+        read: false,
+      });
+      console.log("✅ Pending manual payment notification created for admin");
+    } catch (notifErr) {
+      console.error("❌ Failed to create pending payment notification:", notifErr);
+    }
+
     console.log("Payment saved successfully. User ID:", req.user.id);
     console.log("Updated paymentHistory count:", updatedUser.paymentHistory.length);
     console.log("=== BANK TRANSFER SUBMISSION END ===");
@@ -1181,26 +1205,131 @@ router.get("/notifications", auth, async (req, res) => {
     res.status(500).json({ error: err.message || "Failed to fetch notifications" });
   }
 });
-
-// Mark notification as read
+// Mark notification as read / approve manual payment
 router.put("/notifications/:id/read", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "❌ Only admins can update notifications" });
     }
 
-    const notification = await Notification.findByIdAndUpdate(
-      req.params.id,
-      { read: true },
-      { new: true }
-    );
+    const { approve } = req.body;
+    console.log(`=== PROCESS MANUAL PAYMENT START ===`);
+    console.log(`Notification ID:`, req.params.id);
+    console.log(`Approve state:`, approve);
+
+    const notification = await Notification.findById(req.params.id);
 
     if (!notification) {
       return res.status(404).json({ error: "❌ Notification not found" });
     }
 
+    notification.read = true;
+
+    // Process manual bank transfer payments if notification is pending
+    if (notification.status === "pending") {
+      const isApproved = approve !== false; // Default to true if not specified
+      console.log(`Pending notification found. Action:`, isApproved ? "APPROVE" : "REJECT");
+
+      const user = await User.findById(notification.userId);
+      if (user) {
+        // Find payment in payment history by transaction reference matching transactionId/mpesaRef
+        const payment = user.paymentHistory.find(
+          p => (p.transactionRef === notification.transactionId || p.transactionRef === notification.mpesaRef) && p.paymentMethod === "bank_transfer"
+        );
+
+        if (payment) {
+          console.log(`Found matching paymentHistory item:`, payment.transactionId);
+          if (isApproved) {
+            payment.status = "success";
+            user.walletBalance = (user.walletBalance || 0) + (payment.amount || notification.amount || 0);
+            notification.status = "confirmed";
+
+            // 1. If property boost
+            if (payment.propertyId) {
+              const property = await Property.findById(payment.propertyId);
+              if (property) {
+                property.isFeatured = true;
+                property.promotionStartDate = new Date();
+                const durationDays = payment.plan === "boost-7days" ? 7 : 30;
+                property.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+                property.promotionTier = payment.plan;
+                await property.save();
+                console.log(`Activated featured boost for property:`, property.title);
+              }
+            }
+
+            // 2. If material boost
+            if (payment.materialId) {
+              const material = await Material.findById(payment.materialId);
+              if (material) {
+                material.isFeatured = true;
+                material.promotionStartDate = new Date();
+                const durationDays = payment.plan === "boost-7days" ? 7 : 30;
+                material.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+                material.promotionTier = payment.plan;
+                await material.save();
+                console.log(`Activated featured boost for material:`, material.title);
+              }
+            }
+
+            // 3. If subscription
+            if (payment.subscriptionType && !payment.plan?.startsWith("verification-")) {
+              const durationDays = payment.subscriptionType === "basic" ? 30 : 90;
+              user.subscriptionTier = payment.subscriptionType;
+              user.subscriptionStartDate = new Date();
+              user.subscriptionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+              console.log(`Upgraded user subscription tier to:`, payment.subscriptionType);
+            }
+
+            // 4. If verification badge subscription
+            if (payment.plan && payment.plan.startsWith("verification-")) {
+              const badgeType = payment.subscriptionType; // e.g. student_verified, online_verified, etc.
+              if (badgeType) {
+                if (!user.verificationBadges.includes(badgeType)) {
+                  user.verificationBadges.push(badgeType);
+                }
+                // Map badgeType to status fields
+                if (badgeType === "student_verified") {
+                  user.studentVerificationStatus = "approved";
+                } else if (badgeType === "premium_verified") {
+                  user.premiumVerificationStatus = "approved";
+                } else {
+                  user.standardVerificationStatus = "approved";
+                }
+                user.verificationStatus = "approved";
+                console.log(`Awarded verification badge:`, badgeType);
+              }
+            }
+
+            // 5. If mover profile boost
+            if (!payment.propertyId && !payment.materialId && !payment.subscriptionType && payment.plan && payment.plan.includes("Profile Boost")) {
+              user.isFeaturedMover = true;
+              user.featuredStartDate = new Date();
+              const durationDays = payment.plan.includes("7-Day") ? 7 : 30;
+              user.featuredEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+              console.log(`Activated mover profile boost`);
+            }
+          } else {
+            // Rejected
+            payment.status = "failed";
+            notification.status = "rejected";
+            console.log(`Payment status set to failed`);
+          }
+          await user.save();
+          console.log(`Saved user status successfully`);
+        } else {
+          console.log(`❌ No matching paymentHistory item found in user profile`);
+        }
+      } else {
+        console.log(`❌ User with ID ${notification.userId} not found`);
+      }
+    }
+
+    await notification.save();
+    console.log(`=== PROCESS MANUAL PAYMENT END ===`);
     res.json({ success: true, notification });
   } catch (err) {
+    console.error("❌ Process notification error:", err);
     res.status(500).json({ error: err.message || "Failed to update notification" });
   }
 });

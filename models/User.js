@@ -82,6 +82,11 @@ const userSchema = new mongoose.Schema(
         amount: Number,
         plan: String,
         propertyId: mongoose.Schema.Types.ObjectId,
+        materialId: mongoose.Schema.Types.ObjectId,
+        subscriptionType: String,
+        paymentMethod: String,
+        transactionRef: String,
+        bankMessage: String,
         status: {
           type: String,
           enum: ["pending", "success", "failed", "cancelled"],
