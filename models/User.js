@@ -10,7 +10,6 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, "Please provide email"],
-      unique: true,
       lowercase: true,
       trim: true,
     },
@@ -23,7 +22,6 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: [true, "Please provide phone"],
-      unique: true,
       trim: true,
     },
     profileImage: {

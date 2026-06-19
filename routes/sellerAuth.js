@@ -15,11 +15,11 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) return res.status(400).json({ error: "Email already registered" });
+    const existingEmail = await User.findOne({ email, role: "seller" });
+    if (existingEmail) return res.status(400).json({ error: "Email already registered for a seller account" });
 
-    const existingPhone = await User.findOne({ phone });
-    if (existingPhone) return res.status(400).json({ error: "Phone already registered" });
+    const existingPhone = await User.findOne({ phone, role: "seller" });
+    if (existingPhone) return res.status(400).json({ error: "Phone already registered for a seller account" });
 
     const hashedPassword = await bcrypt.hash(password, 12);
 

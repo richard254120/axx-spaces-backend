@@ -32,9 +32,15 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Name, email, password, and phone are required" });
     }
 
-    const existingUser = await User.findOne({ email });
+    const targetRole = role || "landlord";
+    const existingUser = await User.findOne({ email, role: targetRole });
     if (existingUser) {
-      return res.status(400).json({ error: "Email already registered" });
+      return res.status(400).json({ error: `An account with this email is already registered as a ${targetRole}` });
+    }
+
+    const existingPhone = await User.findOne({ phone, role: targetRole });
+    if (existingPhone) {
+      return res.status(400).json({ error: `An account with this phone number is already registered as a ${targetRole}` });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -44,9 +50,9 @@ router.post("/register", async (req, res) => {
 
     const newUser = new User({
       name, email, password: hashedPassword, phone,
-      role: role || "landlord",
+      role: targetRole,
       landlordType:
-        (role || "landlord") === "landlord" && landlordType === "university"
+        targetRole === "landlord" && landlordType === "university"
           ? "university"
           : "general",
       emailVerificationToken: verificationToken,
@@ -118,13 +124,22 @@ router.post("/register", async (req, res) => {
 // ====================== LOGIN ======================
 router.post("/login", security.authLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email }).select("+password");
+    let user;
+    if (role) {
+      user = await User.findOne({ email, role }).select("+password");
+    } else {
+      // Fallback: prioritize admin/team roles first, otherwise return first matching user
+      user = await User.findOne({ email, role: { $in: ["admin", "team"] } }).select("+password");
+      if (!user) {
+        user = await User.findOne({ email }).select("+password");
+      }
+    }
 
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
@@ -178,13 +193,17 @@ router.get("/me", auth, async (req, res) => {
 // ====================== FORGOT PASSWORD ======================
 router.post("/forgot-password", security.passwordResetLimiter, async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, role } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
 
-    const user = await User.findOne({ email });
+    let query = { email };
+    if (role) {
+      query.role = role;
+    }
+    const user = await User.findOne(query);
 
     // Always return the same message to prevent email enumeration
     if (!user) {
@@ -317,13 +336,17 @@ router.post("/verify-email/:token", async (req, res) => {
 // ====================== RESEND VERIFICATION EMAIL ======================
 router.post("/resend-verification", async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, role } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
 
-    const user = await User.findOne({ email });
+    let query = { email };
+    if (role) {
+      query.role = role;
+    }
+    const user = await User.findOne(query);
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -385,13 +408,15 @@ router.post("/resend-verification", async (req, res) => {
 // ====================== GOOGLE OAUTH ======================
 router.post("/google", async (req, res) => {
   try {
-    const { googleId, email, name, picture, landlordType } = req.body;
+    const { googleId, email, name, picture, landlordType, role } = req.body;
 
     if (!googleId || !email || !name) {
       return res.status(400).json({ error: "Google ID, email, and name are required" });
     }
 
-    let user = await User.findOne({ googleId });
+    const targetRole = role || "landlord";
+
+    let user = await User.findOne({ googleId, role: targetRole });
 
     if (user) {
       const token = jwt.sign(
@@ -402,7 +427,7 @@ router.post("/google", async (req, res) => {
       return res.json({ token, user: formatUserResponse(user) });
     }
 
-    user = await User.findOne({ email });
+    user = await User.findOne({ email, role: targetRole });
 
     if (user) {
       user.googleId = googleId;
@@ -428,8 +453,8 @@ router.post("/google", async (req, res) => {
       phone: `google-${googleId}`,
       profileImage: picture || "",
       password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
-      role: "landlord",
-      landlordType: landlordType === "university" ? "university" : "general",
+      role: targetRole,
+      landlordType: targetRole === "landlord" && landlordType === "university" ? "university" : "general",
     });
 
     await newUser.save();

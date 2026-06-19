@@ -1273,8 +1273,20 @@ router.post("/transfer", auth, async (req, res) => {
       return res.status(400).json({ error: "❌ Insufficient wallet balance" });
     }
 
-    // Find recipient by phone
-    const recipient = await User.findOne({ phone: recipientPhone });
+    // Find recipient by phone, prioritizing role: "user", then "landlord", then "mover", then "seller"
+    let recipient = await User.findOne({ phone: recipientPhone, role: "user" });
+    if (!recipient) {
+      recipient = await User.findOne({ phone: recipientPhone, role: "landlord" });
+    }
+    if (!recipient) {
+      recipient = await User.findOne({ phone: recipientPhone, role: "mover" });
+    }
+    if (!recipient) {
+      recipient = await User.findOne({ phone: recipientPhone, role: "seller" });
+    }
+    if (!recipient) {
+      recipient = await User.findOne({ phone: recipientPhone });
+    }
     if (!recipient) {
       return res.status(404).json({ error: "❌ Recipient not found" });
     }

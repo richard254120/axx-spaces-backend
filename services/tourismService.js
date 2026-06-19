@@ -414,9 +414,9 @@ export async function registerProviderAndListing(body, files = []) {
     throw err;
   }
 
-  const existing = await User.findOne({ email: ownerEmail.toLowerCase() });
+  const existing = await User.findOne({ email: ownerEmail.toLowerCase(), role: "landlord" });
   if (existing) {
-    const err = new Error("Email already registered. Please log in and submit your property.");
+    const err = new Error("An account with this email is already registered as a landlord. Please log in and submit your property.");
     err.status = 400;
     throw err;
   }

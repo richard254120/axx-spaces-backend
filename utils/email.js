@@ -4,10 +4,31 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ? `AxxSpace <${process.env.RESEND_FROM_EMAIL}>` : "Axxspace <admin@axxspace.com>";
 
 const ADMIN_EMAILS = [
   "admin@axxspace.com",
 ];
+
+export const sendEmail = async ({ to, subject, html }) => {
+  try {
+    const res = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject,
+      html,
+    });
+    return res;
+  } catch (error) {
+    console.error("Error sending email via Resend:", error);
+    throw error;
+  }
+};
+
+export const sendSMS = async ({ to, message }) => {
+  console.log(`📱 [SMS Mock] Sent to ${to}: ${message}`);
+  return { success: true };
+};
 
 export const sendPropertyEmail = async (property, owner) => {
   const getEmailHtml = (property, owner) => `

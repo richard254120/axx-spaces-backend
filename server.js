@@ -39,6 +39,7 @@ import businessSubscriptionRoutes from "./routes/businessSubscriptions.js";
 import uploadRoutes from "./routes/uploads.js";
 import analyticsRoutes from "./routes/analytics.js";
 import badgeRoutes from "./routes/badges.js";
+import notificationRoutes from "./routes/notifications.js";
 
 dotenv.config();
 
@@ -75,7 +76,42 @@ console.log("✅ Security middleware configured");
 
 // ====================== MONGODB CONNECTION ======================
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(async () => {
+    console.log("✅ MongoDB connected");
+    
+    // Run database index migrations
+    try {
+      const db = mongoose.connection.db;
+      const collections = await db.listCollections({ name: "users" }).toArray();
+      if (collections.length > 0) {
+        const usersCollection = db.collection("users");
+        
+        // List existing indexes
+        const indexes = await usersCollection.indexes();
+        console.log("🔍 Checking existing indexes on 'users' collection...");
+        
+        // Look for single field unique indexes on email and phone
+        for (const index of indexes) {
+          if (index.name === "email_1" && index.unique) {
+            console.log("🗑️ Dropping index email_1...");
+            await usersCollection.dropIndex("email_1");
+          }
+          if (index.name === "phone_1" && index.unique) {
+            console.log("🗑️ Dropping index phone_1...");
+            await usersCollection.dropIndex("phone_1");
+          }
+        }
+        
+        // Create new compound indexes if they don't exist
+        console.log("🏗️ Creating compound unique indexes...");
+        await usersCollection.createIndex({ email: 1, role: 1 }, { unique: true });
+        await usersCollection.createIndex({ phone: 1, role: 1 }, { unique: true });
+        console.log("✅ Compound unique indexes configured successfully");
+      }
+    } catch (indexErr) {
+      console.error("⚠️ Error updating unique indexes:", indexErr.message);
+    }
+  })
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err.message);
     process.exit(1);
