@@ -1212,10 +1212,11 @@ router.put("/notifications/:id/read", auth, async (req, res) => {
       return res.status(403).json({ error: "❌ Only admins can update notifications" });
     }
 
-    const { approve } = req.body;
+    const { approve, badgeId } = req.body;
     console.log(`=== PROCESS MANUAL PAYMENT START ===`);
     console.log(`Notification ID:`, req.params.id);
     console.log(`Approve state:`, approve);
+    console.log(`Badge ID:`, badgeId);
 
     const notification = await Notification.findById(req.params.id);
 
@@ -1298,6 +1299,32 @@ router.put("/notifications/:id/read", auth, async (req, res) => {
                 }
                 user.verificationStatus = "approved";
                 console.log(`Awarded verification badge:`, badgeType);
+              }
+            }
+
+            // 4.5. If admin selected a badge to issue
+            if (badgeId) {
+              const badgeType = badgeId; // e.g. student_verified, business_verified, etc.
+              if (badgeType) {
+                if (!user.verificationBadges.includes(badgeType)) {
+                  user.verificationBadges.push(badgeType);
+                }
+                // Map badgeType to status fields
+                if (badgeType === "student_verified") {
+                  user.studentVerificationStatus = "approved";
+                } else if (badgeType === "premium_verified") {
+                  user.premiumVerificationStatus = "approved";
+                } else if (badgeType === "business_verified") {
+                  user.businessVerificationStatus = "approved";
+                } else if (badgeType === "identity_verified") {
+                  user.standardVerificationStatus = "approved";
+                } else if (badgeType === "location_verified") {
+                  user.locationVerificationStatus = "approved";
+                } else if (badgeType === "online_verified") {
+                  user.onlineVerificationStatus = "approved";
+                }
+                user.verificationStatus = "approved";
+                console.log(`Admin awarded verification badge:`, badgeType);
               }
             }
 
