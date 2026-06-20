@@ -63,7 +63,7 @@ export const getApprovedMaterials = async (req, res) => {
     }
 
     const materials = await Material.find(filter)
-      .populate("seller", "name phone isApproved")
+      .populate("seller", "name phone isApproved verificationBadges")
       .sort({ createdAt: -1 })
       .limit(50);
 
@@ -88,7 +88,7 @@ export const getMyMaterials = async (req, res) => {
 export const getMaterialById = async (req, res) => {
   try {
     const material = await Material.findById(req.params.id)
-      .populate("seller", "name phone email isApproved");
+      .populate("seller", "name phone email isApproved verificationBadges");
 
     if (!material) return res.status(404).json({ error: "Material not found" });
 

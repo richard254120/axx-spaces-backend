@@ -153,7 +153,7 @@ export async function listCategories() {
 }
 
 export async function getListingById(id, viewer = null) {
-  const listing = await TourismListing.findById(id).populate("owner", "name email phone");
+  const listing = await TourismListing.findById(id).populate("owner", "name email phone verificationBadges");
   if (!listing) {
     const err = new Error("Tourism listing not found");
     err.status = 404;

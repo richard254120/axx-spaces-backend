@@ -164,7 +164,7 @@ router.get("/", async (req, res) => {
     const cap = Math.min(parseInt(limit) || 100, 500);
 
     const properties = await Property.find(query)
-      .populate("owner", "name phone email")
+      .populate("owner", "name phone email verificationBadges")
       .sort({ isFeatured: -1, createdAt: -1 })   // featured pins always first
       .limit(cap);
 
