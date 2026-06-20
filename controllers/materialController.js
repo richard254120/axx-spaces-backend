@@ -62,6 +62,22 @@ export const getApprovedMaterials = async (req, res) => {
       ];
     }
 
+    // Check and expire promotions that have ended
+    await Material.updateMany(
+      {
+        isFeatured: true,
+        promotionEndDate: { $lt: new Date() }
+      },
+      {
+        $set: {
+          isFeatured: false,
+          promotionTier: null,
+          promotionStartDate: null,
+          promotionEndDate: null
+        }
+      }
+    );
+
     const materials = await Material.find(filter)
       .populate("seller", "name phone isApproved verificationBadges")
       .sort({ createdAt: -1 })

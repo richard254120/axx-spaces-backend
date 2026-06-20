@@ -163,6 +163,22 @@ router.get("/", async (req, res) => {
 
     const cap = Math.min(parseInt(limit) || 100, 500);
 
+    // Check and expire promotions that have ended
+    await Property.updateMany(
+      {
+        isFeatured: true,
+        promotionEndDate: { $lt: new Date() }
+      },
+      {
+        $set: {
+          isFeatured: false,
+          promotionTier: null,
+          promotionStartDate: null,
+          promotionEndDate: null
+        }
+      }
+    );
+
     const properties = await Property.find(query)
       .populate("owner", "name phone email verificationBadges")
       .sort({ isFeatured: -1, createdAt: -1 })   // featured pins always first

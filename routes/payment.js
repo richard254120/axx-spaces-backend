@@ -1282,6 +1282,14 @@ router.put("/notifications/:id/read", auth, async (req, res) => {
               console.log(`Upgraded user subscription tier to:`, payment.subscriptionType);
             }
 
+            // 5. Check and expire subscription if it has ended
+            if (user.subscriptionEndDate && new Date() > user.subscriptionEndDate) {
+              user.subscriptionTier = null;
+              user.subscriptionStartDate = null;
+              user.subscriptionEndDate = null;
+              console.log(`Expired user subscription tier`);
+            }
+
             // 4. If verification badge subscription
             if (payment.plan && payment.plan.startsWith("verification-")) {
               const badgeType = payment.subscriptionType; // e.g. student_verified, online_verified, etc.
