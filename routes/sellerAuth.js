@@ -1,10 +1,15 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { Resend } from "resend";
 import User from "../models/User.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 
 const router = express.Router();
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = `AxxSpace <${process.env.RESEND_FROM_EMAIL}>`;
 
 // ============ SELLER REGISTER ============
 router.post("/register", async (req, res) => {
@@ -22,6 +27,8 @@ router.post("/register", async (req, res) => {
     if (existingPhone) return res.status(400).json({ error: "Phone already registered for a seller account" });
 
     const hashedPassword = await bcrypt.hash(password, 12);
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
     const seller = new User({
       name,
@@ -31,13 +38,50 @@ router.post("/register", async (req, res) => {
       county: county || "",
       role: "seller",
       isApproved: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpiry: verificationExpiry,
+      isEmailVerified: false,
     });
 
     await seller.save();
 
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: "📧 Verify Your Email - Axxspace",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #0B2140; padding: 20px; text-align: center;">
+            <h1 style="color: #fbbf24; margin: 0;">Axxspace</h1>
+            <p style="color: #94a3b8; margin: 6px 0 0;">Kenya's Premier Platform</p>
+          </div>
+          <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
+            <p style="color: #1f2937; font-size: 15px;">Hi <strong>${name}</strong>,</p>
+            <p style="color: #6b7280; font-size: 14px;">
+              Thank you for registering as a Seller on Axxspace! Please verify your email address to activate your account.
+              This link expires in <strong>24 hours</strong>.
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${verificationUrl}"
+                style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                ✅ Verify My Email
+              </a>
+            </div>
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+              If you did not create an account with Axxspace, ignore this email.<br/>
+              Link expires in 24 hours.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+
     res.status(201).json({
       success: true,
-      message: "Seller account created! You can now login and upload materials. They will be visible after admin approval.",
+      message: "Seller account created! Please check your email to verify your account.",
+      requiresVerification: true,
     });
   } catch (error) {
     console.error("Seller register error:", error);
@@ -62,6 +106,15 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, seller.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Incorrect password" });
+    }
+
+    if (!seller.isEmailVerified) {
+      return res.status(403).json({
+        error: "📧 Please verify your email before logging in. Check your inbox for the verification link.",
+        requiresVerification: true,
+        email: seller.email,
+        role: "seller"
+      });
     }
 
     const token = jwt.sign(

@@ -150,6 +150,15 @@ router.post("/login", security.authLimiter, async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
+    if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
+      return res.status(403).json({
+        error: "📧 Please verify your email before logging in. Check your inbox for the verification link.",
+        requiresVerification: true,
+        email: user.email,
+        role: user.role
+      });
+    }
+
     if (user.role === "mover" && !user.isApproved) {
       return res.status(403).json({
         error: "⏳ Your account is pending admin approval. You will be able to log in once approved."
