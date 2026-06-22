@@ -69,7 +69,7 @@ router.post("/logo", uploadLogo.single("logo"), (req, res) => {
 });
 
 // ====================== UPLOAD BUSINESS PHOTOS (MULTIPLE - UP TO 18) ======================
-router.post("/business-photos", uploadBusinessPhotos.array("photos", 18), (req, res) => {
+router.post("/business-photos", uploadBusinessPhotos.array("photos", 30), (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "No files uploaded" });

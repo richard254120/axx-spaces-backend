@@ -131,7 +131,7 @@ const uploadBusinessPhotos = multer({
   fileFilter: imageFileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit per photo
-    files: 18, // Maximum 18 photos
+    files: 30, // Maximum 30 photos
   },
 });
 
