@@ -91,6 +91,25 @@ router.post("/business-photos", uploadBusinessPhotos.array("photos", 18), (req, 
   }
 });
 
+// ====================== UPLOAD SINGLE BUSINESS PHOTO ======================
+router.post("/business-photo", uploadBusinessPhotos.single("photo"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    res.json({
+      success: true,
+      url: req.file.path,
+      publicId: req.file.filename,
+      message: "Photo uploaded successfully",
+    });
+  } catch (error) {
+    console.error("Business photo upload error:", error);
+    res.status(500).json({ error: "Failed to upload business photo" });
+  }
+});
+
 // ====================== UPLOAD PRODUCT IMAGE ======================
 router.post("/product-image", uploadProductImage.single("image"), (req, res) => {
   try {
