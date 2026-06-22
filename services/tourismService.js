@@ -414,6 +414,19 @@ export async function registerProviderAndListing(body, files = []) {
     throw err;
   }
 
+  if (password.length < 6) {
+    const err = new Error("Password must be at least 6 characters long.");
+    err.status = 400;
+    throw err;
+  }
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  if (!hasLetter || !hasNumber) {
+    const err = new Error("Password must contain a mixture of both letters and numbers.");
+    err.status = 400;
+    throw err;
+  }
+
   const existing = await User.findOne({ email: ownerEmail.toLowerCase(), role: "landlord" });
   if (existing) {
     const err = new Error("An account with this email is already registered as a landlord. Please log in and submit your property.");

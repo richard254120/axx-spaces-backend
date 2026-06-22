@@ -20,6 +20,15 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long." });
+    }
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (!hasLetter || !hasNumber) {
+      return res.status(400).json({ error: "Password must contain a mixture of both letters and numbers." });
+    }
+
     const existingEmail = await User.findOne({ email, role: "seller" });
     if (existingEmail) return res.status(400).json({ error: "Email already registered for a seller account" });
 
