@@ -38,8 +38,8 @@ router.patch(
   auth,
   security.uploadLimiter,
   tourismUpload.fields([
-    { name: "images", maxCount: 10 },
-    { name: "videos", maxCount: 5 },
+    { name: "images", maxCount: 50 },
+    { name: "videos", maxCount: 10 },
   ]),
   updateOwnerListing
 );
@@ -47,8 +47,11 @@ router.patch(
 router.get("/my", auth, getMyListings);
 router.get("/", getListings);
 
-router.post("/register", upload.array("images", 10), registerProviderListing);
-router.post("/", auth, upload.array("images", 10), createListing);
+router.post("/register", tourismUpload.fields([
+  { name: "images", maxCount: 50 },
+  { name: "videos", maxCount: 10 },
+]), registerProviderListing);
+router.post("/", auth, upload.array("images", 50), createListing);
 
 router.get("/:id", trackTourismView, getListingById);
 router.patch("/:id/view", incrementView);

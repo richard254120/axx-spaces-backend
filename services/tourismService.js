@@ -352,7 +352,11 @@ export async function buildAndSaveListing(body, user, files = []) {
   }
 
   const roomTypes = parseJsonField(body.roomTypes);
-  const imageUrls = files.length ? files.map((f) => f.path || f.secure_url) : [];
+
+  // Handle both images and videos from multer fields
+  const imageUrls = files.images ? files.images.map((f) => f.path || f.secure_url) : [];
+  const videoUrls = files.videos ? files.videos.map((f) => f.path || f.secure_url) : [];
+
   const pkgName = body.selectedPackage || "";
   const pkg = PACKAGE_META[pkgName] || { duration: "", price: 0 };
 
@@ -395,6 +399,7 @@ export async function buildAndSaveListing(body, user, files = []) {
     },
     advertisingPackage: { name: pkgName, duration: pkg.duration, price: pkg.price },
     images: imageUrls,
+    videos: videoUrls,
     owner: user._id,
     status: "pending",
   });

@@ -69,6 +69,19 @@ const pricelistStorage = new CloudinaryStorage({
   },
 });
 
+// ============ CLOUDINARY STORAGE FOR MOVER PORTFOLIO IMAGES ============
+const moverPortfolioStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "axx-spaces/movers/portfolio",
+    resource_type: "image",
+    format: async (req, file) => "jpg",
+    public_id: (req, file) => {
+      return `portfolio-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    },
+  },
+});
+
 // ============ FILE FILTER FOR IMAGES ============
 const imageFileFilter = (req, file, cb) => {
   try {
@@ -151,6 +164,15 @@ const uploadPricelist = multer({
   },
 });
 
+const uploadMoverPortfolio = multer({
+  storage: moverPortfolioStorage,
+  fileFilter: imageFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit per portfolio image
+    files: 10, // Maximum 10 portfolio images
+  },
+});
+
 // ============ COMBINED UPLOAD FOR BUSINESS CREATION ============
 const uploadBusinessFiles = multer({
   storage: multer.memoryStorage(),
@@ -161,4 +183,4 @@ const uploadBusinessFiles = multer({
 
 console.log("✅ Multer configured for business uploads");
 
-export { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist, uploadBusinessFiles };
+export { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist, uploadBusinessFiles, uploadMoverPortfolio };

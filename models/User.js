@@ -69,6 +69,91 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Enhanced mover fields
+    portfolioImages: {
+      type: [String],
+      default: [],
+    },
+    pricing: {
+      baseRate: {
+        type: Number,
+        default: 0,
+      },
+      rateType: {
+        type: String,
+        enum: ["hourly", "per_job", "per_km", "fixed"],
+        default: "per_job",
+      },
+      minCharge: {
+        type: Number,
+        default: 0,
+      },
+      additionalServices: [
+        {
+          service: String,
+          price: Number,
+        },
+      ],
+    },
+    certifications: [
+      {
+        name: String,
+      },
+    ],
+    insurance: {
+      hasInsurance: {
+        type: Boolean,
+        default: false,
+      },
+      provider: String,
+      coverageAmount: Number,
+      expiryDate: Date,
+    },
+    teamInfo: {
+      teamSize: {
+        type: Number,
+        default: 1,
+      },
+      teamMembers: [
+        {
+          name: String,
+          role: String,
+        },
+      ],
+    },
+    availability: {
+      availableDays: {
+        type: [String],
+        default: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      },
+      availableHours: {
+        start: String,
+        end: String,
+      },
+      noticeRequired: {
+        type: Number,
+        default: 24,
+      },
+    },
+    serviceAreas: {
+      type: [String],
+      default: [],
+    },
+    fleetDetails: [
+      {
+        vehicleType: String,
+        capacity: String,
+        count: Number,
+      },
+    ],
+    responseTime: {
+      type: String,
+      default: "Within 2 hours",
+    },
+    specialties: {
+      type: [String],
+      default: [],
+    },
 
     // ✅ EXISTING MONETIZATION FIELDS
     walletBalance: {
