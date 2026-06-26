@@ -348,8 +348,8 @@ router.post("/verify-email/:token", async (req, res) => {
     user.emailVerificationExpiry = undefined;
     await user.save();
 
-    console.log(`✅ Email verified successfully for: ${user.email}`);
-    res.json({ message: "✅ Email verified successfully! You can now login." });
+    console.log(`✅ Email verified successfully for: ${user.email} (role: ${user.role})`);
+    res.json({ message: "✅ Email verified successfully! You can now login.", role: user.role });
 
   } catch (err) {
     console.error("❌ Email verification error:", err);
