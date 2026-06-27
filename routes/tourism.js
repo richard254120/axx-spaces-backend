@@ -38,7 +38,7 @@ router.patch(
   auth,
   security.uploadLimiter,
   tourismUpload.fields([
-    { name: "images", maxCount: 50 },
+    { name: "images", maxCount: 20 },
     { name: "videos", maxCount: 10 },
   ]),
   updateOwnerListing
@@ -48,7 +48,7 @@ router.get("/my", auth, getMyListings);
 router.get("/", getListings);
 
 router.post("/register", tourismUpload.fields([
-  { name: "images", maxCount: 50 },
+  { name: "images", maxCount: 20 },
   { name: "videos", maxCount: 10 },
 ]), registerProviderListing);
 router.post("/", auth, upload.array("images", 50), createListing);
