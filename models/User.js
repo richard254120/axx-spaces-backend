@@ -69,6 +69,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    company: {
+      type: String,
+      trim: true,
+    },
+    languages: {
+      type: [String],
+      default: [],
+    },
+    workPhotos: {
+      type: [String],
+      default: [],
+    },
     // Enhanced mover fields
     portfolioImages: {
       type: [String],

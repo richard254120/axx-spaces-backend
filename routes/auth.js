@@ -20,12 +20,16 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = `AxxSpace <${process.env.RESEND_FROM_EMAIL}>`;
 
 // ====================== REGISTER ======================
-router.post("/register", async (req, res) => {
+router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
   try {
     const {
       name, email, password, phone, role,
       county, services, vehicleType, experience,
-      landlordType,
+      landlordType, company, description,
+      baseRate, rateType, minCharge,
+      hasInsurance, insuranceProvider, coverageAmount,
+      teamSize, specialties, serviceAreas,
+      availability, responseTime, languages, certifications,
     } = req.body;
 
     if (!name || !email || !password || !phone) {
@@ -74,6 +78,32 @@ router.post("/register", async (req, res) => {
       newUser.vehicleType = vehicleType || "";
       newUser.experienceYears = experience || 0;
       newUser.isApproved = false;
+      // Additional mover fields
+      newUser.company = company || "";
+      newUser.description = description || "";
+      newUser.pricing = {
+        baseRate: parseFloat(baseRate) || 0,
+        rateType: rateType || "per_job",
+        minCharge: parseFloat(minCharge) || 0,
+      };
+      newUser.insurance = {
+        hasInsurance: hasInsurance === "true",
+        provider: insuranceProvider || "",
+        coverageAmount: parseFloat(coverageAmount) || 0,
+      };
+      newUser.teamInfo = {
+        teamSize: parseInt(teamSize) || 1,
+      };
+      newUser.specialties = specialties ? specialties.split(',').map(s => s.trim()) : [];
+      newUser.serviceAreas = serviceAreas ? serviceAreas.split(',').map(s => s.trim()) : [];
+      newUser.availability = availability || "";
+      newUser.responseTime = responseTime || "";
+      newUser.languages = languages ? languages.split(',').map(s => s.trim()) : [];
+      newUser.certifications = certifications ? certifications.split(',').map(s => s.trim()) : [];
+      // Handle work photos
+      if (req.files && req.files.length > 0) {
+        newUser.workPhotos = req.files.map(file => file.path || file.secure_url);
+      }
     }
 
     await newUser.save();
