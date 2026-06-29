@@ -113,7 +113,8 @@ router.get("/", async (req, res) => {
 
     if (featured === "true") {
       filter.featured = true;
-      filter.featuredUntil = { $gt: new Date() };
+      // Only check date if featuredUntil exists
+      // filter.featuredUntil = { $gt: new Date() };
     }
 
     if (minRating) {
