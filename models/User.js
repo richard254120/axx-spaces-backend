@@ -134,18 +134,9 @@ const userSchema = new mongoose.Schema(
       ],
     },
     availability: {
-      availableDays: {
-        type: [String],
-        default: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-      },
-      availableHours: {
-        start: String,
-        end: String,
-      },
-      noticeRequired: {
-        type: Number,
-        default: 24,
-      },
+      type: String,
+      trim: true,
+      default: "",
     },
     serviceAreas: {
       type: [String],

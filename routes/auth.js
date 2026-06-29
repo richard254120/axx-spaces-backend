@@ -96,6 +96,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
       };
       newUser.specialties = specialties ? specialties.split(',').map(s => s.trim()) : [];
       newUser.serviceAreas = serviceAreas ? serviceAreas.split(',').map(s => s.trim()) : [];
+      // Store availability as a simple string for display, or as object if needed
       newUser.availability = availability || "";
       newUser.responseTime = responseTime || "";
       newUser.languages = languages ? languages.split(',').map(s => s.trim()) : [];
