@@ -8,6 +8,7 @@ import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
 import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendLandlordRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 import security from "../middleware/enhancedSecurity.js";
+import upload from "../config/multer.js";
 
 const router = express.Router();
 
@@ -30,6 +31,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
       hasInsurance, insuranceProvider, coverageAmount,
       teamSize, specialties, serviceAreas,
       availability, responseTime, languages, certifications,
+      equipment, workHours, uniform, safetyGear, loadingEquipment,
     } = req.body;
 
     if (!name || !email || !password || !phone) {
@@ -101,9 +103,23 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
       newUser.responseTime = responseTime || "";
       newUser.languages = languages ? languages.split(',').map(s => s.trim()) : [];
       newUser.certifications = certifications ? certifications.split(',').map(s => s.trim()) : [];
-      // Handle work photos
+      // New equipment and safety fields
+      newUser.equipment = equipment || "";
+      newUser.workHours = workHours || "";
+      newUser.uniform = uniform === "true";
+      newUser.safetyGear = safetyGear === "true";
+      newUser.loadingEquipment = loadingEquipment || "";
+      // Handle work photos with descriptions and categories
       if (req.files && req.files.length > 0) {
         newUser.workPhotos = req.files.map(file => file.path || file.secure_url);
+        newUser.portfolioDetails = [];
+        // Extract photo descriptions and categories from form data
+        for (let i = 0; i < req.files.length; i++) {
+          newUser.portfolioDetails.push({
+            description: req.body[`photoDescription_${i}`] || "",
+            category: req.body[`photoCategory_${i}`] || "general"
+          });
+        }
       }
     }
 
