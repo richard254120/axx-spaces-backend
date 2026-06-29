@@ -742,6 +742,43 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
   }
 });
 
+// ====================== ADMIN: FEATURE/UNFEATURE BUSINESS ======================
+router.patch("/admin/:id/feature", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "❌ Only admins can feature businesses" });
+    }
+
+    const { featured, featuredUntil } = req.body;
+
+    const business = await Business.findById(req.params.id);
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    business.featured = featured !== undefined ? featured : true;
+    if (featured && featuredUntil) {
+      business.featuredUntil = new Date(featuredUntil);
+    } else if (featured) {
+      // Default to 30 days if no end date specified
+      business.featuredUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      business.featuredUntil = null;
+    }
+
+    await business.save();
+
+    res.json({
+      success: true,
+      message: featured ? "✅ Business featured successfully" : "✅ Business unfeatured successfully",
+      business
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update business featured status" });
+  }
+});
+
 // ====================== UPLOAD VIDEO TOUR ======================
 router.post("/:id/video-tour", auth, async (req, res) => {
   try {
