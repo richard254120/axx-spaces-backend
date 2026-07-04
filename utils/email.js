@@ -3,7 +3,11 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend only if API key is available
+let resend = null;
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+}
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ? `AxxSpace <${process.env.RESEND_FROM_EMAIL}>` : "Axxspace <admin@axxspace.com>";
 
 const ADMIN_EMAILS = [
@@ -11,6 +15,10 @@ const ADMIN_EMAILS = [
 ];
 
 export const sendEmail = async ({ to, subject, html }) => {
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send email to:", to, "Subject:", subject);
+    return { success: true, mocked: true };
+  }
   try {
     const res = await resend.emails.send({
       from: FROM_EMAIL,
@@ -49,6 +57,10 @@ export const sendPropertyEmail = async (property, owner) => {
   `;
 
   console.log(`📧 Attempting to send property email for: ${property.title}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send property email to:", ADMIN_EMAILS);
+    return;
+  }
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -85,6 +97,10 @@ export const sendMaterialEmail = async (material, seller) => {
   `;
 
   console.log(`📧 Attempting to send material email for: ${material.title}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send material email to:", ADMIN_EMAILS);
+    return;
+  }
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -124,6 +140,10 @@ export const sendTourismRegistrationEmail = async (tourismData) => {
   `;
 
   console.log(`📧 Attempting to send tourism registration email for: ${tourismData.name}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send tourism registration email to:", ADMIN_EMAILS);
+    return;
+  }
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -162,6 +182,10 @@ export const sendMoverRegistrationEmail = async (mover) => {
   `;
 
   console.log(`📧 Attempting to send mover registration email for: ${mover.name}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send mover registration email to:", ADMIN_EMAILS);
+    return;
+  }
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -198,6 +222,10 @@ export const sendSellerRegistrationEmail = async (seller) => {
   `;
 
   console.log(`📧 Attempting to send seller registration email for: ${seller.name}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send seller registration email to:", ADMIN_EMAILS);
+    return;
+  }
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -236,6 +264,10 @@ export const sendTourismApprovalEmail = async (email, propertyName) => {
   `;
 
   console.log(`📧 Attempting to send tourism approval email to: ${email}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send tourism approval email to:", email);
+    return;
+  }
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -271,6 +303,10 @@ export const sendMoverApprovalEmail = async (email, name) => {
   `;
 
   console.log(`📧 Attempting to send mover approval email to: ${email}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send mover approval email to:", email);
+    return;
+  }
   try {
     await resend.emails.send({
       from: "Axxspace <admin@axxspace.com>",
@@ -307,6 +343,10 @@ export const sendMaterialApprovalEmail = async (email, materialTitle) => {
   `;
 
   console.log(`📧 Attempting to send material approval email to: ${email}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send material approval email to:", email);
+    return;
+  }
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -343,6 +383,10 @@ export const sendPropertyApprovalEmail = async (email, propertyTitle) => {
   `;
 
   console.log(`📧 Attempting to send property approval email to: ${email}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send property approval email to:", email);
+    return;
+  }
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -379,6 +423,10 @@ export const sendBusinessRegistrationEmail = async (business, owner) => {
   `;
 
   console.log(`📧 Attempting to send business registration email for: ${business.name}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send business registration email to:", ADMIN_EMAILS);
+    return;
+  }
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -414,6 +462,10 @@ export const sendLandlordRegistrationEmail = async (landlord) => {
   `;
 
   console.log(`📧 Attempting to send landlord registration email for: ${landlord.name}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send landlord registration email to:", ADMIN_EMAILS);
+    return;
+  }
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({
@@ -452,6 +504,10 @@ export const sendItemRequestEmail = async (itemRequest) => {
   `;
 
   console.log(`📧 Attempting to send item request email for: ${itemRequest.searchQuery}`);
+  if (!resend) {
+    console.log("📧 [Email Mock] Would send item request email to:", ADMIN_EMAILS);
+    return;
+  }
   for (const email of ADMIN_EMAILS) {
     try {
       await resend.emails.send({

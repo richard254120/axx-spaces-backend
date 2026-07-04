@@ -41,13 +41,14 @@ export const createMaterial = async (req, res) => {
 // ============ GET ALL ACTIVE MATERIALS (Public Browse) ============
 export const getApprovedMaterials = async (req, res) => {
   try {
-    const { category, condition, minPrice, maxPrice, county, search } = req.query;
+    const { category, condition, minPrice, maxPrice, county, search, featured, limit } = req.query;
 
     // ✅ FIXED: Only show materials with status "active"
     let filter = { status: "active" };
 
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
+    if (featured) filter.isFeatured = featured === "true";
     if (county) filter.county = county;
     if (minPrice || maxPrice) {
       filter.price = {};
@@ -81,7 +82,7 @@ export const getApprovedMaterials = async (req, res) => {
     const materials = await Material.find(filter)
       .populate("seller", "name phone isApproved verificationBadges")
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(limit ? parseInt(limit) : 50);
 
     res.json(materials);
   } catch (error) {

@@ -4,6 +4,7 @@ import { protect, adminOnly } from "../middleware/auth.js";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { sendItemRequestEmail } from "../utils/email.js";
+import Notification from "../models/Notification.js";
 
 const router = express.Router();
 
@@ -50,6 +51,23 @@ router.post("/", optionalAuth, async (req, res) => {
       await sendItemRequestEmail(itemRequest);
     } catch (emailError) {
       console.error("Failed to send email notification:", emailError);
+    }
+
+    // Create notification for all admin users
+    try {
+      const admins = await User.find({ role: "admin" });
+      for (const admin of admins) {
+        await Notification.create({
+          type: "item_request",
+          userId: admin._id,
+          userName: itemRequest.name,
+          userEmail: itemRequest.email,
+          userPhone: itemRequest.phone,
+          status: "pending",
+        });
+      }
+    } catch (notificationError) {
+      console.error("Failed to create notification:", notificationError);
     }
 
     res.status(201).json({ success: true, message: "Request submitted successfully. Admin has been notified.", request: itemRequest });

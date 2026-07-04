@@ -39,6 +39,7 @@ import businessSubscriptionRoutes from "./routes/businessSubscriptions.js";
 import uploadRoutes from "./routes/uploads.js";
 import analyticsRoutes from "./routes/analytics.js";
 import badgeRoutes from "./routes/badges.js";
+import userBadgeRoutes from "./routes/userBadges.js";
 import notificationRoutes from "./routes/notifications.js";
 import itemRequestRoutes from "./routes/itemRequests.js";
 import configRoutes from "./routes/config.js";
@@ -142,6 +143,7 @@ app.use("/api/business-analytics", security.apiLimiter, businessAnalyticsRoutes)
 app.use("/api/business-subscriptions", security.apiLimiter, businessSubscriptionRoutes);
 app.use("/api/uploads", security.apiLimiter, uploadRoutes);
 app.use("/api/badges", security.apiLimiter, badgeRoutes);
+app.use("/api/user-badges", security.apiLimiter, userBadgeRoutes);
 app.use("/api/analytics", security.apiLimiter, analyticsRoutes);
 app.use("/api/notifications", security.apiLimiter, notificationRoutes);
 app.use("/api/item-requests", security.apiLimiter, itemRequestRoutes);

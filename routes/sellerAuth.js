@@ -3,13 +3,20 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { Resend } from "resend";
+import dotenv from "dotenv";
 import User from "../models/User.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 
 const router = express.Router();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = `AxxSpace <${process.env.RESEND_FROM_EMAIL}>`;
+dotenv.config();
+
+// Initialize Resend only if API key is available
+let resend = null;
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+}
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ? `AxxSpace <${process.env.RESEND_FROM_EMAIL}>` : "Axxspace <admin@axxspace.com>";
 
 // ============ SELLER REGISTER ============
 router.post("/register", async (req, res) => {
@@ -56,36 +63,40 @@ router.post("/register", async (req, res) => {
 
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
 
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: email,
-      subject: "📧 Verify Your Email - Axxspace",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #0B2140; padding: 20px; text-align: center;">
-            <h1 style="color: #fbbf24; margin: 0;">Axxspace</h1>
-            <p style="color: #94a3b8; margin: 6px 0 0;">Kenya's Premier Platform</p>
-          </div>
-          <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
-            <p style="color: #1f2937; font-size: 15px;">Hi <strong>${name}</strong>,</p>
-            <p style="color: #6b7280; font-size: 14px;">
-              Thank you for registering as a Seller on Axxspace! Please verify your email address to activate your account.
-              This link expires in <strong>24 hours</strong>.
-            </p>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${verificationUrl}"
-                style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-                ✅ Verify My Email
-              </a>
+    if (resend) {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: email,
+        subject: "📧 Verify Your Email - Axxspace",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: #0B2140; padding: 20px; text-align: center;">
+              <h1 style="color: #fbbf24; margin: 0;">Axxspace</h1>
+              <p style="color: #94a3b8; margin: 6px 0 0;">Kenya's Premier Platform</p>
             </div>
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-              If you did not create an account with Axxspace, ignore this email.<br/>
-              Link expires in 24 hours.
-            </p>
+            <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
+              <p style="color: #1f2937; font-size: 15px;">Hi <strong>${name}</strong>,</p>
+              <p style="color: #6b7280; font-size: 14px;">
+                Thank you for registering as a Seller on Axxspace! Please verify your email address to activate your account.
+                This link expires in <strong>24 hours</strong>.
+              </p>
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${verificationUrl}"
+                  style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                  ✅ Verify My Email
+                </a>
+              </div>
+              <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+                If you did not create an account with Axxspace, ignore this email.<br/>
+                Link expires in 24 hours.
+              </p>
+            </div>
           </div>
-        </div>
-      `,
-    });
+        `,
+      });
+    } else {
+      console.log("📧 [Email Mock] Would send verification email to:", email);
+    }
 
     res.status(201).json({
       success: true,

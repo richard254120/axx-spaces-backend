@@ -158,6 +158,16 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
 
+    // ✅ FEATURED MOVER FIELD
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    featuredUntil: {
+      type: Date,
+      default: null,
+    },
+
     // ✅ EXISTING MONETIZATION FIELDS
     walletBalance: {
       type: Number,
@@ -254,6 +264,28 @@ const userSchema = new mongoose.Schema(
       enum: ["none", "pending", "approved", "rejected"],
       default: "none",
     },
+
+    // ✅ VERIFICATION BADGES (issued by admin for paid badges)
+    verificationBadges: [{
+      type: {
+        type: String,
+        enum: ["premium_verified", "student_verified", "business_verified", "identity_verified", "location_verified", "online_verified"],
+      },
+      verifiedAt: {
+        type: Date,
+        default: Date.now,
+      },
+      verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      paymentReference: {
+        type: String,
+      },
+      amount: {
+        type: Number,
+      },
+    }],
   },
   { timestamps: true }
 );

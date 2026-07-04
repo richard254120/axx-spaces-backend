@@ -25,11 +25,15 @@ export const getMoverStats = async (req, res) => {
 // @route   GET /api/movers
 export const getAllMovers = async (req, res) => {
   try {
-    const { county } = req.query;
+    const { county, featured } = req.query;
     const query = { role: "mover", isApproved: true };
 
     if (county && county !== "all" && county !== "") {
       query.county = { $regex: new RegExp(`^${county}$`, "i") };
+    }
+
+    if (featured === "true") {
+      query.isFeatured = true;
     }
 
     const movers = await User.find(query).select("-password");

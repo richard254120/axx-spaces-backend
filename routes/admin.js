@@ -615,8 +615,13 @@ router.get("/top-viewed", protect, adminOnly, async (req, res) => {
 // ====================== GET ALL NOTIFICATIONS (Unified) ======================
 router.get("/notifications", protect, adminOnly, async (req, res) => {
   try {
-    // Fetch payment notifications
+    // Fetch payment notifications (including item_request notifications)
     const paymentNotifications = await Notification.find({ read: false })
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    // Fetch item request notifications separately to transform them properly
+    const itemRequestNotifications = await Notification.find({ type: "item_request", read: false })
       .sort({ createdAt: -1 })
       .limit(50);
 
@@ -689,7 +694,17 @@ router.get("/notifications", protect, adminOnly, async (req, res) => {
     });
 
     const allNotifications = [
-      ...paymentNotifications.map(n => ({ ...n.toObject(), isPayment: true })),
+      ...paymentNotifications.filter(n => n.type !== "item_request").map(n => ({ ...n.toObject(), isPayment: true })),
+      ...itemRequestNotifications.map(n => ({
+        ...n.toObject(),
+        type: "item_request",
+        title: `Custom Request: ${n.userName || "User"}`,
+        ownerName: n.userName,
+        ownerPhone: n.userPhone,
+        ownerEmail: n.userEmail,
+        status: n.status,
+        isPayment: false,
+      })),
       ...pendingProperties.map(p => transformToNotification(p, "property")),
       ...pendingMaterials.map(m => transformToNotification(m, "material")),
       ...pendingTourism.map(t => transformToNotification(t, "tourism")),
@@ -717,7 +732,8 @@ router.get("/notifications", protect, adminOnly, async (req, res) => {
       notifications: allNotifications,
       summary: {
         total: allNotifications.length,
-        payments: paymentNotifications.length,
+        payments: paymentNotifications.filter(n => n.type !== "item_request").length,
+        itemRequests: itemRequestNotifications.length,
         properties: pendingProperties.length,
         materials: pendingMaterials.length,
         tourism: pendingTourism.length,
@@ -730,6 +746,125 @@ router.get("/notifications", protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error("❌ Get notifications error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch notifications" });
+  }
+});
+
+// ====================== FEATURE/UNFEATURE ITEM ======================
+router.post("/feature-item", protect, adminOnly, async (req, res) => {
+  try {
+    const { itemType, itemId, featured, featuredUntil } = req.body;
+
+    let item;
+    const updateData = { isFeatured: featured };
+    if (featuredUntil) {
+      updateData.featuredUntil = new Date(featuredUntil);
+    } else if (!featured) {
+      updateData.featuredUntil = null;
+    }
+
+    switch (itemType) {
+      case "property":
+        item = await Property.findByIdAndUpdate(
+          itemId,
+          updateData,
+          { new: true }
+        );
+        break;
+      case "material":
+        item = await Material.findByIdAndUpdate(
+          itemId,
+          updateData,
+          { new: true }
+        );
+        break;
+      case "tourism":
+        item = await TourismListing.findByIdAndUpdate(
+          itemId,
+          updateData,
+          { new: true }
+        );
+        break;
+      case "business":
+        item = await Business.findByIdAndUpdate(
+          itemId,
+          { featured, featuredUntil: featuredUntil ? new Date(featuredUntil) : null },
+          { new: true }
+        );
+        break;
+      case "mover":
+        item = await User.findByIdAndUpdate(
+          itemId,
+          updateData,
+          { new: true }
+        );
+        break;
+      default:
+        return res.status(400).json({ error: "Invalid item type" });
+    }
+
+    if (!item) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    res.json({
+      success: true,
+      message: featured ? "Item featured successfully" : "Item unfeatured successfully",
+      item,
+    });
+  } catch (error) {
+    console.error("❌ Feature item error:", error);
+    res.status(500).json({ error: error.message || "Failed to feature item" });
+  }
+});
+
+// ====================== GET FEATURED ITEMS ======================
+router.get("/featured-items", protect, adminOnly, async (req, res) => {
+  try {
+    const { itemType } = req.query;
+
+    let featuredItems = [];
+
+    if (!itemType || itemType === "properties") {
+      const featuredProperties = await Property.find({ isFeatured: true, status: "approved" })
+        .populate("owner", "name email phone")
+        .sort({ createdAt: -1 });
+      featuredItems.push(...featuredProperties.map(p => ({ ...p.toObject(), itemType: "property" })));
+    }
+
+    if (!itemType || itemType === "materials") {
+      const featuredMaterials = await Material.find({ isFeatured: true, status: "approved" })
+        .populate("seller", "name email phone")
+        .sort({ createdAt: -1 });
+      featuredItems.push(...featuredMaterials.map(m => ({ ...m.toObject(), itemType: "material" })));
+    }
+
+    if (!itemType || itemType === "tourism") {
+      const featuredTourism = await TourismListing.find({ isFeatured: true, status: "approved" })
+        .populate("owner", "name email phone")
+        .sort({ createdAt: -1 });
+      featuredItems.push(...featuredTourism.map(t => ({ ...t.toObject(), itemType: "tourism" })));
+    }
+
+    if (!itemType || itemType === "businesses") {
+      const featuredBusinesses = await Business.find({ featured: true, status: "approved" })
+        .populate("owner", "name email phone")
+        .sort({ createdAt: -1 });
+      featuredItems.push(...featuredBusinesses.map(b => ({ ...b.toObject(), itemType: "business" })));
+    }
+
+    if (!itemType || itemType === "movers") {
+      const featuredMovers = await User.find({ isFeatured: true, role: "mover", status: "approved" })
+        .sort({ createdAt: -1 });
+      featuredItems.push(...featuredMovers.map(m => ({ ...m.toObject(), itemType: "mover" })));
+    }
+
+    res.json({
+      success: true,
+      featuredItems,
+    });
+  } catch (error) {
+    console.error("❌ Get featured items error:", error);
+    res.status(500).json({ error: error.message || "Failed to get featured items" });
   }
 });
 
