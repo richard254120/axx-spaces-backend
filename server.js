@@ -80,18 +80,18 @@ console.log("✅ Security middleware configured");
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("✅ MongoDB connected");
-    
+
     // Run database index migrations
     try {
       const db = mongoose.connection.db;
       const collections = await db.listCollections({ name: "users" }).toArray();
       if (collections.length > 0) {
         const usersCollection = db.collection("users");
-        
+
         // List existing indexes
         const indexes = await usersCollection.indexes();
         console.log("🔍 Checking existing indexes on 'users' collection...");
-        
+
         // Look for single field unique indexes on email and phone
         for (const index of indexes) {
           if (index.name === "email_1" && index.unique) {
@@ -103,7 +103,7 @@ mongoose.connect(process.env.MONGO_URI)
             await usersCollection.dropIndex("phone_1");
           }
         }
-        
+
         // Create new compound indexes if they don't exist
         console.log("🏗️ Creating compound unique indexes...");
         await usersCollection.createIndex({ email: 1, role: 1 }, { unique: true });
@@ -174,7 +174,7 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // ====================== START SERVER ======================
-const PORT = process.env.PORT || 1000;
+const PORT = process.env.PORT || 1001;
 
 app.listen(PORT, () => {
   console.log("==================================");
