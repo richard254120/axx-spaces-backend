@@ -245,10 +245,6 @@ const userSchema = new mongoose.Schema(
       enum: ["pending", "under_review", "approved", "rejected"],
       default: "pending",
     },
-    verificationBadges: {
-      type: [String],
-      default: [],
-    },
     studentVerificationStatus: {
       type: String,
       enum: ["none", "pending", "approved", "rejected"],
