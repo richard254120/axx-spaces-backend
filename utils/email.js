@@ -429,3 +429,41 @@ export const sendLandlordRegistrationEmail = async (landlord) => {
     }
   }
 };
+
+export const sendItemRequestEmail = async (itemRequest) => {
+  const getEmailHtml = (itemRequest) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">🔍 New Custom Item Request</h1>
+      </div>
+      <div style="background: white; padding: 24px;">
+        <h2>Request Details</h2>
+        <p><strong>Name:</strong> ${itemRequest.name || "N/A"}</p>
+        <p><strong>Email:</strong> ${itemRequest.email}</p>
+        <p><strong>Phone:</strong> ${itemRequest.phone || "N/A"}</p>
+        <p><strong>Service Type:</strong> ${itemRequest.serviceType || "other"}</p>
+        <p><strong>Search Query:</strong> ${itemRequest.searchQuery}</p>
+        <p><strong>Details:</strong> ${itemRequest.details}</p>
+        <p><strong>Submitted At:</strong> ${new Date(itemRequest.createdAt).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</p>
+        <hr>
+        <p>Review this request in the <a href="${process.env.FRONTEND_URL}/dashboard">Admin Dashboard</a></p>
+      </div>
+    </div>
+  `;
+
+  console.log(`📧 Attempting to send item request email for: ${itemRequest.searchQuery}`);
+  for (const email of ADMIN_EMAILS) {
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: email,
+        subject: `New Item Request: ${itemRequest.searchQuery}`,
+        html: getEmailHtml(itemRequest),
+      });
+      console.log(`✅ Item request email sent to: ${email}`);
+    } catch (err) {
+      console.error(`❌ Item request email failed to ${email}:`, err.message);
+      console.error(`❌ Full error:`, err);
+    }
+  }
+};

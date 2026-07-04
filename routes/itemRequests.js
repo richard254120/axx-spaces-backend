@@ -3,6 +3,7 @@ import ItemRequest from "../models/ItemRequest.js";
 import { protect, adminOnly } from "../middleware/auth.js";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { sendItemRequestEmail } from "../utils/email.js";
 
 const router = express.Router();
 
@@ -43,6 +44,13 @@ router.post("/", optionalAuth, async (req, res) => {
     });
 
     await itemRequest.save();
+
+    // Send email notification to admin
+    try {
+      await sendItemRequestEmail(itemRequest);
+    } catch (emailError) {
+      console.error("Failed to send email notification:", emailError);
+    }
 
     res.status(201).json({ success: true, message: "Request submitted successfully. Admin has been notified.", request: itemRequest });
   } catch (error) {
