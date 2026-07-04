@@ -35,15 +35,23 @@ router.post("/", auth, async (req, res) => {
     console.log("Images:", images);
     console.log("Images length:", images?.length);
 
+    const cleanLocation = location ? {
+      ...location,
+      coordinates: location.coordinates ? {
+        lat: location.coordinates.lat === "" ? undefined : (location.coordinates.lat !== undefined ? parseFloat(location.coordinates.lat) : undefined),
+        lng: location.coordinates.lng === "" ? undefined : (location.coordinates.lng !== undefined ? parseFloat(location.coordinates.lng) : undefined),
+      } : undefined
+    } : undefined;
+
     const business = new Business({
       owner: req.user?.id || null,
       name,
       description,
       categories,
       yearEstablished: yearEstablished ? parseInt(yearEstablished) : undefined,
-      employeeCount,
-      priceRange,
-      location,
+      employeeCount: employeeCount || undefined,
+      priceRange: priceRange || undefined,
+      location: cleanLocation || location,
       contact,
       businessHours,
       socialMedia,
@@ -293,10 +301,37 @@ router.put("/:id", auth, async (req, res) => {
     business.name = name || business.name;
     business.description = description || business.description;
     business.categories = categories || business.categories;
-    business.yearEstablished = yearEstablished ? parseInt(yearEstablished) : business.yearEstablished;
-    business.employeeCount = employeeCount || business.employeeCount;
-    business.priceRange = priceRange || business.priceRange;
-    business.location = location || business.location;
+    
+    if (yearEstablished === "") {
+      business.yearEstablished = undefined;
+    } else if (yearEstablished !== undefined) {
+      business.yearEstablished = parseInt(yearEstablished);
+    }
+
+    if (employeeCount === "") {
+      business.employeeCount = undefined;
+    } else if (employeeCount !== undefined) {
+      business.employeeCount = employeeCount;
+    }
+
+    if (priceRange === "") {
+      business.priceRange = undefined;
+    } else if (priceRange !== undefined) {
+      business.priceRange = priceRange;
+    }
+
+    if (location) {
+      business.location = {
+        county: location.county || business.location.county,
+        town: location.town || business.location.town,
+        address: location.address !== undefined ? location.address : business.location.address,
+        coordinates: location.coordinates ? {
+          lat: location.coordinates.lat === "" ? undefined : (location.coordinates.lat !== undefined ? parseFloat(location.coordinates.lat) : business.location.coordinates?.lat),
+          lng: location.coordinates.lng === "" ? undefined : (location.coordinates.lng !== undefined ? parseFloat(location.coordinates.lng) : business.location.coordinates?.lng),
+        } : business.location.coordinates
+      };
+    }
+
     business.contact = contact || business.contact;
     business.businessHours = businessHours || business.businessHours;
     business.socialMedia = socialMedia || business.socialMedia;

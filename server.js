@@ -40,6 +40,8 @@ import uploadRoutes from "./routes/uploads.js";
 import analyticsRoutes from "./routes/analytics.js";
 import badgeRoutes from "./routes/badges.js";
 import notificationRoutes from "./routes/notifications.js";
+import itemRequestRoutes from "./routes/itemRequests.js";
+import configRoutes from "./routes/config.js";
 
 dotenv.config();
 
@@ -142,6 +144,8 @@ app.use("/api/uploads", security.apiLimiter, uploadRoutes);
 app.use("/api/badges", security.apiLimiter, badgeRoutes);
 app.use("/api/analytics", security.apiLimiter, analyticsRoutes);
 app.use("/api/notifications", security.apiLimiter, notificationRoutes);
+app.use("/api/item-requests", security.apiLimiter, itemRequestRoutes);
+app.use("/api/config", security.apiLimiter, configRoutes);
 
 // ====================== STATIC FILE SERVING ======================
 // Serve uploaded files
