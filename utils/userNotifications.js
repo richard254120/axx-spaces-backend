@@ -27,16 +27,20 @@ export const notifyUser = async (userId, { type, title, message, data }) => {
     }
 
     // 2. Create database notification record
-    await Notification.create({
-      type: type || "subscription",
-      userId: userId,
-      userName: user.name,
-      userPhone: user.phone,
-      userEmail: user.email,
-      status: "confirmed",
-      plan: title,
-      createdAt: new Date(),
-    }).catch(err => console.error("[notifyUser] Failed to save Notification record:", err.message));
+    try {
+      await Notification.create({
+        type: type || "subscription",
+        userId: userId,
+        userName: user.name,
+        userPhone: user.phone,
+        userEmail: user.email,
+        status: "confirmed",
+        plan: title,
+        createdAt: new Date(),
+      });
+    } catch (err) {
+      console.error("[notifyUser] Failed to save Notification record:", err.message);
+    }
 
   } catch (error) {
     console.error("[notifyUser] Unexpected error:", error);

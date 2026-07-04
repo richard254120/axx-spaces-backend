@@ -261,7 +261,13 @@ export const approveVerification = async (req, res) => {
 
     await User.findByIdAndUpdate(verification.user, {
       $set: updateObj,
-      $addToSet: { verificationBadges: badge }
+      $addToSet: {
+        verificationBadges: {
+          type: badge,
+          verifiedAt: new Date(),
+          verifiedBy: adminId
+        }
+      }
     });
 
     await verification.save();
