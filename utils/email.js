@@ -522,4 +522,4 @@ export const sendItemRequestEmail = async (itemRequest) => {
       console.error(`❌ Full error:`, err);
     }
   }
-};
+}
