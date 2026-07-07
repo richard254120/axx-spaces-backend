@@ -106,10 +106,9 @@ mongoose.connect(process.env.MONGO_URI)
         }
 
         // Create new compound indexes if they don't exist
-        console.log("🏗️ Creating compound unique indexes...");
-        await usersCollection.createIndex({ email: 1, role: 1 }, { unique: true });
-        await usersCollection.createIndex({ phone: 1, role: 1 }, { unique: true });
-        console.log("✅ Compound unique indexes configured successfully");
+        // REMOVED: Compound unique indexes prevent role changes in database
+        // Users should be able to change roles (e.g., landlord -> admin) without conflicts
+        console.log("ℹ️  Skipping compound unique index creation to allow role changes");
       }
     } catch (indexErr) {
       console.error("⚠️ Error updating unique indexes:", indexErr.message);
