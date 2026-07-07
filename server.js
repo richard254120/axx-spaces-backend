@@ -81,6 +81,8 @@ console.log("✅ Security middleware configured");
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("✅ MongoDB connected");
+    console.log("📍 Database:", mongoose.connection.name);
+    console.log("📍 Connection string:", process.env.MONGO_URI);
 
     // Run database index migrations
     try {
