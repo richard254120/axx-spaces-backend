@@ -253,6 +253,9 @@ router.patch("/sellers/:id/approve", protect, adminOnly, async (req, res) => {
 
     if (!seller) return res.status(404).json({ error: "❌ Seller verification not found" });
 
+    // Also update the user's isApproved status
+    await User.findByIdAndUpdate(seller.seller._id, { isApproved: true });
+
     res.json({ success: true, message: "✅ Seller verified", seller });
   } catch (error) {
     console.error("❌ Approve seller error:", error);

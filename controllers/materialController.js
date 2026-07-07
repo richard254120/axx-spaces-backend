@@ -124,8 +124,8 @@ export const approveMaterial = async (req, res) => {
     }
     const material = await Material.findByIdAndUpdate(
       req.params.id,
-      // ✅ FIXED: status is now "approved" to match the Material model enum
-      { status: "approved", isVerified: true },
+      // ✅ FIXED: status is now "active" to match the public fetch filter
+      { status: "active", isVerified: true },
       { new: true }
     ).populate("seller", "email");
     if (!material) return res.status(404).json({ error: "Material not found" });
