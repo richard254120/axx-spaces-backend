@@ -198,6 +198,11 @@ router.post("/login", security.authLimiter, async (req, res) => {
     if (role) {
       user = await User.findOne({ email, role }).select("+password");
       console.log("🔍 User found with role:", user ? "YES" : "NO");
+      // If not found with specific role, try finding by email only
+      if (!user) {
+        user = await User.findOne({ email }).select("+password");
+        console.log("🔍 User found by email only:", user ? "YES" : "NO");
+      }
     } else {
       // Fallback: prioritize admin/team roles first, otherwise return first matching user
       user = await User.findOne({ email, role: { $in: ["admin", "team"] } }).select("+password");
