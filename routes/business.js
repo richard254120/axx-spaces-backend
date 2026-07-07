@@ -100,7 +100,9 @@ router.get("/", async (req, res) => {
   try {
     const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification, page = 1, limit = 12 } = req.query;
 
+    console.log("🔍 GET /business - Query params:", req.query);
     const filter = { isApproved: true };
+    console.log("🔍 Initial filter:", filter);
 
     if (category) {
       filter.categories = category;
@@ -124,6 +126,8 @@ router.get("/", async (req, res) => {
       // Only check date if featuredUntil exists
       // filter.featuredUntil = { $gt: new Date() };
     }
+
+    console.log("🔍 Final filter:", filter);
 
     if (minRating) {
       filter.rating = { $gte: parseFloat(minRating) };
@@ -188,6 +192,12 @@ router.get("/", async (req, res) => {
         .limit(limitNum),
       Business.countDocuments(filter)
     ]);
+
+    console.log("🔍 Businesses found:", businesses.length);
+    console.log("🔍 Total businesses:", total);
+    if (businesses.length > 0) {
+      console.log("🔍 Sample business:", businesses[0]);
+    }
 
     res.json({ success: true, businesses, total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) });
   } catch (error) {
@@ -301,7 +311,7 @@ router.put("/:id", auth, async (req, res) => {
     business.name = name || business.name;
     business.description = description || business.description;
     business.categories = categories || business.categories;
-    
+
     if (yearEstablished === "") {
       business.yearEstablished = undefined;
     } else if (yearEstablished !== undefined) {
