@@ -100,9 +100,10 @@ router.get("/", async (req, res) => {
   try {
     const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification, page = 1, limit = 12 } = req.query;
 
-    console.log("🔍 GET /business - Query params:", req.query);
+    console.log("=== GET ALL BUSINESSES START ===");
+    console.log("Query params:", req.query);
     const filter = { isApproved: true };
-    console.log("🔍 Initial filter:", filter);
+    console.log("Initial filter:", filter);
 
     if (category) {
       filter.categories = category;
@@ -127,7 +128,7 @@ router.get("/", async (req, res) => {
       // filter.featuredUntil = { $gt: new Date() };
     }
 
-    console.log("🔍 Final filter:", filter);
+    console.log("Final filter:", filter);
 
     if (minRating) {
       filter.rating = { $gte: parseFloat(minRating) };
@@ -193,14 +194,17 @@ router.get("/", async (req, res) => {
       Business.countDocuments(filter)
     ]);
 
-    console.log("🔍 Businesses found:", businesses.length);
-    console.log("🔍 Total businesses:", total);
+    console.log("Businesses found:", businesses.length);
+    console.log("Total businesses:", total);
     if (businesses.length > 0) {
-      console.log("🔍 Sample business:", businesses[0]);
+      console.log("Sample business:", businesses[0].name, "isApproved:", businesses[0].isApproved, "status:", businesses[0].status);
     }
+    console.log("=== GET ALL BUSINESSES END ===");
 
     res.json({ success: true, businesses, total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) });
   } catch (error) {
+    console.error("=== GET ALL BUSINESSES ERROR ===");
+    console.error("Error:", error.message);
     res.status(500).json({ error: "Failed to fetch businesses" });
   }
 });
@@ -716,6 +720,11 @@ router.delete("/admin/:businessId/announcements/:announcementId", auth, async (r
 // ====================== ADMIN: APPROVE/REJECT BUSINESS ======================
 router.patch("/admin/:id/status", auth, async (req, res) => {
   try {
+    console.log("=== BUSINESS APPROVAL START ===");
+    console.log("Business ID:", req.params.id);
+    console.log("Requested status:", req.body.status);
+    console.log("Admin user:", req.user.email);
+
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "❌ Only admins can approve/reject businesses" });
     }
@@ -729,15 +738,26 @@ router.patch("/admin/:id/status", auth, async (req, res) => {
     const business = await Business.findById(req.params.id);
 
     if (!business) {
+      console.log("Business not found with ID:", req.params.id);
       return res.status(404).json({ error: "Business not found" });
     }
+
+    console.log("Business found:", business.name);
+    console.log("Previous status:", business.status);
+    console.log("Previous isApproved:", business.isApproved);
 
     business.status = status;
     business.isApproved = status === "approved";
     await business.save();
 
+    console.log("Updated status:", business.status);
+    console.log("Updated isApproved:", business.isApproved);
+    console.log("=== BUSINESS APPROVAL END ===");
+
     res.json({ success: true, message: `✅ Business ${status} successfully`, business });
   } catch (error) {
+    console.error("=== BUSINESS APPROVAL ERROR ===");
+    console.error("Error:", error.message);
     res.status(500).json({ error: "Failed to update business status" });
   }
 });
