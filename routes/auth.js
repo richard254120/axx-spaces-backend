@@ -188,6 +188,8 @@ router.post("/login", security.authLimiter, async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
+    console.log("🔐 Login attempt:", { email, role });
+
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
@@ -195,22 +197,31 @@ router.post("/login", security.authLimiter, async (req, res) => {
     let user;
     if (role) {
       user = await User.findOne({ email, role }).select("+password");
+      console.log("🔍 User found with role:", user ? "YES" : "NO");
     } else {
       // Fallback: prioritize admin/team roles first, otherwise return first matching user
       user = await User.findOne({ email, role: { $in: ["admin", "team"] } }).select("+password");
+      console.log("🔍 Admin/Team user found:", user ? "YES" : "NO");
       if (!user) {
         user = await User.findOne({ email }).select("+password");
+        console.log("🔍 Any user found:", user ? "YES" : "NO");
       }
     }
 
     if (!user) {
+      console.log("❌ User not found for email:", email);
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
+    console.log("👤 User found:", { email: user.email, role: user.role, isEmailVerified: user.isEmailVerified });
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      console.log("❌ Password invalid for:", email);
       return res.status(401).json({ error: "Invalid email or password" });
     }
+
+    console.log("✅ Password valid for:", email);
 
     if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
       return res.status(403).json({
