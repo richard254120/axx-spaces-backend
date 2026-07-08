@@ -98,7 +98,7 @@ router.post("/", auth, async (req, res) => {
 // ====================== GET ALL BUSINESSES ======================
 router.get("/", async (req, res) => {
   try {
-    const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification, page = 1, limit = 50 } = req.query;
+    const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification } = req.query;
 
     console.log("=== GET ALL BUSINESSES START ===");
     console.log("Query params:", req.query);
@@ -181,21 +181,11 @@ router.get("/", async (req, res) => {
         sortOption = { "verificationBadges.0": -1, createdAt: -1 };
     }
 
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    const [businesses, total] = await Promise.all([
-      Business.find(filter)
-        .populate("owner", "name email phone")
-        .sort(sortOption)
-        .skip(skip)
-        .limit(limitNum),
-      Business.countDocuments(filter)
-    ]);
+    const businesses = await Business.find(filter)
+      .populate("owner", "name email phone")
+      .sort(sortOption);
 
     console.log("Businesses found:", businesses.length);
-    console.log("Total businesses:", total);
     if (businesses.length > 0) {
       console.log("Sample business:", businesses[0].name, "isApproved:", businesses[0].isApproved, "status:", businesses[0].status);
     }
@@ -220,7 +210,7 @@ router.get("/", async (req, res) => {
 
     console.log("=== GET ALL BUSINESSES END ===");
 
-    res.json({ success: true, businesses, total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) });
+    res.json({ success: true, businesses });
   } catch (error) {
     console.error("=== GET ALL BUSINESSES ERROR ===");
     console.error("Error:", error.message);
