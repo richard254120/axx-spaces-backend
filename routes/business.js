@@ -98,7 +98,7 @@ router.post("/", auth, async (req, res) => {
 // ====================== GET ALL BUSINESSES ======================
 router.get("/", async (req, res) => {
   try {
-    const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification, page = 1, limit = 12 } = req.query;
+    const { category, county, search, featured, sort, minRating, maxRating, priceRange, openNow, verification, page = 1, limit = 50 } = req.query;
 
     console.log("=== GET ALL BUSINESSES START ===");
     console.log("Query params:", req.query);
