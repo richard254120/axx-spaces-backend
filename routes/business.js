@@ -199,6 +199,25 @@ router.get("/", async (req, res) => {
     if (businesses.length > 0) {
       console.log("Sample business:", businesses[0].name, "isApproved:", businesses[0].isApproved, "status:", businesses[0].status);
     }
+
+    // Check if Sir Ben Collections is in the results
+    const sirBen = businesses.find(b => b.name && b.name.toLowerCase().includes('sir ben'));
+    if (sirBen) {
+      console.log("✅ Sir Ben Collections found in results");
+    } else {
+      console.log("❌ Sir Ben Collections NOT found in results");
+      // Check if it exists in database
+      const allApproved = await Business.find({ status: "approved" }, { name: 1, featured: 1, categories: 1, location: 1 });
+      const sirBenInDb = allApproved.find(b => b.name && b.name.toLowerCase().includes('sir ben'));
+      if (sirBenInDb) {
+        console.log("Sir Ben Collections exists in DB but filtered out:");
+        console.log("  Name:", sirBenInDb.name);
+        console.log("  Featured:", sirBenInDb.featured);
+        console.log("  Categories:", sirBenInDb.categories);
+        console.log("  Location:", sirBenInDb.location);
+      }
+    }
+
     console.log("=== GET ALL BUSINESSES END ===");
 
     res.json({ success: true, businesses, total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) });
