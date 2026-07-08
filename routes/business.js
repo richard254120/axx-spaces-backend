@@ -102,7 +102,7 @@ router.get("/", async (req, res) => {
 
     console.log("=== GET ALL BUSINESSES START ===");
     console.log("Query params:", req.query);
-    const filter = { isApproved: true };
+    const filter = { status: "approved" };
     console.log("Initial filter:", filter);
 
     if (category) {
@@ -1009,7 +1009,7 @@ router.post("/:id/promotions", auth, async (req, res) => {
 router.get("/events/all", async (req, res) => {
   try {
     const { status, featured } = req.query;
-    const filter = { isApproved: true };
+    const filter = { status: "approved" };
 
     if (status) filter["events.status"] = status;
     if (featured === "true") filter["events.isFeatured"] = true;
@@ -1080,7 +1080,7 @@ router.get("/compare", async (req, res) => {
 router.get("/promotions/all", async (req, res) => {
   try {
     const { status, featured } = req.query;
-    const filter = { isApproved: true };
+    const filter = { status: "approved" };
 
     if (status) filter["promotions.status"] = status;
     if (featured === "true") filter["promotions.isFeatured"] = true;
