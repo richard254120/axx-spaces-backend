@@ -39,9 +39,7 @@ const materialSchema = new mongoose.Schema(
     },
     condition: {
       type: String,
-      required: [true, "Please select condition"],
-      enum: ["Like New", "Good", "Fair", "Poor"],
-      default: "Good",
+      default: "",
     },
     images: [String], // Cloudinary URLs
     location: {
