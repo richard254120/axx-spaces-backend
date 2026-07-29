@@ -62,7 +62,7 @@ const getAccessToken = async () => {
 // ====================== NEW: STK PUSH (INITIATION) ======================
 router.post("/initiate-mpesa", auth, async (req, res) => {
   try {
-    const { phone, amount, propertyId, materialId, plan, subscriptionType } = req.body;
+    const { phone, amount, propertyId, materialId, businessId, moverId, plan, subscriptionType } = req.body;
 
     if (!phone || !amount) {
       return res.status(400).json({ error: "❌ Phone and amount are required" });
@@ -102,6 +102,8 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
           plan,
           propertyId: propertyId || null,
           materialId: materialId || null,
+          businessId: businessId || null,
+          moverId: moverId || null,
           subscriptionType: subscriptionType || null,
           status: "pending",
           date: new Date(),
@@ -152,7 +154,7 @@ router.post("/callback", async (req, res) => {
           if (property) {
             property.isFeatured = true;
             property.promotionStartDate = new Date();
-            const durationDays = payment.plan === "boost-7days" ? 7 : 30;
+            const durationDays = payment.plan === "boost-3days" ? 3 : (payment.plan === "boost-7days" ? 7 : 30);
             property.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
             property.promotionTier = payment.plan;
             await property.save();
@@ -165,10 +167,22 @@ router.post("/callback", async (req, res) => {
           if (material) {
             material.isFeatured = true;
             material.promotionStartDate = new Date();
-            const durationDays = payment.plan === "boost-7days" ? 7 : 30;
+            const durationDays = payment.plan === "boost-3days" ? 3 : (payment.plan === "boost-7days" ? 7 : 30);
             material.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
             material.promotionTier = payment.plan;
             await material.save();
+          }
+        }
+
+        // If payment was for a business boost, update the business
+        if (payment.businessId) {
+          const Business = await import("../models/Business.js").then(m => m.default);
+          const business = await Business.findById(payment.businessId);
+          if (business) {
+            business.featured = true;
+            const durationDays = payment.plan === "boost-3days" ? 3 : (payment.plan === "boost-7days" ? 7 : 30);
+            business.featuredUntil = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+            await business.save();
           }
         }
 
@@ -306,12 +320,19 @@ router.post("/callback", async (req, res) => {
           }
         }
 
-        // If payment was for mover profile boost (no materialId, no propertyId, no subscriptionType)
-        if (!payment.propertyId && !payment.materialId && !payment.subscriptionType && payment.plan && payment.plan.includes("Profile Boost")) {
-          user.isFeaturedMover = true;
-          user.featuredStartDate = new Date();
-          const durationDays = payment.plan.includes("7-Day") ? 7 : 30;
-          user.featuredEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+        // If payment was for mover profile boost
+        if (payment.moverId || (!payment.propertyId && !payment.materialId && !payment.businessId && !payment.subscriptionType && payment.plan && (payment.plan.includes("Profile Boost") || payment.plan.startsWith("boost-")))) {
+          const moverId = payment.moverId || user._id;
+          const mover = await User.findById(moverId);
+          if (mover) {
+            mover.isFeatured = true;
+            const durationDays = payment.plan === "boost-3days" || payment.plan?.includes("3-Day") ? 3 : (payment.plan === "boost-7days" || payment.plan?.includes("7-Day") ? 7 : 30);
+            mover.featuredUntil = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+            mover.isFeaturedMover = true;
+            mover.featuredStartDate = new Date();
+            mover.featuredEndDate = mover.featuredUntil;
+            await mover.save();
+          }
         }
 
         await user.save();
@@ -978,12 +999,12 @@ router.get("/bank-info", async (req, res) => {
 // Initiate bank transfer payment
 router.post("/bank-transfer", auth, async (req, res) => {
   try {
-    const { amount, propertyId, materialId, plan, subscriptionType, transactionRef, bankMessage } = req.body;
+    const { amount, propertyId, materialId, businessId, moverId, plan, subscriptionType, transactionRef, bankMessage } = req.body;
 
     console.log("=== BANK TRANSFER SUBMISSION START ===");
     console.log("User ID:", req.user?.id);
     console.log("User Email:", req.user?.email);
-    console.log("Request body:", { amount, propertyId, plan, transactionRef, bankMessage: bankMessage?.substring(0, 50) });
+    console.log("Request body:", { amount, propertyId, materialId, businessId, moverId, plan, transactionRef, bankMessage: bankMessage?.substring(0, 50) });
 
     if (!amount || !transactionRef) {
       console.log("Validation failed: Missing amount or transactionRef");
@@ -1001,6 +1022,8 @@ router.post("/bank-transfer", auth, async (req, res) => {
           plan,
           propertyId: propertyId || null,
           materialId: materialId || null,
+          businessId: businessId || null,
+          moverId: moverId || null,
           subscriptionType: subscriptionType || null,
           status: "pending",
           paymentMethod: "bank_transfer",
@@ -1026,6 +1049,8 @@ router.post("/bank-transfer", auth, async (req, res) => {
         status: "pending",
         propertyId: propertyId || undefined,
         materialId: materialId || undefined,
+        businessId: businessId || undefined,
+        moverId: moverId || undefined,
         plan: plan || undefined,
         subscriptionType: subscriptionType || undefined,
         read: false,

@@ -167,6 +167,18 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isFeaturedMover: {
+      type: Boolean,
+      default: false,
+    },
+    featuredStartDate: {
+      type: Date,
+      default: null,
+    },
+    featuredEndDate: {
+      type: Date,
+      default: null,
+    },
 
     // ✅ EXISTING MONETIZATION FIELDS
     walletBalance: {
@@ -181,6 +193,8 @@ const userSchema = new mongoose.Schema(
         plan: String,
         propertyId: mongoose.Schema.Types.ObjectId,
         materialId: mongoose.Schema.Types.ObjectId,
+        businessId: mongoose.Schema.Types.ObjectId,
+        moverId: mongoose.Schema.Types.ObjectId,
         subscriptionType: String,
         paymentMethod: String,
         transactionRef: String,

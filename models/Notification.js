@@ -34,6 +34,14 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "TourismListing",
   },
+  businessId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Business",
+  },
+  moverId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   checkIn: Date,
   checkOut: Date,
   plan: String,

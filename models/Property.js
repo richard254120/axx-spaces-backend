@@ -86,7 +86,7 @@ const propertySchema = new mongoose.Schema(
     },
     promotionTier: {
       type: String,
-      enum: ["none", "boost-7days", "boost-30days", "premium-30days"],
+      enum: ["none", "boost-3days", "boost-7days", "boost-30days", "premium-30days"],
       default: "none",
     },
     promotionStartDate: {
