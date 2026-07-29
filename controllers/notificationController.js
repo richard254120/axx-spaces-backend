@@ -37,7 +37,7 @@ export const sendBoostReminders = async (req, res) => {
       // Only notify if they have items but none are boosted
       if (itemCount > 0 && !hasBoostedItems) {
         const message = getBoostReminderMessage(user.role);
-        
+
         if (type === "email" || type === "all") {
           if (user.email) {
             await sendEmail({
@@ -88,10 +88,10 @@ const getBoostReminderMessage = (role) => {
             <li><strong>KES 1000</strong> - 6 Months</li>
           </ul>
           <p>Don't miss out on potential tenants!</p>
-          <a href="https://axxspace.com/listings" style="background: #C9A84C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Boost Now</a>
+          <a href="https://axxspace.com/dashboard" style="background: #C9A84C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Boost Now</a>
         </div>
       `,
-      sms: "Boost your property on AXX Space! Get 10x more views. Plans from KES 100 for 3 weeks. Visit axxspace.com to boost now!",
+      sms: "Boost your property on AXX Space! Get 10x more views. Plans from KES 100 for 3 weeks. Visit axxspace.com/dashboard to boost now!",
     },
     seller: {
       email: `
@@ -106,10 +106,10 @@ const getBoostReminderMessage = (role) => {
             <li><strong>KES 1000</strong> - 6 Months</li>
           </ul>
           <p>Don't miss out on potential buyers!</p>
-          <a href="https://axxspace.com/materials" style="background: #38BDF8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Boost Now</a>
+          <a href="https://axxspace.com/seller-dashboard" style="background: #38BDF8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Boost Now</a>
         </div>
       `,
-      sms: "Boost your items on AXX Space! Get more sales. Plans from KES 100 for 3 weeks. Visit axxspace.com to boost now!",
+      sms: "Boost your items on AXX Space! Get more sales. Plans from KES 100 for 3 weeks. Visit axxspace.com/seller-dashboard to boost now!",
     },
     mover: {
       email: `
@@ -124,10 +124,10 @@ const getBoostReminderMessage = (role) => {
             <li><strong>KES 1000</strong> - 6 Months</li>
           </ul>
           <p>Don't miss out on potential customers!</p>
-          <a href="https://axxspace.com/movers/dashboard" style="background: #60A5FA; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Boost Now</a>
+          <a href="https://axxspace.com/mover-dashboard" style="background: #60A5FA; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Boost Now</a>
         </div>
       `,
-      sms: "Boost your mover profile on AXX Space! Get more customers. Plans from KES 100 for 3 weeks. Visit axxspace.com to boost now!",
+      sms: "Boost your mover profile on AXX Space! Get more customers. Plans from KES 100 for 3 weeks. Visit axxspace.com/mover-dashboard to boost now!",
     },
   };
 
@@ -138,10 +138,10 @@ const getBoostReminderMessage = (role) => {
 export const scheduledBoostReminders = async () => {
   try {
     console.log("Running scheduled boost reminder check...");
-    
+
     // Find users who haven't boosted in the last 30 days
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
+
     const usersToRemind = await User.find({
       $or: [
         { role: "landlord" },
@@ -177,7 +177,7 @@ export const scheduledBoostReminders = async () => {
       // Only remind if they have items but none are boosted
       if (itemCount > 0 && !hasBoostedItems) {
         const message = getBoostReminderMessage(user.role);
-        
+
         // Send email
         if (user.email) {
           try {
