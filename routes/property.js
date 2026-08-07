@@ -151,14 +151,23 @@ router.get("/", async (req, res) => {
     if (bedrooms) query.bedrooms = parseInt(bedrooms);
     if (furnished === "true") query.furnished = true;
     if (featured === "true") query.isFeatured = true;
-    if (available === "true") query.$expr = {
-      $gt: [
-        { $subtract: ["$totalUnits", "$bookedUnits"] }, 0
-      ]
+    // ✅ FULLY-BOOKED AUTO-HIDE: Always exclude properties where all units are taken.
+    // This is enforced server-side so fully-booked listings NEVER appear on the public
+    // website regardless of which client (web, app, map) makes the request.
+    // Admin routes (/admin/properties, /admin/pending) bypass this filter entirely.
+    const availabilityExpr = {
+      $gt: [{ $subtract: ["$totalUnits", "$bookedUnits"] }, 0]
     };
+
     if (search) {
       const re = new RegExp(search, "i");
-      query.$or = [{ title: re }, { location: re }, { county: re }];
+      // Use $and so both $expr and $or coexist without overwriting each other
+      query.$and = [
+        { $expr: availabilityExpr },
+        { $or: [{ title: re }, { location: re }, { county: re }] }
+      ];
+    } else {
+      query.$expr = availabilityExpr;
     }
 
     const cap = Math.min(parseInt(limit) || 100, 500);
