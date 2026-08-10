@@ -151,23 +151,29 @@ router.get("/", async (req, res) => {
     if (bedrooms) query.bedrooms = parseInt(bedrooms);
     if (furnished === "true") query.furnished = true;
     if (featured === "true") query.isFeatured = true;
-    // ✅ FULLY-BOOKED AUTO-HIDE: Always exclude properties where all units are taken.
-    // This is enforced server-side so fully-booked listings NEVER appear on the public
-    // website regardless of which client (web, app, map) makes the request.
-    // Admin routes (/admin/properties, /admin/pending) bypass this filter entirely.
+    // Only exclude fully-booked properties when the caller explicitly requests
+    // available=true (e.g. MapView, university hostel search).
+    // The public listings page now shows ALL approved properties;
+    // landlord contact info is hidden on the frontend for fully-booked listings.
     const availabilityExpr = {
       $gt: [{ $subtract: ["$totalUnits", "$bookedUnits"] }, 0]
     };
 
-    if (search) {
+    if (available === "true") {
+      // Caller explicitly wants only available units
+      if (search) {
+        const re = new RegExp(search, "i");
+        query.$and = [
+          { $expr: availabilityExpr },
+          { $or: [{ title: re }, { location: re }, { county: re }] }
+        ];
+      } else {
+        query.$expr = availabilityExpr;
+      }
+    } else if (search) {
+      // No availability filter — just the text search
       const re = new RegExp(search, "i");
-      // Use $and so both $expr and $or coexist without overwriting each other
-      query.$and = [
-        { $expr: availabilityExpr },
-        { $or: [{ title: re }, { location: re }, { county: re }] }
-      ];
-    } else {
-      query.$expr = availabilityExpr;
+      query.$or = [{ title: re }, { location: re }, { county: re }];
     }
 
     const cap = Math.min(parseInt(limit) || 100, 500);
