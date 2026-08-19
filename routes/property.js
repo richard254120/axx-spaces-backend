@@ -516,19 +516,99 @@ router.patch("/:id/status", auth, async (req, res) => {
   }
 });
 
-// ====================== UPDATE PROPERTY (ADMIN EDIT) ======================
-router.patch("/:id", auth, async (req, res) => {
+// ====================== UPDATE PROPERTY (OWNER OR ADMIN) ======================
+router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Access denied. Admin only." });
-    }
-    const property = await Property.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ error: "❌ Property not found" });
-    res.json({ success: true, property });
+
+    const isOwner = property.owner.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "❌ Access denied. Unauthorized to edit this property." });
+    }
+
+    const {
+      title, description, location, price, bedrooms, bathrooms,
+      amenities, totalUnits, deposit, furnished, leaseType,
+      availableFrom, rules, propertyType, county, lat, lng,
+      bookedUnits, university, universityId, remainingImages
+    } = req.body;
+
+    // Handle amenities array parsing
+    let parsedAmenities = [];
+    if (amenities) {
+      try {
+        parsedAmenities = typeof amenities === "string" ? JSON.parse(amenities) : amenities;
+      } catch (e) {
+        parsedAmenities = Array.isArray(amenities) ? amenities : [];
+      }
+    }
+
+    // Handle remainingImages array parsing
+    let parsedRemainingImages = [];
+    if (req.body.hasOwnProperty("remainingImages")) {
+      if (remainingImages) {
+        try {
+          parsedRemainingImages = typeof remainingImages === "string" ? JSON.parse(remainingImages) : remainingImages;
+        } catch (e) {
+          parsedRemainingImages = Array.isArray(remainingImages) ? remainingImages : [];
+        }
+      }
+    } else {
+      parsedRemainingImages = property.images || [];
+    }
+
+    // Append newly uploaded images
+    const newImageUrls = req.files ? req.files.map((file) => file.path || file.secure_url) : [];
+    const updatedImages = [...parsedRemainingImages, ...newImageUrls];
+
+    if (updatedImages.length === 0) {
+      return res.status(400).json({ error: "❌ Please keep or upload at least one image" });
+    }
+    if (updatedImages.length > 10) {
+      return res.status(400).json({ error: "❌ Maximum 10 images allowed" });
+    }
+
+    // Update property fields if provided
+    if (title !== undefined) property.title = title;
+    if (description !== undefined) property.description = description;
+    if (location !== undefined) property.location = location;
+    if (price !== undefined) property.price = parseFloat(price);
+    if (bedrooms !== undefined) property.bedrooms = parseInt(bedrooms);
+    if (bathrooms !== undefined) property.bathrooms = parseInt(bathrooms);
+    if (amenities !== undefined) property.amenities = parsedAmenities;
+    if (totalUnits !== undefined) property.totalUnits = parseInt(totalUnits);
+    if (deposit !== undefined) property.deposit = deposit ? parseFloat(deposit) : undefined;
+    if (furnished !== undefined) property.furnished = furnished === "true" || furnished === true;
+    if (leaseType !== undefined) property.leaseType = leaseType;
+    if (availableFrom !== undefined) property.availableFrom = availableFrom || undefined;
+    if (rules !== undefined) property.rules = rules;
+    if (propertyType !== undefined) property.propertyType = propertyType;
+    if (county !== undefined) property.county = county;
+    if (lat !== undefined) property.lat = lat ? parseFloat(lat) : undefined;
+    if (lng !== undefined) property.lng = lng ? parseFloat(lng) : undefined;
+    if (bookedUnits !== undefined) property.bookedUnits = parseInt(bookedUnits);
+    if (university !== undefined) property.university = university;
+    if (universityId !== undefined) property.universityId = universityId;
+    property.images = updatedImages;
+
+    // Landlord edits reset status to pending; Admin edits preserve status
+    if (!isAdmin) {
+      property.status = "pending";
+    }
+
+    await property.save();
+    console.log(`✅ Property updated successfully | ID: ${property._id} | By: ${req.user._id}`);
+
+    res.json({
+      success: true,
+      message: isAdmin
+        ? "✅ Property updated successfully!"
+        : "✅ Property updated successfully! Pending admin approval.",
+      property,
+    });
   } catch (error) {
     console.error("❌ Update property error:", error);
     res.status(500).json({ error: error.message });
