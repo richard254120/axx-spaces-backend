@@ -618,13 +618,13 @@ router.get("/top-viewed", protect, adminOnly, async (req, res) => {
 // ====================== GET ALL NOTIFICATIONS (Unified) ======================
 router.get("/notifications", protect, adminOnly, async (req, res) => {
   try {
-    // Fetch payment notifications (including item_request notifications)
-    const paymentNotifications = await Notification.find({ read: false })
+    // Fetch payment notifications (excluding item_request notifications)
+    const paymentNotifications = await Notification.find({ type: { $ne: "item_request" }, read: false })
       .sort({ createdAt: -1 })
       .limit(50);
 
-    // Fetch item request notifications separately to transform them properly
-    const itemRequestNotifications = await Notification.find({ type: "item_request", read: false })
+    // Fetch item request notifications for this admin user only
+    const itemRequestNotifications = await Notification.find({ type: "item_request", userId: req.user._id, read: false })
       .sort({ createdAt: -1 })
       .limit(50);
 
