@@ -110,12 +110,16 @@ export const getSummary = async (req, res) => {
       let inquiries = 0;
       let bookedUnits = 0;
       let revenue = 0;
+      let qrScans = 0;
+      let qrInquiries = 0;
 
       properties.forEach(p => {
         views += (p.views || 0);
         inquiries += (p.inquiries || 0);
         bookedUnits += (p.bookedUnits || 0);
         revenue += (p.bookedUnits || 0) * (p.price || 0);
+        qrScans += (p.qrScans || 0);
+        qrInquiries += (p.qrInquiries || 0);
       });
 
       if (properties.length > 0 && views === 0) {
@@ -130,6 +134,8 @@ export const getSummary = async (req, res) => {
         conversionRate: views > 0 ? ((bookedUnits / views) * 100).toFixed(1) : "0.0",
         propertiesListed: properties.length,
         averageResponseTime: 18,
+        qrScans,
+        qrInquiries,
       };
     } else if (userType === "mover") {
       const Job = (await import("../models/Job.js")).default;

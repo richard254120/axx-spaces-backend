@@ -101,6 +101,14 @@ const propertySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    qrScans: {
+      type: Number,
+      default: 0,
+    },
+    qrInquiries: {
+      type: Number,
+      default: 0,
+    },
 
     // ✅ REVIEWS - Added (No other changes made)
     reviews: [{

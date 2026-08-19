@@ -1,5 +1,7 @@
 import express from "express";
+import mongoose from "mongoose";
 import Property from "../models/Property.js";
+import QRScan from "../models/QRScan.js";
 import User from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
@@ -238,6 +240,189 @@ router.patch("/:id/view", async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "Failed to record view" });
+  }
+});
+
+// ====================== QR CODE SCANS & INQUIRIES ======================
+
+// Log a QR Scan
+router.post("/:id/scan", async (req, res) => {
+  try {
+    const { source = "generic", userAgent, lat, lng } = req.body;
+    const propertyId = req.params.id;
+
+    // Check if property exists
+    const property = await Property.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    // Capture IP address
+    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
+    // Log the scan event
+    const scan = new QRScan({
+      property: propertyId,
+      source,
+      userAgent,
+      ip,
+      location: lat && lng ? { lat, lng } : undefined,
+    });
+    await scan.save();
+
+    // Increment both views and qrScans
+    await Property.findByIdAndUpdate(propertyId, {
+      $inc: { views: 1, qrScans: 1 },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "QR Scan logged successfully",
+      scanId: scan._id,
+    });
+  } catch (error) {
+    console.error("❌ Log QR scan error:", error);
+    res.status(500).json({ error: "Failed to log QR scan" });
+  }
+});
+
+// Convert QR Scan to Inquiry (WhatsApp, Call, or Booking)
+router.post("/:id/scan/inquiry", async (req, res) => {
+  try {
+    const { scanId, inquiryType } = req.body;
+    const propertyId = req.params.id;
+
+    if (!["whatsapp", "call", "booking"].includes(inquiryType)) {
+      return res.status(400).json({ error: "Invalid inquiry type" });
+    }
+
+    let scan = null;
+    if (scanId) {
+      scan = await QRScan.findById(scanId);
+    }
+
+    // Fallback: if no scanId was provided or found, find the latest scan for this property from the last 1 hour
+    if (!scan) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      scan = await QRScan.findOne({
+        property: propertyId,
+        scannedAt: { $gte: oneHourAgo },
+      }).sort({ scannedAt: -1 });
+    }
+
+    if (!scan) {
+      // If we still can't find a scan, we still increment property inquiries but can't attribute it to a specific scan document
+      await Property.findByIdAndUpdate(propertyId, {
+        $inc: { inquiries: 1, qrInquiries: 1 },
+      });
+      return res.json({ success: true, message: "Inquiry recorded (unattributed)" });
+    }
+
+    // If this scan has already been converted to an inquiry, don't double count
+    if (scan.convertedToInquiry) {
+      return res.json({ success: true, message: "Inquiry already registered for this scan" });
+    }
+
+    // Update scan status
+    scan.convertedToInquiry = true;
+    scan.inquiryType = inquiryType;
+    scan.inquiredAt = new Date();
+    await scan.save();
+
+    // Increment property counters
+    await Property.findByIdAndUpdate(propertyId, {
+      $inc: { inquiries: 1, qrInquiries: 1 },
+    });
+
+    res.json({ success: true, message: "QR Inquiry recorded successfully" });
+  } catch (error) {
+    console.error("❌ Convert QR scan error:", error);
+    res.status(500).json({ error: "Failed to record QR inquiry" });
+  }
+});
+
+// Get Detailed QR Statistics for a property (Owner only)
+router.get("/:id/qr-stats", auth, async (req, res) => {
+  try {
+    const propertyId = req.params.id;
+
+    const property = await Property.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    // Verify ownership
+    if (property.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: "Access denied. You are not the owner of this property." });
+    }
+
+    // Run aggregations
+    const totalScans = await QRScan.countDocuments({ property: propertyId });
+    const totalInquiries = await QRScan.countDocuments({
+      property: propertyId,
+      convertedToInquiry: true,
+    });
+
+    // Breakdown by source
+    const sourceBreakdown = await QRScan.aggregate([
+      { $match: { property: new mongoose.Types.ObjectId(propertyId) } },
+      { $group: { _id: "$source", count: { $sum: 1 } } },
+    ]);
+
+    // Breakdown by inquiry type
+    const inquiryTypeBreakdown = await QRScan.aggregate([
+      {
+        $match: {
+          property: new mongoose.Types.ObjectId(propertyId),
+          convertedToInquiry: true,
+        },
+      },
+      { $group: { _id: "$inquiryType", count: { $sum: 1 } } },
+    ]);
+
+    // Daily scan history (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const dailyHistory = await QRScan.aggregate([
+      {
+        $match: {
+          property: new mongoose.Types.ObjectId(propertyId),
+          scannedAt: { $gte: thirtyDaysAgo },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$scannedAt" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalScans,
+        totalInquiries,
+        conversionRate: totalScans > 0 ? ((totalInquiries / totalScans) * 100).toFixed(1) : "0.0",
+        sourceBreakdown: sourceBreakdown.map((item) => ({
+          source: item._id,
+          count: item.count,
+        })),
+        inquiryTypeBreakdown: inquiryTypeBreakdown.map((item) => ({
+          type: item._id,
+          count: item.count,
+        })),
+        dailyHistory: dailyHistory.map((item) => ({
+          date: item._id,
+          count: item.count,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("❌ Get QR stats error:", error);
+    res.status(500).json({ error: "Failed to fetch QR statistics" });
   }
 });
 
