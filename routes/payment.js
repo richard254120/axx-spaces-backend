@@ -1217,7 +1217,7 @@ router.get("/notifications", auth, async (req, res) => {
       return res.status(403).json({ error: "❌ Only admins can view notifications" });
     }
 
-    const notifications = await Notification.find()
+    const notifications = await Notification.find({ type: { $ne: "item_request" } })
       .populate("userId", "name phone email")
       .populate("propertyId", "title")
       .populate("materialId", "title")
@@ -1251,8 +1251,8 @@ router.put("/notifications/:id/read", auth, async (req, res) => {
 
     notification.read = true;
 
-    // Process manual bank transfer payments if notification is pending
-    if (notification.status === "pending") {
+    // Process manual bank transfer payments if notification is pending (and is not an item request)
+    if (notification.status === "pending" && notification.type !== "item_request") {
       const isApproved = approve !== false; // Default to true if not specified
       console.log(`Pending notification found. Action:`, isApproved ? "APPROVE" : "REJECT");
 
