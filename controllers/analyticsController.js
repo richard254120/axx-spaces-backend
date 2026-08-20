@@ -266,7 +266,7 @@ export const getSummary = async (req, res) => {
       data: baseData,
     });
   } catch (error) {
-    console.error("❌ Analytics summary error:", error);
+    console.error(" Analytics summary error:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 };

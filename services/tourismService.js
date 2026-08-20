@@ -21,11 +21,11 @@ const PACKAGE_META = {
 };
 
 const CATEGORY_ICONS = {
-  "Beach Resort": "🏖️",
-  "Safari Camp": "🦁",
-  "Mountain Lodge": "⛰️",
-  "City Hotel": "🏨",
-  "Camping Grounds": "🏕️",
+  "Beach Resort": "",
+  "Safari Camp": "",
+  "Mountain Lodge": "",
+  "City Hotel": "",
+  "Camping Grounds": "",
 };
 
 function buildListFilter(query) {
@@ -148,7 +148,7 @@ export async function listCategories() {
   return rows.map((r) => ({
     name: r._id,
     count: r.count,
-    emoji: CATEGORY_ICONS[r._id] || "🏨",
+    emoji: CATEGORY_ICONS[r._id] || "",
   }));
 }
 

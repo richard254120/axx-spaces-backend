@@ -67,7 +67,7 @@ const tourismListingSchema = new mongoose.Schema(
 
     color: { type: String, default: "#0ea5e9" },
     tag: { type: String, default: null },
-    emoji: { type: String, default: "🏨" },
+    emoji: { type: String, default: "" },
     shortDesc: { type: String, default: "" },
     images: { type: [String], default: [] },
     videos: { type: [String], default: [] },
@@ -87,7 +87,7 @@ const tourismListingSchema = new mongoose.Schema(
     views: { type: Number, default: 0 },
     reviews: { type: [reviewSchema], default: [] },
 
-    // ✅ VERIFICATION BADGES
+    //  VERIFICATION BADGES
     verificationBadges: [{
       type: {
         type: String,

@@ -130,7 +130,7 @@ export const detectInjection = (req, res, next) => {
   };
 
   if (checkValue(req.body) || checkValue(req.query) || checkValue(req.params)) {
-    console.log('🚨 Injection attack detected');
+    console.log(' Injection attack detected');
     return res.status(400).json({ error: 'Malicious request detected' });
   }
 

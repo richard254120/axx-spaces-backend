@@ -82,8 +82,8 @@ router.post("/", auth, async (req, res) => {
     res.json({
       success: true,
       message: business.isFirstUpload
-        ? "✅ Business submitted for approval. It will be visible once approved by admin."
-        : "✅ Business created successfully and is now visible.",
+        ? " Business submitted for approval. It will be visible once approved by admin."
+        : " Business created successfully and is now visible.",
       business,
     });
   } catch (error) {
@@ -193,9 +193,9 @@ router.get("/", async (req, res) => {
     // Check if Sir Ben Collections is in the results
     const sirBen = businesses.find(b => b.name && b.name.toLowerCase().includes('sir ben'));
     if (sirBen) {
-      console.log("✅ Sir Ben Collections found in results");
+      console.log(" Sir Ben Collections found in results");
     } else {
-      console.log("❌ Sir Ben Collections NOT found in results");
+      console.log(" Sir Ben Collections NOT found in results");
       // Check if it exists in database
       const allApproved = await Business.find({ status: "approved" }, { name: 1, featured: 1, categories: 1, location: 1 });
       const sirBenInDb = allApproved.find(b => b.name && b.name.toLowerCase().includes('sir ben'));
@@ -367,7 +367,7 @@ router.put("/:id", auth, async (req, res) => {
 
     await business.save();
 
-    res.json({ success: true, message: "✅ Business updated successfully", business });
+    res.json({ success: true, message: " Business updated successfully", business });
   } catch (error) {
     res.status(500).json({ error: "Failed to update business" });
   }
@@ -388,7 +388,7 @@ router.delete("/:id", auth, async (req, res) => {
 
     await Business.findByIdAndDelete(req.params.id);
 
-    res.json({ success: true, message: "✅ Business deleted successfully" });
+    res.json({ success: true, message: " Business deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete business" });
   }
@@ -412,7 +412,7 @@ router.post("/:id/offers", auth, async (req, res) => {
     business.offers.push({ title, description, discount, validUntil });
     await business.save();
 
-    res.json({ success: true, message: "✅ Offer added successfully", business });
+    res.json({ success: true, message: " Offer added successfully", business });
   } catch (error) {
     res.status(500).json({ error: "Failed to add offer" });
   }
@@ -436,7 +436,7 @@ router.post("/:id/announcements", auth, async (req, res) => {
     business.announcements.push({ title, content });
     await business.save();
 
-    res.json({ success: true, message: "✅ Announcement added successfully", business });
+    res.json({ success: true, message: " Announcement added successfully", business });
   } catch (error) {
     res.status(500).json({ error: "Failed to add announcement" });
   }
@@ -446,7 +446,7 @@ router.post("/:id/announcements", auth, async (req, res) => {
 router.get("/admin/pending", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can view pending businesses" });
+      return res.status(403).json({ error: " Only admins can view pending businesses" });
     }
 
     const businesses = await Business.find({ status: "pending" })
@@ -463,7 +463,7 @@ router.get("/admin/pending", auth, async (req, res) => {
 router.get("/admin/approved", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can view approved businesses" });
+      return res.status(403).json({ error: " Only admins can view approved businesses" });
     }
 
     const businesses = await Business.find({ status: "approved" })
@@ -480,7 +480,7 @@ router.get("/admin/approved", auth, async (req, res) => {
 router.get("/admin/rejected", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can view rejected businesses" });
+      return res.status(403).json({ error: " Only admins can view rejected businesses" });
     }
 
     const businesses = await Business.find({ status: "rejected" })
@@ -584,7 +584,7 @@ router.post("/:id/announcements", auth, async (req, res) => {
 router.patch("/admin/:businessId/announcements/:announcementId/status", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can approve/reject announcements" });
+      return res.status(403).json({ error: " Only admins can approve/reject announcements" });
     }
 
     const { status } = req.body;
@@ -608,7 +608,7 @@ router.patch("/admin/:businessId/announcements/:announcementId/status", auth, as
     announcement.status = status;
     await business.save();
 
-    res.json({ success: true, message: `✅ Announcement ${status} successfully`, business });
+    res.json({ success: true, message: ` Announcement ${status} successfully`, business });
   } catch (error) {
     console.error("Approve/reject announcement error:", error);
     res.status(500).json({ error: "Failed to update announcement status" });
@@ -619,7 +619,7 @@ router.patch("/admin/:businessId/announcements/:announcementId/status", auth, as
 router.get("/admin/announcements", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can view announcements" });
+      return res.status(403).json({ error: " Only admins can view announcements" });
     }
 
     const businesses = await Business.find({ "announcements.0": { $exists: true } })
@@ -660,7 +660,7 @@ router.patch("/admin/announcements/:businessId/:announcementIndex", auth, async 
     console.log("Request body:", req.body);
 
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can moderate announcements" });
+      return res.status(403).json({ error: " Only admins can moderate announcements" });
     }
 
     const { businessId, announcementIndex } = req.params;
@@ -703,7 +703,7 @@ router.patch("/admin/announcements/:businessId/:announcementIndex", auth, async 
 router.delete("/admin/:businessId/announcements/:announcementId", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can delete announcements" });
+      return res.status(403).json({ error: " Only admins can delete announcements" });
     }
 
     const { businessId, announcementId } = req.params;
@@ -719,7 +719,7 @@ router.delete("/admin/:businessId/announcements/:announcementId", auth, async (r
 
     await business.save();
 
-    res.json({ success: true, message: "✅ Announcement deleted successfully" });
+    res.json({ success: true, message: " Announcement deleted successfully" });
   } catch (error) {
     console.error("Delete announcement error:", error);
     res.status(500).json({ error: "Failed to delete announcement" });
@@ -735,7 +735,7 @@ router.patch("/admin/:id/status", auth, async (req, res) => {
     console.log("Admin user:", req.user.email);
 
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can approve/reject businesses" });
+      return res.status(403).json({ error: " Only admins can approve/reject businesses" });
     }
 
     const { status } = req.body;
@@ -763,7 +763,7 @@ router.patch("/admin/:id/status", auth, async (req, res) => {
     console.log("Updated isApproved:", business.isApproved);
     console.log("=== BUSINESS APPROVAL END ===");
 
-    res.json({ success: true, message: `✅ Business ${status} successfully`, business });
+    res.json({ success: true, message: ` Business ${status} successfully`, business });
   } catch (error) {
     console.error("=== BUSINESS APPROVAL ERROR ===");
     console.error("Error:", error.message);
@@ -775,7 +775,7 @@ router.patch("/admin/:id/status", auth, async (req, res) => {
 router.post("/admin/:id/verify", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can verify businesses" });
+      return res.status(403).json({ error: " Only admins can verify businesses" });
     }
 
     const { badgeType, tier, documents } = req.body;
@@ -811,7 +811,7 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
 
     await business.save();
 
-    res.json({ success: true, message: `✅ Verification badge added successfully`, business });
+    res.json({ success: true, message: ` Verification badge added successfully`, business });
   } catch (error) {
     res.status(500).json({ error: "Failed to add verification badge" });
   }
@@ -821,7 +821,7 @@ router.post("/admin/:id/verify", auth, async (req, res) => {
 router.patch("/admin/:id/feature", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can feature businesses" });
+      return res.status(403).json({ error: " Only admins can feature businesses" });
     }
 
     const { featured, featuredUntil } = req.body;
@@ -846,7 +846,7 @@ router.patch("/admin/:id/feature", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: featured ? "✅ Business featured successfully" : "✅ Business unfeatured successfully",
+      message: featured ? " Business featured successfully" : " Business unfeatured successfully",
       business
     });
   } catch (error) {
@@ -1124,7 +1124,7 @@ router.get("/promotions/all", async (req, res) => {
 router.post("/admin/:id/feature", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can feature businesses" });
+      return res.status(403).json({ error: " Only admins can feature businesses" });
     }
 
     const { days } = req.body;
@@ -1141,7 +1141,7 @@ router.post("/admin/:id/feature", auth, async (req, res) => {
     business.featuredUntil = featuredUntil;
     await business.save();
 
-    res.json({ success: true, message: `✅ Business featured for ${days || 30} days`, business });
+    res.json({ success: true, message: ` Business featured for ${days || 30} days`, business });
   } catch (error) {
     res.status(500).json({ error: "Failed to feature business" });
   }

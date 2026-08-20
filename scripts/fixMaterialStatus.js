@@ -7,7 +7,7 @@ dotenv.config();
 const fixMaterialStatus = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Change "active" to "approved"
     const activeMaterials = await Material.find({ status: "active" });
@@ -22,10 +22,10 @@ const fixMaterialStatus = async () => {
     const soldMaterials = await Material.find({ status: "sold" });
     console.log(`Found ${soldMaterials.length} materials with status 'sold' (no change needed)`);
 
-    console.log("\n✅ Material status fix completed");
+    console.log("\n Material status fix completed");
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error:", error);
+    console.error(" Error:", error);
     process.exit(1);
   }
 };

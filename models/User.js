@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    // ✅ ROLE IDENTIFICATION — added "seller" and "team"
+    //  ROLE IDENTIFICATION — added "seller" and "team"
     role: {
       type: String,
       enum: ["user", "mover", "admin", "landlord", "seller", "team"],
@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema(
       default: "general",
     },
 
-    // ✅ MOVER SPECIFIC FIELDS
+    //  MOVER SPECIFIC FIELDS
     isApproved: {
       type: Boolean,
       default: false,
@@ -158,7 +158,7 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
 
-    // ✅ FEATURED MOVER FIELD
+    //  FEATURED MOVER FIELD
     isFeatured: {
       type: Boolean,
       default: false,
@@ -180,7 +180,7 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ✅ EXISTING MONETIZATION FIELDS
+    //  EXISTING MONETIZATION FIELDS
     walletBalance: {
       type: Number,
       default: 0,
@@ -219,7 +219,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // ✅ PASSWORD RESET FIELDS
+    //  PASSWORD RESET FIELDS
     resetPasswordToken: {
       type: String,
     },
@@ -227,7 +227,7 @@ const userSchema = new mongoose.Schema(
       type: Date,
     },
 
-    // ✅ EMAIL VERIFICATION FIELDS
+    //  EMAIL VERIFICATION FIELDS
     isEmailVerified: {
       type: Boolean,
       default: false,
@@ -239,7 +239,7 @@ const userSchema = new mongoose.Schema(
       type: Date,
     },
 
-    // ✅ GOOGLE OAUTH FIELDS
+    //  GOOGLE OAUTH FIELDS
     googleId: {
       type: String,
     },
@@ -248,7 +248,7 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
-    // ✅ KYC VERIFICATION FIELDS
+    //  KYC VERIFICATION FIELDS
     verificationLevel: {
       type: Number,
       enum: [1, 2, 3, 4],
@@ -275,7 +275,7 @@ const userSchema = new mongoose.Schema(
       default: "none",
     },
 
-    // ✅ VERIFICATION BADGES (issued by admin for paid badges)
+    //  VERIFICATION BADGES (issued by admin for paid badges)
     verificationBadges: [{
       type: {
         type: String,

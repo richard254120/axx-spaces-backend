@@ -7,7 +7,7 @@ dotenv.config();
 const migrateMaterialStatus = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Find all materials with status "active" and update to "approved"
     const result = await Material.updateMany(
@@ -15,7 +15,7 @@ const migrateMaterialStatus = async () => {
       { status: "approved" }
     );
 
-    console.log(`✅ Updated ${result.modifiedCount} materials from "active" to "approved"`);
+    console.log(` Updated ${result.modifiedCount} materials from "active" to "approved"`);
 
     // Check current status distribution
     const materials = await Material.find({});
@@ -31,7 +31,7 @@ const migrateMaterialStatus = async () => {
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Migration error:", error);
+    console.error(" Migration error:", error);
     process.exit(1);
   }
 };

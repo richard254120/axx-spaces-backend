@@ -13,7 +13,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-console.log("☁️ Cloudinary configured");
+console.log(" Cloudinary configured");
 
 // ============ CLOUDINARY STORAGE FOR MULTER ============
 const storage = new CloudinaryStorage({
@@ -29,7 +29,7 @@ const storage = new CloudinaryStorage({
   },
 });
 
-console.log("✅ CloudinaryStorage configured");
+console.log(" CloudinaryStorage configured");
 
 // ============ ENHANCED FILE FILTER ============
 const fileFilter = (req, file, cb) => {
@@ -37,24 +37,24 @@ const fileFilter = (req, file, cb) => {
     // Use enhanced file type validation
     const typeValidation = validateFileType(file, 'images');
     if (!typeValidation.isValid) {
-      console.error("❌ File rejected:", file.originalname, typeValidation.error);
+      console.error(" File rejected:", file.originalname, typeValidation.error);
       return cb(new Error(typeValidation.error), false);
     }
 
     // Use enhanced file size validation
     const sizeValidation = validateFileSize(file, 'images');
     if (!sizeValidation.isValid) {
-      console.error("❌ File rejected:", file.originalname, sizeValidation.error);
+      console.error(" File rejected:", file.originalname, sizeValidation.error);
       return cb(new Error(sizeValidation.error), false);
     }
 
     // Sanitize filename
     file.originalname = sanitizeFilename(file.originalname);
 
-    console.log("✅ Image file accepted:", file.originalname);
+    console.log(" Image file accepted:", file.originalname);
     cb(null, true);
   } catch (error) {
-    console.error("❌ File filter error:", error);
+    console.error(" File filter error:", error);
     cb(new Error("File validation failed"), false);
   }
 };
@@ -68,6 +68,6 @@ const upload = multer({
   },
 });
 
-console.log("✅ Multer configured with CloudinaryStorage");
+console.log(" Multer configured with CloudinaryStorage");
 
 export default upload;

@@ -42,14 +42,14 @@ router.post("/submit", auth, async (req, res) => {
       status: "pending",
     });
 
-    console.log(`✅ Payment verification submitted by user: ${req.user.email}`);
+    console.log(` Payment verification submitted by user: ${req.user.email}`);
     res.status(201).json({
       success: true,
       message: "Payment verification submitted successfully. Admin will review it shortly.",
       verification,
     });
   } catch (err) {
-    console.error("❌ Failed to submit payment verification:", err);
+    console.error(" Failed to submit payment verification:", err);
     res.status(500).json({ error: "Failed to submit payment verification" });
   }
 });
@@ -64,7 +64,7 @@ router.get("/my", auth, async (req, res) => {
 
     res.json(verifications);
   } catch (err) {
-    console.error("❌ Failed to fetch payment verifications:", err);
+    console.error(" Failed to fetch payment verifications:", err);
     res.status(500).json({ error: "Failed to fetch payment verifications" });
   }
 });
@@ -84,7 +84,7 @@ router.get("/pending", auth, async (req, res) => {
 
     res.json(pendingVerifications);
   } catch (err) {
-    console.error("❌ Failed to fetch pending payment verifications:", err);
+    console.error(" Failed to fetch pending payment verifications:", err);
     res.status(500).json({ error: "Failed to fetch pending payment verifications" });
   }
 });
@@ -121,7 +121,7 @@ router.patch("/:verificationId/process", auth, async (req, res) => {
           property.isFeatured = true;
           property.featuredUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
           await property.save();
-          console.log(`✅ Property featured: ${property.title}`);
+          console.log(` Property featured: ${property.title}`);
         }
       } else if (verification.type === "tourism_package" && verification.tourismPropertyId) {
         const tourismProperty = await TourismListing.findById(verification.tourismPropertyId);
@@ -129,20 +129,20 @@ router.patch("/:verificationId/process", auth, async (req, res) => {
           tourismProperty.isFeatured = true;
           tourismProperty.featuredUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
           await tourismProperty.save();
-          console.log(`✅ Tourism property featured: ${tourismProperty.name}`);
+          console.log(` Tourism property featured: ${tourismProperty.name}`);
         }
       } else if (verification.type === "premium_plan") {
         const user = await User.findById(verification.user);
         if (user) {
           user.walletBalance = (user.walletBalance || 0) + verification.amount;
           await user.save();
-          console.log(`✅ User wallet updated: ${user.email}`);
+          console.log(` User wallet updated: ${user.email}`);
         }
       }
     }
 
     await verification.save();
-    console.log(`✅ Payment verification ${approve ? 'approved' : 'rejected'}: ${verification._id}`);
+    console.log(` Payment verification ${approve ? 'approved' : 'rejected'}: ${verification._id}`);
 
     res.json({
       success: true,
@@ -150,7 +150,7 @@ router.patch("/:verificationId/process", auth, async (req, res) => {
       verification,
     });
   } catch (err) {
-    console.error("❌ Failed to process payment verification:", err);
+    console.error(" Failed to process payment verification:", err);
     res.status(500).json({ error: "Failed to process payment verification" });
   }
 });

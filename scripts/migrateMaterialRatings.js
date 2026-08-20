@@ -10,16 +10,16 @@ const migrateMaterialRatings = async () => {
     // Connect to MongoDB - use command line arg or env var
     const mongoUri = process.argv[2] || process.env.MONGODB_URI || "mongodb://localhost:27017/axx-spaces";
     await mongoose.connect(mongoUri);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Fetch all materials from the 'merchants' collection
     const materials = await Material.find({});
-    console.log(`📦 Found ${materials.length} materials in 'merchants' collection`);
+    console.log(` Found ${materials.length} materials in 'merchants' collection`);
 
     if (materials.length === 0) {
-      console.log("⚠️ No materials found. Checking if collection exists...");
+      console.log(" No materials found. Checking if collection exists...");
       const collections = await mongoose.connection.db.collections();
-      console.log("📋 Available collections:", collections.map(c => c.collectionName));
+      console.log(" Available collections:", collections.map(c => c.collectionName));
     }
 
     let updatedCount = 0;
@@ -48,17 +48,17 @@ const migrateMaterialRatings = async () => {
         reviewCount: reviewCount,
       });
 
-      console.log(`✅ Updated material "${material.title}": Rating=${averageRating.toFixed(1)}, Reviews=${reviewCount}`);
+      console.log(` Updated material "${material.title}": Rating=${averageRating.toFixed(1)}, Reviews=${reviewCount}`);
       updatedCount++;
     }
 
-    console.log(`\n🎉 Migration complete!`);
-    console.log(`✅ Updated: ${updatedCount} materials`);
-    console.log(`⏭️ Skipped: ${skippedCount} materials`);
+    console.log(`\n Migration complete!`);
+    console.log(` Updated: ${updatedCount} materials`);
+    console.log(` Skipped: ${skippedCount} materials`);
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Migration error:", error);
+    console.error(" Migration error:", error);
     process.exit(1);
   }
 };

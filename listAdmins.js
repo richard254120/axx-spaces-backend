@@ -14,15 +14,15 @@ const listAdmins = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Find all admin users
     const admins = await User.find({ role: "admin" }).select("name email phone role isEmailVerified isApproved _id");
     
-    console.log(`\n📋 Found ${admins.length} admin users:\n`);
+    console.log(`\n Found ${admins.length} admin users:\n`);
     
     if (admins.length === 0) {
-      console.log("❌ No admin users found in database");
+      console.log(" No admin users found in database");
     } else {
       admins.forEach((admin, index) => {
         console.log(`${index + 1}. Name: ${admin.name}`);
@@ -39,7 +39,7 @@ const listAdmins = async () => {
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error listing admins:", error);
+    console.error(" Error listing admins:", error);
     await mongoose.disconnect();
     process.exit(1);
   }

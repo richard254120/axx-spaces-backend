@@ -19,4 +19,4 @@ const frontendEnvContent = Object.entries(frontendEnvConfig)
   .join('\n');
 
 fs.writeFileSync(frontendEnvPath, frontendEnvContent);
-console.log('✅ Updated main frontend .env file with VITE_API_URL=http://localhost:1000/api');
+console.log(' Updated main frontend .env file with VITE_API_URL=http://localhost:1000/api');

@@ -180,7 +180,7 @@ const enhancedRateLimit = rateLimit({
 
       if (current.count >= 5) {
         securityStore.blockedIPs.set(ip, Date.now());
-        console.log(`🚫 IP Blocked: ${ip} - Excessive rate limit violations`);
+        console.log(` IP Blocked: ${ip} - Excessive rate limit violations`);
       }
     }
 
@@ -206,7 +206,7 @@ const authLimiter = rateLimit({
 
       if (current.count >= 10) {
         securityStore.blockedIPs.set(ip, Date.now());
-        console.log(`🚫 IP Blocked: ${ip} - Excessive failed auth attempts`);
+        console.log(` IP Blocked: ${ip} - Excessive failed auth attempts`);
       }
     }
 
@@ -246,7 +246,7 @@ const validateInput = (req, res, next) => {
 
   if (checkValue(req.body) || checkValue(req.query) || checkValue(req.params)) {
     const ip = req.ip || req.connection.remoteAddress;
-    console.log(`🚨 Suspicious input detected from IP: ${ip}`);
+    console.log(` Suspicious input detected from IP: ${ip}`);
 
     const key = `${ip}-suspicious-input`;
     const current = securityStore.suspiciousActivity.get(key) || { count: 0, timestamp: Date.now() };
@@ -257,7 +257,7 @@ const validateInput = (req, res, next) => {
 
       if (current.count >= 3) {
         securityStore.blockedIPs.set(ip, Date.now());
-        console.log(`🚫 IP Blocked: ${ip} - Suspicious input patterns`);
+        console.log(` IP Blocked: ${ip} - Suspicious input patterns`);
       }
     }
 
@@ -348,7 +348,7 @@ const sqlInjectionPrevention = (req, res, next) => {
 
   if (checkForSQL(req.body) || checkForSQL(req.query) || checkForSQL(req.params)) {
     const ip = req.ip || req.connection.remoteAddress;
-    console.log(`🚨 SQL injection attempt detected from IP: ${ip}`);
+    console.log(` SQL injection attempt detected from IP: ${ip}`);
     securityStore.blockedIPs.set(ip, Date.now());
     return res.status(400).json({ error: 'Invalid request detected' });
   }
@@ -374,7 +374,7 @@ const securityLogger = (req, res, next) => {
     };
 
     if (res.statusCode >= 400) {
-      console.log('🚨 Security Log:', JSON.stringify(logData));
+      console.log(' Security Log:', JSON.stringify(logData));
     }
   });
 
@@ -396,8 +396,8 @@ function applyTo(app) {
   app.use(hpp());
   app.use(securityLogger);
 
-  console.log("🔒 [enhancedSecurity.js] All enhanced security middleware applied successfully");
-  console.log("🛡️  Security Features Active:");
+  console.log(" [enhancedSecurity.js] All enhanced security middleware applied successfully");
+  console.log("  Security Features Active:");
   console.log("   - Helmet with CSP (GA + Clarity allowed)");
   console.log("   - Enhanced CORS");
   console.log("   - IP Blocking");

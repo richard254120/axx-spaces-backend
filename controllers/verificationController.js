@@ -274,7 +274,7 @@ export const approveVerification = async (req, res) => {
 
     await notifyUser(verification.user, {
       type: "kyc_approved",
-      title: "✅ Verification approved",
+      title: " Verification approved",
       message: `Your Level ${verification.verificationLevel} verification has been approved.`,
       data: { verificationId: String(verification._id), level: verification.verificationLevel },
     });
@@ -349,7 +349,7 @@ export const rejectVerification = async (req, res) => {
 
     await notifyUser(verification.user, {
       type: "kyc_rejected",
-      title: "❌ Verification rejected",
+      title: " Verification rejected",
       message: `Your Level ${verification.verificationLevel} verification was rejected. Reason: ${rejectionReason}`,
       data: { verificationId: String(verification._id), level: verification.verificationLevel },
     });

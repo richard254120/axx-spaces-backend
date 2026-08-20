@@ -43,7 +43,7 @@ export const getApprovedMaterials = async (req, res) => {
   try {
     const { category, condition, minPrice, maxPrice, county, search, featured, limit } = req.query;
 
-    // ✅ FIXED: Only show materials with status "active"
+    //  FIXED: Only show materials with status "active"
     let filter = { status: "active" };
 
     if (category) filter.category = category;
@@ -86,7 +86,7 @@ export const getApprovedMaterials = async (req, res) => {
 
     res.json(materials);
   } catch (error) {
-    console.error("❌ Get approved materials error:", error);
+    console.error(" Get approved materials error:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -111,7 +111,7 @@ export const getMaterialById = async (req, res) => {
 
     res.json(material);
   } catch (error) {
-    console.error("❌ Get material by ID error:", error);
+    console.error(" Get material by ID error:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -124,7 +124,7 @@ export const approveMaterial = async (req, res) => {
     }
     const material = await Material.findByIdAndUpdate(
       req.params.id,
-      // ✅ FIXED: status is now "active" to match the public fetch filter
+      //  FIXED: status is now "active" to match the public fetch filter
       { status: "active", isVerified: true },
       { new: true }
     ).populate("seller", "email");

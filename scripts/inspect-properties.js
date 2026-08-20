@@ -7,7 +7,7 @@ dotenv.config();
 const inspect = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     const count = await Property.countDocuments();
     console.log(`Total properties in DB: ${count}`);

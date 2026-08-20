@@ -72,7 +72,7 @@ router.post("/", optionalAuth, async (req, res) => {
 
     res.status(201).json({ success: true, message: "Request submitted successfully. Admin has been notified.", request: itemRequest });
   } catch (error) {
-    console.error("❌ Submit request error:", error);
+    console.error(" Submit request error:", error);
     res.status(500).json({ error: error.message || "Failed to submit request" });
   }
 });
@@ -86,7 +86,7 @@ router.get("/admin", protect, adminOnly, async (req, res) => {
 
     res.json({ success: true, requests });
   } catch (error) {
-    console.error("❌ Get admin requests error:", error);
+    console.error(" Get admin requests error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch requests" });
   }
 });
@@ -111,7 +111,7 @@ router.patch("/admin/:id/status", protect, adminOnly, async (req, res) => {
 
     res.json({ success: true, message: `Request status updated to ${status}`, request });
   } catch (error) {
-    console.error("❌ Update request status error:", error);
+    console.error(" Update request status error:", error);
     res.status(500).json({ error: error.message || "Failed to update status" });
   }
 });

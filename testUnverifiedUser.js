@@ -15,7 +15,7 @@ const testUnverifiedUser = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Create a test user with landlord role, unverified email, not approved
     const testEmail = "unverified@axxspace.com";
@@ -23,7 +23,7 @@ const testUnverifiedUser = async () => {
     const testName = "Unverified User";
     const testPhone = "0712345679";
 
-    console.log(`\n🧪 Testing unverified user role change scenario\n`);
+    console.log(`\n Testing unverified user role change scenario\n`);
 
     // Step 1: Create a test user with landlord role, unverified, not approved
     console.log("Step 1: Creating test user with landlord role (unverified, not approved)...");
@@ -52,7 +52,7 @@ const testUnverifiedUser = async () => {
       await user.save();
     }
     
-    console.log(`   ✅ User created/updated:`);
+    console.log(`    User created/updated:`);
     console.log(`      Role: ${user.role}`);
     console.log(`      Email Verified: ${user.isEmailVerified}`);
     console.log(`      Approved: ${user.isApproved}`);
@@ -70,14 +70,14 @@ const testUnverifiedUser = async () => {
     console.log(`   Response: ${loginData1.error || "Success"}`);
     
     if (loginResponse1.status === 403) {
-      console.log("   ✅ Correctly rejected - unverified landlord cannot login");
+      console.log("    Correctly rejected - unverified landlord cannot login");
     }
 
     // Step 3: Change role to admin in database (keep unverified, not approved)
     console.log("\nStep 3: Changing user role to admin (keeping unverified, not approved)...");
     user.role = "admin";
     await user.save();
-    console.log(`   ✅ Role changed to: ${user.role}`);
+    console.log(`    Role changed to: ${user.role}`);
     console.log(`   Email Verified: ${user.isEmailVerified}`);
     console.log(`   Approved: ${user.isApproved}`);
 
@@ -94,26 +94,26 @@ const testUnverifiedUser = async () => {
     console.log(`   Response: ${loginData2.error || "Success"}`);
     
     if (loginResponse2.status === 200) {
-      console.log("   ✅ Successfully logged in as admin despite being unverified!");
+      console.log("    Successfully logged in as admin despite being unverified!");
       console.log(`   Token: ${loginData2.token.substring(0, 50)}...`);
       console.log(`   User: ${loginData2.user.name} (${loginData2.user.role})`);
     } else {
-      console.log("   ❌ Failed to login - NEEDS FIX");
+      console.log("    Failed to login - NEEDS FIX");
     }
 
     // Cleanup
     console.log("\nStep 5: Cleaning up - deleting test user...");
     await User.deleteOne({ email: testEmail });
-    console.log("   ✅ Test user deleted");
+    console.log("    Test user deleted");
 
-    console.log("\n🎯 Conclusion:");
+    console.log("\n Conclusion:");
     console.log("   Admin users can login even if email is not verified or account is not approved.");
     console.log("   Simply changing the role to 'admin' grants immediate access.");
 
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error testing unverified user:", error);
+    console.error(" Error testing unverified user:", error);
     await mongoose.disconnect();
     process.exit(1);
   }

@@ -52,7 +52,7 @@ router.delete("/blocked-ips/:ip", protect, authorize("admin"), (req, res) => {
 
   if (security.securityStore.blockedIPs.has(ip)) {
     security.securityStore.blockedIPs.delete(ip);
-    console.log(`🔓 IP Unblocked: ${ip}`);
+    console.log(` IP Unblocked: ${ip}`);
     res.json({ success: true, message: `IP ${ip} unblocked successfully` });
   } else {
     res.status(404).json({ error: "IP not found in blocked list" });
@@ -113,7 +113,7 @@ router.delete("/logs", protect, authorize("admin"), (req, res) => {
 router.post("/csp-report", (req, res) => {
   const report = req.body;
 
-  console.log("🚨 CSP Violation Report:", JSON.stringify(report, null, 2));
+  console.log(" CSP Violation Report:", JSON.stringify(report, null, 2));
 
   // In production, you would log this to a database or monitoring service
   // For now, we just log it to the console

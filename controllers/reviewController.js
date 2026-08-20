@@ -45,7 +45,7 @@ export const createReview = async (req, res) => {
       message: "Review submitted successfully",
     });
   } catch (error) {
-    console.error("❌ Create review error:", error);
+    console.error(" Create review error:", error);
     res.status(500).json({ error: error.message || "Failed to create review" });
   }
 };
@@ -84,7 +84,7 @@ export const getAllReviews = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Get reviews error:", error);
+    console.error(" Get reviews error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch reviews" });
   }
 };
@@ -100,7 +100,7 @@ export const getReviewById = async (req, res) => {
 
     res.json({ success: true, review });
   } catch (error) {
-    console.error("❌ Get review error:", error);
+    console.error(" Get review error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch review" });
   }
 };
@@ -133,7 +133,7 @@ export const updateReview = async (req, res) => {
       message: "Review updated successfully",
     });
   } catch (error) {
-    console.error("❌ Update review error:", error);
+    console.error(" Update review error:", error);
     res.status(500).json({ error: error.message || "Failed to update review" });
   }
 };
@@ -159,7 +159,7 @@ export const deleteReview = async (req, res) => {
       message: "Review deleted successfully",
     });
   } catch (error) {
-    console.error("❌ Delete review error:", error);
+    console.error(" Delete review error:", error);
     res.status(500).json({ error: error.message || "Failed to delete review" });
   }
 };
@@ -192,7 +192,7 @@ export const markHelpful = async (req, res) => {
       isHelpful: review.helpfulBy.includes(req.userId),
     });
   } catch (error) {
-    console.error("❌ Mark helpful error:", error);
+    console.error(" Mark helpful error:", error);
     res.status(500).json({ error: error.message || "Failed to mark review as helpful" });
   }
 };
@@ -232,7 +232,7 @@ export const addReply = async (req, res) => {
       message: "Reply added successfully",
     });
   } catch (error) {
-    console.error("❌ Add reply error:", error);
+    console.error(" Add reply error:", error);
     res.status(500).json({ error: error.message || "Failed to add reply" });
   }
 };
@@ -246,7 +246,7 @@ export const getUserReviews = async (req, res) => {
 
     res.json({ success: true, reviews });
   } catch (error) {
-    console.error("❌ Get user reviews error:", error);
+    console.error(" Get user reviews error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch user reviews" });
   }
 };
@@ -269,7 +269,7 @@ export const approveReview = async (req, res) => {
       message: `Review ${review.isApproved ? 'approved' : 'unapproved'} successfully`,
     });
   } catch (error) {
-    console.error("❌ Approve review error:", error);
+    console.error(" Approve review error:", error);
     res.status(500).json({ error: error.message || "Failed to approve review" });
   }
 };
@@ -321,7 +321,7 @@ export const getReviewsStats = async (req, res) => {
       ratingCounts,
     });
   } catch (error) {
-    console.error("❌ Get reviews stats error:", error);
+    console.error(" Get reviews stats error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch review stats" });
   }
 };

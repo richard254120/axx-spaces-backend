@@ -85,7 +85,7 @@ export const issueBadge = async (req, res) => {
       listing,
     });
   } catch (error) {
-    console.error("❌ Issue badge error:", error);
+    console.error(" Issue badge error:", error);
     res.status(500).json({ error: error.message || "Failed to issue badge" });
   }
 };
@@ -137,7 +137,7 @@ export const removeBadge = async (req, res) => {
       listing,
     });
   } catch (error) {
-    console.error("❌ Remove badge error:", error);
+    console.error(" Remove badge error:", error);
     res.status(500).json({ error: error.message || "Failed to remove badge" });
   }
 };
@@ -188,7 +188,7 @@ export const getListingBadges = async (req, res) => {
       badges: listing.verificationBadges || [],
     });
   } catch (error) {
-    console.error("❌ Get listing badges error:", error);
+    console.error(" Get listing badges error:", error);
     res.status(500).json({ error: error.message || "Failed to get badges" });
   }
 };
@@ -270,7 +270,7 @@ export const getAllBadges = async (req, res) => {
       count: listingsWithBadges.length,
     });
   } catch (error) {
-    console.error("❌ Get all badges error:", error);
+    console.error(" Get all badges error:", error);
     res.status(500).json({ error: error.message || "Failed to get badges" });
   }
 };
@@ -311,7 +311,7 @@ export const getBadgeStats = async (req, res) => {
       stats,
     });
   } catch (error) {
-    console.error("❌ Get badge stats error:", error);
+    console.error(" Get badge stats error:", error);
     res.status(500).json({ error: error.message || "Failed to get badge statistics" });
   }
 };

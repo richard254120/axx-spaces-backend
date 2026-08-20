@@ -28,11 +28,11 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
     } = req.body;
 
     if (!title || !description || !location || !price || !propertyType || !county) {
-      return res.status(400).json({ error: "❌ Missing required fields" });
+      return res.status(400).json({ error: " Missing required fields" });
     }
 
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: "❌ Please upload at least one image" });
+      return res.status(400).json({ error: " Please upload at least one image" });
     }
 
     const owner = await User.findById(req.user._id).select("landlordType");
@@ -54,7 +54,7 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
     }
 
     if (parsedAmenities.length === 0) {
-      return res.status(400).json({ error: "❌ Please select at least one amenity" });
+      return res.status(400).json({ error: " Please select at least one amenity" });
     }
 
     const imageUrls = req.files.map((file) => file.path || file.secure_url);
@@ -92,11 +92,11 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
     const fullUser = await User.findById(req.user._id).select("name email phone landlordType");
     sendPropertyEmail(property, fullUser || req.user);
 
-    console.log(`✅ Property created successfully | Owner: ${req.user._id}`);
+    console.log(` Property created successfully | Owner: ${req.user._id}`);
 
     res.status(201).json({
       success: true,
-      message: "✅ Property uploaded successfully! Pending admin approval.",
+      message: " Property uploaded successfully! Pending admin approval.",
       property: {
         _id: property._id,
         title: property.title,
@@ -106,7 +106,7 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
     });
 
   } catch (error) {
-    console.error("❌ Create property error:", error);
+    console.error(" Create property error:", error);
     res.status(500).json({ error: error.message || "Failed to create property" });
   }
 });
@@ -208,7 +208,7 @@ router.get("/", async (req, res) => {
 
     res.json(processed);
   } catch (error) {
-    console.error("❌ Get properties error:", error);
+    console.error(" Get properties error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch properties" });
   }
 });
@@ -220,14 +220,14 @@ router.get("/:id", trackPropertyView, async (req, res) => {
     const property = await Property.findById(req.params.id)
       .populate("owner", "name phone email");
 
-    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (!property) return res.status(404).json({ error: " Property not found" });
 
     res.json({
       ...property.toObject(),
       availableUnits: Math.max(0, (property.totalUnits || 1) - (property.bookedUnits || 0)),
     });
   } catch (error) {
-    console.error("❌ Get single property error:", error);
+    console.error(" Get single property error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch property" });
   }
 });
@@ -281,7 +281,7 @@ router.post("/:id/scan", async (req, res) => {
       scanId: scan._id,
     });
   } catch (error) {
-    console.error("❌ Log QR scan error:", error);
+    console.error(" Log QR scan error:", error);
     res.status(500).json({ error: "Failed to log QR scan" });
   }
 });
@@ -336,7 +336,7 @@ router.post("/:id/scan/inquiry", async (req, res) => {
 
     res.json({ success: true, message: "QR Inquiry recorded successfully" });
   } catch (error) {
-    console.error("❌ Convert QR scan error:", error);
+    console.error(" Convert QR scan error:", error);
     res.status(500).json({ error: "Failed to record QR inquiry" });
   }
 });
@@ -421,7 +421,7 @@ router.get("/:id/qr-stats", auth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Get QR stats error:", error);
+    console.error(" Get QR stats error:", error);
     res.status(500).json({ error: "Failed to fetch QR statistics" });
   }
 });
@@ -457,7 +457,7 @@ router.post("/:id/reviews", async (req, res) => {
 
     await property.save();
 
-    res.status(201).json({ success: true, message: "✅ Review submitted successfully!" });
+    res.status(201).json({ success: true, message: " Review submitted successfully!" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to submit review" });
@@ -470,7 +470,7 @@ router.get("/my-properties/all", auth, async (req, res) => {
     const properties = await Property.find({ owner: req.user._id }).sort({ createdAt: -1 });
     res.json(properties);
   } catch (error) {
-    console.error("❌ Get my properties error:", error);
+    console.error(" Get my properties error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch properties" });
   }
 });
@@ -479,14 +479,14 @@ router.get("/my-properties/all", auth, async (req, res) => {
 router.get("/admin/pending", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Access denied. Admin only." });
+      return res.status(403).json({ error: " Access denied. Admin only." });
     }
     const properties = await Property.find({ status: "pending" })
       .populate("owner", "name phone email")
       .sort("-createdAt");
     res.json(properties);
   } catch (error) {
-    console.error("❌ Get pending properties error:", error);
+    console.error(" Get pending properties error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -494,24 +494,24 @@ router.get("/admin/pending", auth, async (req, res) => {
 router.patch("/:id/status", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Access denied. Admin only." });
+      return res.status(403).json({ error: " Access denied. Admin only." });
     }
     const { status } = req.body;
     if (!["approved", "rejected", "pending", "sold"].includes(status)) {
-      return res.status(400).json({ error: "❌ Invalid status value" });
+      return res.status(400).json({ error: " Invalid status value" });
     }
     const property = await Property.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true }
     ).populate("owner", "email");
-    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (!property) return res.status(404).json({ error: " Property not found" });
     if (status === "approved") {
       await sendPropertyApprovalEmail(property.owner.email, property.title);
     }
-    res.json({ success: true, message: `✅ Property ${status}`, property });
+    res.json({ success: true, message: ` Property ${status}`, property });
   } catch (error) {
-    console.error("❌ Update status error:", error);
+    console.error(" Update status error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -520,13 +520,13 @@ router.patch("/:id/status", auth, async (req, res) => {
 router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (!property) return res.status(404).json({ error: " Property not found" });
 
     const isOwner = property.owner.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin";
 
     if (!isOwner && !isAdmin) {
-      return res.status(403).json({ error: "❌ Access denied. Unauthorized to edit this property." });
+      return res.status(403).json({ error: " Access denied. Unauthorized to edit this property." });
     }
 
     const {
@@ -565,10 +565,10 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     const updatedImages = [...parsedRemainingImages, ...newImageUrls];
 
     if (updatedImages.length === 0) {
-      return res.status(400).json({ error: "❌ Please keep or upload at least one image" });
+      return res.status(400).json({ error: " Please keep or upload at least one image" });
     }
     if (updatedImages.length > 10) {
-      return res.status(400).json({ error: "❌ Maximum 10 images allowed" });
+      return res.status(400).json({ error: " Maximum 10 images allowed" });
     }
 
     // Update property fields if provided
@@ -600,17 +600,17 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     }
 
     await property.save();
-    console.log(`✅ Property updated successfully | ID: ${property._id} | By: ${req.user._id}`);
+    console.log(` Property updated successfully | ID: ${property._id} | By: ${req.user._id}`);
 
     res.json({
       success: true,
       message: isAdmin
-        ? "✅ Property updated successfully!"
-        : "✅ Property updated successfully! Pending admin approval.",
+        ? " Property updated successfully!"
+        : " Property updated successfully! Pending admin approval.",
       property,
     });
   } catch (error) {
-    console.error("❌ Update property error:", error);
+    console.error(" Update property error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -620,21 +620,21 @@ router.patch("/:id/book", auth, async (req, res) => {
   try {
     const { change } = req.body;
     const property = await Property.findById(req.params.id);
-    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (!property) return res.status(404).json({ error: " Property not found" });
 
     if (property.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: "❌ Unauthorized" });
+      return res.status(403).json({ error: " Unauthorized" });
     }
 
     const newBooked = (property.bookedUnits || 0) + change;
-    if (newBooked < 0) return res.status(400).json({ error: "❌ Cannot have negative booked units" });
-    if (newBooked > (property.totalUnits || 1)) return res.status(400).json({ error: "❌ Cannot book more than total units" });
+    if (newBooked < 0) return res.status(400).json({ error: " Cannot have negative booked units" });
+    if (newBooked > (property.totalUnits || 1)) return res.status(400).json({ error: " Cannot book more than total units" });
 
     property.bookedUnits = newBooked;
     await property.save();
-    res.json({ success: true, message: "✅ Booking updated", property });
+    res.json({ success: true, message: " Booking updated", property });
   } catch (error) {
-    console.error("❌ Book property error:", error);
+    console.error(" Book property error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -643,18 +643,18 @@ router.patch("/:id/book", auth, async (req, res) => {
 router.delete("/:id", auth, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
-    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (!property) return res.status(404).json({ error: " Property not found" });
 
     if (property.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: "❌ Unauthorized" });
+      return res.status(403).json({ error: " Unauthorized" });
     }
 
-    if (property.bookedUnits > 0) return res.status(400).json({ error: "❌ Cannot delete property with active bookings." });
+    if (property.bookedUnits > 0) return res.status(400).json({ error: " Cannot delete property with active bookings." });
 
     await Property.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "✅ Property deleted successfully" });
+    res.json({ success: true, message: " Property deleted successfully" });
   } catch (error) {
-    console.error("❌ Delete property error:", error);
+    console.error(" Delete property error:", error);
     res.status(500).json({ error: error.message });
   }
 });

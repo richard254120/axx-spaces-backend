@@ -7,7 +7,7 @@ export const protect = async (req, res, next) => {
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
-      return res.status(401).json({ error: "🔐 Access denied. No token provided." });
+      return res.status(401).json({ error: " Access denied. No token provided." });
     }
 
     // Verify the token with enhanced options
@@ -20,12 +20,12 @@ export const protect = async (req, res, next) => {
     const user = await User.findById(decoded.userId).select("-password");
 
     if (!user) {
-      return res.status(404).json({ error: "👤 User no longer exists." });
+      return res.status(404).json({ error: " User no longer exists." });
     }
 
     // Check if user is active/banned
     if (user.isBanned) {
-      return res.status(403).json({ error: "🚫 Account has been banned." });
+      return res.status(403).json({ error: " Account has been banned." });
     }
 
     // Attach the full user object to the request
@@ -35,17 +35,17 @@ export const protect = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error("❌ Auth error:", error.message);
+    console.error(" Auth error:", error.message);
 
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "🔐 Session expired. Please login again." });
+      return res.status(401).json({ error: " Session expired. Please login again." });
     }
 
     if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({ error: "🔐 Invalid token." });
+      return res.status(401).json({ error: " Invalid token." });
     }
 
-    return res.status(401).json({ error: "🔐 Authentication failed." });
+    return res.status(401).json({ error: " Authentication failed." });
   }
 };
 
@@ -56,12 +56,12 @@ export const auth = protect;
 export const adminOnly = async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Access denied. Admin only." });
+      return res.status(403).json({ error: " Access denied. Admin only." });
     }
     next();
   } catch (error) {
-    console.error("❌ Admin auth error:", error.message);
-    return res.status(500).json({ error: "❌ Server error" });
+    console.error(" Admin auth error:", error.message);
+    return res.status(500).json({ error: " Server error" });
   }
 };
 
@@ -70,7 +70,7 @@ export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
       return res.status(403).json({
-        error: `❌ Access denied. Required roles: ${roles.join(', ')}`
+        error: ` Access denied. Required roles: ${roles.join(', ')}`
       });
     }
     next();

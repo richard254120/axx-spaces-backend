@@ -14,4 +14,4 @@ const envContent = Object.entries(envConfig)
   .join('\n');
 
 fs.writeFileSync(envPath, envContent);
-console.log('✅ Updated .env file with production MongoDB connection string');
+console.log(' Updated .env file with production MongoDB connection string');

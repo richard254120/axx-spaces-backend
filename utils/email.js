@@ -16,7 +16,7 @@ const ADMIN_EMAILS = [
 
 export const sendEmail = async ({ to, subject, html }) => {
   if (!resend) {
-    console.log("📧 [Email Mock] Would send email to:", to, "Subject:", subject);
+    console.log(" [Email Mock] Would send email to:", to, "Subject:", subject);
     return { success: true, mocked: true };
   }
   try {
@@ -34,7 +34,7 @@ export const sendEmail = async ({ to, subject, html }) => {
 };
 
 export const sendSMS = async ({ to, message }) => {
-  console.log(`📱 [SMS Mock] Sent to ${to}: ${message}`);
+  console.log(` [SMS Mock] Sent to ${to}: ${message}`);
   return { success: true };
 };
 
@@ -42,7 +42,7 @@ export const sendPropertyEmail = async (property, owner) => {
   const getEmailHtml = (property, owner) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🏠 New Property Submitted</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> New Property Submitted</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Property Details</h2>
@@ -56,9 +56,9 @@ export const sendPropertyEmail = async (property, owner) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send property email for: ${property.title}`);
+  console.log(` Attempting to send property email for: ${property.title}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send property email to:", ADMIN_EMAILS);
+    console.log(" [Email Mock] Would send property email to:", ADMIN_EMAILS);
     return;
   }
   for (const email of ADMIN_EMAILS) {
@@ -69,10 +69,10 @@ export const sendPropertyEmail = async (property, owner) => {
         subject: `New Property: ${property.title}`,
         html: getEmailHtml(property, owner),
       });
-      console.log(`✅ Property email sent to: ${email}`);
+      console.log(` Property email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Property email failed to ${email}:`, err.message);
-      console.error(`❌ Full error:`, err);
+      console.error(` Property email failed to ${email}:`, err.message);
+      console.error(` Full error:`, err);
     }
   }
 };
@@ -81,7 +81,7 @@ export const sendMaterialEmail = async (material, seller) => {
   const getEmailHtml = (material, seller) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">📦 New Material Uploaded</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> New Material Uploaded</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Material Details</h2>
@@ -96,9 +96,9 @@ export const sendMaterialEmail = async (material, seller) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send material email for: ${material.title}`);
+  console.log(` Attempting to send material email for: ${material.title}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send material email to:", ADMIN_EMAILS);
+    console.log(" [Email Mock] Would send material email to:", ADMIN_EMAILS);
     return;
   }
   for (const email of ADMIN_EMAILS) {
@@ -109,10 +109,10 @@ export const sendMaterialEmail = async (material, seller) => {
         subject: `New Material: ${material.title}`,
         html: getEmailHtml(material, seller),
       });
-      console.log(`✅ Material email sent to: ${email}`);
+      console.log(` Material email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Material email failed to ${email}:`, err.message);
-      console.error(`❌ Full error:`, err);
+      console.error(` Material email failed to ${email}:`, err.message);
+      console.error(` Full error:`, err);
     }
   }
 };
@@ -121,7 +121,7 @@ export const sendTourismRegistrationEmail = async (tourismData) => {
   const getEmailHtml = (tourismData) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🏨 New Tourism Provider Registration</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> New Tourism Provider Registration</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Provider Details</h2>
@@ -139,9 +139,9 @@ export const sendTourismRegistrationEmail = async (tourismData) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send tourism registration email for: ${tourismData.name}`);
+  console.log(` Attempting to send tourism registration email for: ${tourismData.name}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send tourism registration email to:", ADMIN_EMAILS);
+    console.log(" [Email Mock] Would send tourism registration email to:", ADMIN_EMAILS);
     return;
   }
   for (const email of ADMIN_EMAILS) {
@@ -152,10 +152,10 @@ export const sendTourismRegistrationEmail = async (tourismData) => {
         subject: `New Tourism Provider: ${tourismData.name}`,
         html: getEmailHtml(tourismData),
       });
-      console.log(`✅ Tourism registration email sent to: ${email}`);
+      console.log(` Tourism registration email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Tourism registration email failed to ${email}:`, err.message);
-      console.error(`❌ Full error:`, err);
+      console.error(` Tourism registration email failed to ${email}:`, err.message);
+      console.error(` Full error:`, err);
     }
   }
 };
@@ -164,7 +164,7 @@ export const sendMoverRegistrationEmail = async (mover) => {
   const getEmailHtml = (mover) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🚚 New Mover Registration</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> New Mover Registration</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Mover Details</h2>
@@ -181,9 +181,9 @@ export const sendMoverRegistrationEmail = async (mover) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send mover registration email for: ${mover.name}`);
+  console.log(` Attempting to send mover registration email for: ${mover.name}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send mover registration email to:", ADMIN_EMAILS);
+    console.log(" [Email Mock] Would send mover registration email to:", ADMIN_EMAILS);
     return;
   }
   for (const email of ADMIN_EMAILS) {
@@ -194,10 +194,10 @@ export const sendMoverRegistrationEmail = async (mover) => {
         subject: `New Mover: ${mover.name}`,
         html: getEmailHtml(mover),
       });
-      console.log(`✅ Mover registration email sent to: ${email}`);
+      console.log(` Mover registration email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Mover registration email failed to ${email}:`, err.message);
-      console.error(`❌ Full error:`, err);
+      console.error(` Mover registration email failed to ${email}:`, err.message);
+      console.error(` Full error:`, err);
     }
   }
 };
@@ -206,7 +206,7 @@ export const sendSellerRegistrationEmail = async (seller) => {
   const getEmailHtml = (seller) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🛒 New Seller Registration</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> New Seller Registration</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Seller Details</h2>
@@ -221,9 +221,9 @@ export const sendSellerRegistrationEmail = async (seller) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send seller registration email for: ${seller.name}`);
+  console.log(` Attempting to send seller registration email for: ${seller.name}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send seller registration email to:", ADMIN_EMAILS);
+    console.log(" [Email Mock] Would send seller registration email to:", ADMIN_EMAILS);
     return;
   }
   for (const email of ADMIN_EMAILS) {
@@ -234,10 +234,10 @@ export const sendSellerRegistrationEmail = async (seller) => {
         subject: `New Seller: ${seller.name}`,
         html: getEmailHtml(seller),
       });
-      console.log(`✅ Seller registration email sent to: ${email}`);
+      console.log(` Seller registration email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Seller registration email failed to ${email}:`, err.message);
-      console.error(`❌ Full error:`, err);
+      console.error(` Seller registration email failed to ${email}:`, err.message);
+      console.error(` Full error:`, err);
     }
   }
 };
@@ -246,7 +246,7 @@ export const sendTourismApprovalEmail = async (email, propertyName) => {
   const getEmailHtml = (propertyName) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🎉 Account Approved!</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> Account Approved!</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Congratulations!</h2>
@@ -263,9 +263,9 @@ export const sendTourismApprovalEmail = async (email, propertyName) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send tourism approval email to: ${email}`);
+  console.log(` Attempting to send tourism approval email to: ${email}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send tourism approval email to:", email);
+    console.log(" [Email Mock] Would send tourism approval email to:", email);
     return;
   }
   try {
@@ -275,10 +275,10 @@ export const sendTourismApprovalEmail = async (email, propertyName) => {
       subject: "Your Tourism Provider Account Has Been Approved",
       html: getEmailHtml(propertyName),
     });
-    console.log(`✅ Tourism approval email sent to: ${email}`);
+    console.log(` Tourism approval email sent to: ${email}`);
   } catch (err) {
-    console.error(`❌ Tourism approval email failed to ${email}:`, err.message);
-    console.error(`❌ Full error:`, err);
+    console.error(` Tourism approval email failed to ${email}:`, err.message);
+    console.error(` Full error:`, err);
   }
 };
 
@@ -286,7 +286,7 @@ export const sendMoverApprovalEmail = async (email, name) => {
   const getEmailHtml = (name) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🎉 Account Approved!</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> Account Approved!</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Congratulations, ${name}!</h2>
@@ -302,9 +302,9 @@ export const sendMoverApprovalEmail = async (email, name) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send mover approval email to: ${email}`);
+  console.log(` Attempting to send mover approval email to: ${email}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send mover approval email to:", email);
+    console.log(" [Email Mock] Would send mover approval email to:", email);
     return;
   }
   try {
@@ -314,10 +314,10 @@ export const sendMoverApprovalEmail = async (email, name) => {
       subject: "Your Mover Account Has Been Approved",
       html: getEmailHtml(name),
     });
-    console.log(`✅ Mover approval email sent to: ${email}`);
+    console.log(` Mover approval email sent to: ${email}`);
   } catch (err) {
-    console.error(`❌ Mover approval email failed to ${email}:`, err.message);
-    console.error(`❌ Full error:`, err);
+    console.error(` Mover approval email failed to ${email}:`, err.message);
+    console.error(` Full error:`, err);
   }
 };
 
@@ -325,7 +325,7 @@ export const sendMaterialApprovalEmail = async (email, materialTitle) => {
   const getEmailHtml = (materialTitle) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">✅ Material Approved!</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> Material Approved!</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Great News!</h2>
@@ -342,9 +342,9 @@ export const sendMaterialApprovalEmail = async (email, materialTitle) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send material approval email to: ${email}`);
+  console.log(` Attempting to send material approval email to: ${email}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send material approval email to:", email);
+    console.log(" [Email Mock] Would send material approval email to:", email);
     return;
   }
   try {
@@ -354,10 +354,10 @@ export const sendMaterialApprovalEmail = async (email, materialTitle) => {
       subject: "Your Material Has Been Approved",
       html: getEmailHtml(materialTitle),
     });
-    console.log(`✅ Material approval email sent to: ${email}`);
+    console.log(` Material approval email sent to: ${email}`);
   } catch (err) {
-    console.error(`❌ Material approval email failed to ${email}:`, err.message);
-    console.error(`❌ Full error:`, err);
+    console.error(` Material approval email failed to ${email}:`, err.message);
+    console.error(` Full error:`, err);
   }
 };
 
@@ -365,7 +365,7 @@ export const sendPropertyApprovalEmail = async (email, propertyTitle) => {
   const getEmailHtml = (propertyTitle) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">✅ Property Approved!</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> Property Approved!</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Great News!</h2>
@@ -382,9 +382,9 @@ export const sendPropertyApprovalEmail = async (email, propertyTitle) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send property approval email to: ${email}`);
+  console.log(` Attempting to send property approval email to: ${email}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send property approval email to:", email);
+    console.log(" [Email Mock] Would send property approval email to:", email);
     return;
   }
   try {
@@ -394,10 +394,10 @@ export const sendPropertyApprovalEmail = async (email, propertyTitle) => {
       subject: "Your Property Has Been Approved",
       html: getEmailHtml(propertyTitle),
     });
-    console.log(`✅ Property approval email sent to: ${email}`);
+    console.log(` Property approval email sent to: ${email}`);
   } catch (err) {
-    console.error(`❌ Property approval email failed to ${email}:`, err.message);
-    console.error(`❌ Full error:`, err);
+    console.error(` Property approval email failed to ${email}:`, err.message);
+    console.error(` Full error:`, err);
   }
 };
 
@@ -405,7 +405,7 @@ export const sendBusinessRegistrationEmail = async (business, owner) => {
   const getEmailHtml = (business, owner) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🏢 New Business Submitted</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> New Business Submitted</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Business Details</h2>
@@ -422,9 +422,9 @@ export const sendBusinessRegistrationEmail = async (business, owner) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send business registration email for: ${business.name}`);
+  console.log(` Attempting to send business registration email for: ${business.name}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send business registration email to:", ADMIN_EMAILS);
+    console.log(" [Email Mock] Would send business registration email to:", ADMIN_EMAILS);
     return;
   }
   for (const email of ADMIN_EMAILS) {
@@ -435,10 +435,10 @@ export const sendBusinessRegistrationEmail = async (business, owner) => {
         subject: `New Business: ${business.name}`,
         html: getEmailHtml(business, owner),
       });
-      console.log(`✅ Business registration email sent to: ${email}`);
+      console.log(` Business registration email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Business email failed to ${email}:`, err.message);
-      console.error(`❌ Full error:`, err);
+      console.error(` Business email failed to ${email}:`, err.message);
+      console.error(` Full error:`, err);
     }
   }
 };
@@ -447,7 +447,7 @@ export const sendLandlordRegistrationEmail = async (landlord) => {
   const getEmailHtml = (landlord) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🏠 New Landlord Registration</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> New Landlord Registration</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Landlord Details</h2>
@@ -461,9 +461,9 @@ export const sendLandlordRegistrationEmail = async (landlord) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send landlord registration email for: ${landlord.name}`);
+  console.log(` Attempting to send landlord registration email for: ${landlord.name}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send landlord registration email to:", ADMIN_EMAILS);
+    console.log(" [Email Mock] Would send landlord registration email to:", ADMIN_EMAILS);
     return;
   }
   for (const email of ADMIN_EMAILS) {
@@ -474,10 +474,10 @@ export const sendLandlordRegistrationEmail = async (landlord) => {
         subject: `New Landlord: ${landlord.name}`,
         html: getEmailHtml(landlord),
       });
-      console.log(`✅ Landlord registration email sent to: ${email}`);
+      console.log(` Landlord registration email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Landlord email failed to ${email}:`, err.message);
-      console.error(`❌ Full error:`, err);
+      console.error(` Landlord email failed to ${email}:`, err.message);
+      console.error(` Full error:`, err);
     }
   }
 };
@@ -486,7 +486,7 @@ export const sendItemRequestEmail = async (itemRequest) => {
   const getEmailHtml = (itemRequest) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1f2937; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0;">🔍 New Custom Item Request</h1>
+        <h1 style="color: #fbbf24; margin: 0;"> New Custom Item Request</h1>
       </div>
       <div style="background: white; padding: 24px;">
         <h2>Request Details</h2>
@@ -503,9 +503,9 @@ export const sendItemRequestEmail = async (itemRequest) => {
     </div>
   `;
 
-  console.log(`📧 Attempting to send item request email for: ${itemRequest.searchQuery}`);
+  console.log(` Attempting to send item request email for: ${itemRequest.searchQuery}`);
   if (!resend) {
-    console.log("📧 [Email Mock] Would send item request email to:", ADMIN_EMAILS);
+    console.log(" [Email Mock] Would send item request email to:", ADMIN_EMAILS);
     return;
   }
   for (const email of ADMIN_EMAILS) {
@@ -516,10 +516,10 @@ export const sendItemRequestEmail = async (itemRequest) => {
         subject: `New Item Request: ${itemRequest.searchQuery}`,
         html: getEmailHtml(itemRequest),
       });
-      console.log(`✅ Item request email sent to: ${email}`);
+      console.log(` Item request email sent to: ${email}`);
     } catch (err) {
-      console.error(`❌ Item request email failed to ${email}:`, err.message);
-      console.error(`❌ Full error:`, err);
+      console.error(` Item request email failed to ${email}:`, err.message);
+      console.error(` Full error:`, err);
     }
   }
 }

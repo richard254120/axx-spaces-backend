@@ -26,7 +26,7 @@ router.patch("/:id/sold", auth, markAsSold);
 router.patch("/:id", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Access denied. Admin only." });
+      return res.status(403).json({ error: " Access denied. Admin only." });
     }
     const Material = (await import("../models/Material.js")).default;
     const material = await Material.findByIdAndUpdate(
@@ -34,10 +34,10 @@ router.patch("/:id", auth, async (req, res) => {
       req.body,
       { new: true, runValidators: true }
     );
-    if (!material) return res.status(404).json({ error: "❌ Material not found" });
+    if (!material) return res.status(404).json({ error: " Material not found" });
     res.json({ success: true, material });
   } catch (error) {
-    console.error("❌ Update material error:", error);
+    console.error(" Update material error:", error);
     res.status(500).json({ error: error.message });
   }
 });

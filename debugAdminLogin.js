@@ -15,21 +15,21 @@ const debugAdminLogin = async (email, password) => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
-    console.log(`\n🔍 Debugging login for: ${email}\n`);
+    console.log(`\n Debugging login for: ${email}\n`);
 
     // Find user by email
     const user = await User.findOne({ email }).select("+password");
     
     if (!user) {
-      console.log(`❌ No user found with email: ${email}`);
-      console.log("\n💡 SOLUTION: Create this user as admin:");
+      console.log(` No user found with email: ${email}`);
+      console.log("\n SOLUTION: Create this user as admin:");
       console.log(`   node addAdmin.js ${email} "your_password" "User Name" "phone_number"`);
       return;
     }
 
-    console.log(`👤 User found in database:`);
+    console.log(` User found in database:`);
     console.log(`   Name: ${user.name}`);
     console.log(`   Email: ${user.email}`);
     console.log(`   Phone: ${user.phone}`);
@@ -40,22 +40,22 @@ const debugAdminLogin = async (email, password) => {
 
     // Check if user has admin role
     if (user.role !== "admin") {
-      console.log(`\n⚠️ WARNING: User has role "${user.role}" but needs role "admin" to access admin panel`);
-      console.log("\n💡 SOLUTION: Update user role to admin:");
+      console.log(`\n WARNING: User has role "${user.role}" but needs role "admin" to access admin panel`);
+      console.log("\n SOLUTION: Update user role to admin:");
       console.log(`   node addAdmin.js ${email} "new_password" "${user.name}" "${user.phone}"`);
       return;
     }
 
-    console.log(`\n✅ User has admin role - should be able to login`);
+    console.log(`\n User has admin role - should be able to login`);
 
     // Test password if provided
     if (password) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (isPasswordValid) {
-        console.log(`\n✅ Password is correct`);
+        console.log(`\n Password is correct`);
       } else {
-        console.log(`\n❌ Password is incorrect`);
-        console.log("\n💡 SOLUTION: Reset password:");
+        console.log(`\n Password is incorrect`);
+        console.log("\n SOLUTION: Reset password:");
         console.log(`   node addAdmin.js ${email} "new_password" "${user.name}" "${user.phone}"`);
         return;
       }
@@ -63,26 +63,26 @@ const debugAdminLogin = async (email, password) => {
 
     // Check email verification status
     if (!user.isEmailVerified) {
-      console.log(`\n⚠️ WARNING: User email is not verified`);
+      console.log(`\n WARNING: User email is not verified`);
       console.log("   Admin users should have isEmailVerified: true");
-      console.log("\n💡 SOLUTION: Update user verification status in database");
+      console.log("\n SOLUTION: Update user verification status in database");
     }
 
     // Check approval status
     if (!user.isApproved) {
-      console.log(`\n⚠️ WARNING: User is not approved`);
+      console.log(`\n WARNING: User is not approved`);
       console.log("   Admin users should have isApproved: true");
-      console.log("\n💡 SOLUTION: Update user approval status in database");
+      console.log("\n SOLUTION: Update user approval status in database");
     }
 
-    console.log(`\n✅ All checks passed - user should be able to login to admin panel`);
-    console.log(`\n🌐 Admin panel URL: http://localhost:3000`);
-    console.log(`🔗 Backend API: http://localhost:1000/api`);
+    console.log(`\n All checks passed - user should be able to login to admin panel`);
+    console.log(`\n Admin panel URL: http://localhost:3000`);
+    console.log(` Backend API: http://localhost:1000/api`);
 
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error debugging admin login:", error);
+    console.error(" Error debugging admin login:", error);
     await mongoose.disconnect();
     process.exit(1);
   }

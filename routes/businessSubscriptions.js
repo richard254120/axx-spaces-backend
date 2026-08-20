@@ -159,7 +159,7 @@ router.post("/business/:businessId", auth, async (req, res) => {
 
       return res.json({
         success: true,
-        message: "✅ M-Pesa prompt sent! Enter PIN on your phone to complete subscription.",
+        message: " M-Pesa prompt sent! Enter PIN on your phone to complete subscription.",
         checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
         tier,
         amount,

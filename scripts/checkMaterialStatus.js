@@ -7,7 +7,7 @@ dotenv.config();
 const checkMaterialStatus = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Find all materials and show their status
     const allMaterials = await Material.find({}).select("title status");
@@ -31,7 +31,7 @@ const checkMaterialStatus = async () => {
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error:", error);
+    console.error(" Error:", error);
     process.exit(1);
   }
 };

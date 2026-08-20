@@ -13,10 +13,10 @@ const transporter = nodemailer.createTransport({
 transporter.sendMail({
   from: process.env.EMAIL_USER,
   to: process.env.EMAIL_USER,
-  subject: "✅ Axxspace Test Email",
+  subject: " Axxspace Test Email",
   text: "Email is working correctly!",
 }).then(() => {
-  console.log("✅ EMAIL SENT SUCCESSFULLY");
+  console.log(" EMAIL SENT SUCCESSFULLY");
 }).catch((err) => {
-  console.error("❌ EMAIL FAILED:", err.message);
+  console.error(" EMAIL FAILED:", err.message);
 });

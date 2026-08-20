@@ -19,4 +19,4 @@ const frontendEnvContent = Object.entries(frontendEnvConfig)
   .join('\n');
 
 fs.writeFileSync(frontendEnvPath, frontendEnvContent);
-console.log('✅ Updated main frontend .env file with VITE_API_URL=https://axx-spaces-backend-1.onrender.com/api');
+console.log(' Updated main frontend .env file with VITE_API_URL=https://axx-spaces-backend-1.onrender.com/api');

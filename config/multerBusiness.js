@@ -13,7 +13,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-console.log("☁️ Cloudinary configured for business uploads");
+console.log(" Cloudinary configured for business uploads");
 
 // ============ CLOUDINARY STORAGE FOR BUSINESS LOGO ============
 const logoStorage = new CloudinaryStorage({
@@ -87,21 +87,21 @@ const imageFileFilter = (req, file, cb) => {
   try {
     const typeValidation = validateFileType(file, 'images');
     if (!typeValidation.isValid) {
-      console.error("❌ Image file rejected:", file.originalname, typeValidation.error);
+      console.error(" Image file rejected:", file.originalname, typeValidation.error);
       return cb(new Error(typeValidation.error), false);
     }
 
     const sizeValidation = validateFileSize(file, 'images');
     if (!sizeValidation.isValid) {
-      console.error("❌ Image file rejected:", file.originalname, sizeValidation.error);
+      console.error(" Image file rejected:", file.originalname, sizeValidation.error);
       return cb(new Error(sizeValidation.error), false);
     }
 
     file.originalname = sanitizeFilename(file.originalname);
-    console.log("✅ Image file accepted:", file.originalname);
+    console.log(" Image file accepted:", file.originalname);
     cb(null, true);
   } catch (error) {
-    console.error("❌ File filter error:", error);
+    console.error(" File filter error:", error);
     cb(new Error("File validation failed"), false);
   }
 };
@@ -111,21 +111,21 @@ const documentFileFilter = (req, file, cb) => {
   try {
     const typeValidation = validateFileType(file, 'documents');
     if (!typeValidation.isValid) {
-      console.error("❌ Document file rejected:", file.originalname, typeValidation.error);
+      console.error(" Document file rejected:", file.originalname, typeValidation.error);
       return cb(new Error(typeValidation.error), false);
     }
 
     const sizeValidation = validateFileSize(file, 'documents');
     if (!sizeValidation.isValid) {
-      console.error("❌ Document file rejected:", file.originalname, sizeValidation.error);
+      console.error(" Document file rejected:", file.originalname, sizeValidation.error);
       return cb(new Error(sizeValidation.error), false);
     }
 
     file.originalname = sanitizeFilename(file.originalname);
-    console.log("✅ Document file accepted:", file.originalname);
+    console.log(" Document file accepted:", file.originalname);
     cb(null, true);
   } catch (error) {
-    console.error("❌ File filter error:", error);
+    console.error(" File filter error:", error);
     cb(new Error("File validation failed"), false);
   }
 };
@@ -181,6 +181,6 @@ const uploadBusinessFiles = multer({
   },
 });
 
-console.log("✅ Multer configured for business uploads");
+console.log(" Multer configured for business uploads");
 
 export { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist, uploadBusinessFiles, uploadMoverPortfolio };

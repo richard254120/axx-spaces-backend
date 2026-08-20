@@ -65,7 +65,7 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
     const { phone, amount, propertyId, materialId, businessId, moverId, plan, subscriptionType } = req.body;
 
     if (!phone || !amount) {
-      return res.status(400).json({ error: "❌ Phone and amount are required" });
+      return res.status(400).json({ error: " Phone and amount are required" });
     }
 
     const token = await getAccessToken();
@@ -113,7 +113,7 @@ router.post("/initiate-mpesa", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: "✅ M-Pesa prompt sent! Enter PIN 123456 on your phone.",
+      message: " M-Pesa prompt sent! Enter PIN 123456 on your phone.",
       checkoutRequestID: mpesaResponse.data.CheckoutRequestID
     });
 
@@ -131,7 +131,7 @@ router.post("/callback", async (req, res) => {
 
     const { ResultCode, ResultDesc, CheckoutRequestID, CallbackMetadata } = Body.stkCallback;
 
-    console.log(`📩 M-Pesa Callback: ${CheckoutRequestID} - ${ResultDesc}`);
+    console.log(` M-Pesa Callback: ${CheckoutRequestID} - ${ResultDesc}`);
 
     if (ResultCode === 0) {
       // Extract payment details from metadata
@@ -336,7 +336,7 @@ router.post("/callback", async (req, res) => {
         }
 
         await user.save();
-        console.log("✅ Database updated: Payment Successful");
+        console.log(" Database updated: Payment Successful");
 
         // Create notification for admin dashboard
         try {
@@ -364,9 +364,9 @@ router.post("/callback", async (req, res) => {
 
           const notification = new Notification(notificationData);
           await notification.save();
-          console.log("✅ Notification created for admin dashboard");
+          console.log(" Notification created for admin dashboard");
         } catch (notifError) {
-          console.error("❌ Failed to create notification:", notifError);
+          console.error(" Failed to create notification:", notifError);
         }
       }
     } else {
@@ -375,12 +375,12 @@ router.post("/callback", async (req, res) => {
         { "paymentHistory.transactionId": CheckoutRequestID },
         { $set: { "paymentHistory.$.status": "failed" } }
       );
-      console.log("❌ Payment Failed/Cancelled by User");
+      console.log(" Payment Failed/Cancelled by User");
     }
 
     res.status(200).json("Success");
   } catch (err) {
-    console.error("❌ Callback Processing Error:", err);
+    console.error(" Callback Processing Error:", err);
     res.status(500).json("Error");
   }
 });
@@ -391,12 +391,12 @@ router.post("/book-property", auth, async (req, res) => {
     const { propertyId, phone, amount } = req.body;
 
     if (!propertyId || !phone || !amount) {
-      return res.status(400).json({ error: "❌ Property ID, phone, and amount are required" });
+      return res.status(400).json({ error: " Property ID, phone, and amount are required" });
     }
 
     const property = await Property.findById(propertyId);
     if (!property) {
-      return res.status(404).json({ error: "❌ Property not found" });
+      return res.status(404).json({ error: " Property not found" });
     }
 
     const token = await getAccessToken();
@@ -439,7 +439,7 @@ router.post("/book-property", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: "✅ M-Pesa prompt sent! Enter PIN on your phone to complete property booking.",
+      message: " M-Pesa prompt sent! Enter PIN on your phone to complete property booking.",
       checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
     });
 
@@ -455,12 +455,12 @@ router.post("/purchase-material", auth, async (req, res) => {
     const { materialId, phone, amount } = req.body;
 
     if (!materialId || !phone || !amount) {
-      return res.status(400).json({ error: "❌ Material ID, phone, and amount are required" });
+      return res.status(400).json({ error: " Material ID, phone, and amount are required" });
     }
 
     const material = await Material.findById(materialId);
     if (!material) {
-      return res.status(404).json({ error: "❌ Material not found" });
+      return res.status(404).json({ error: " Material not found" });
     }
 
     const token = await getAccessToken();
@@ -503,7 +503,7 @@ router.post("/purchase-material", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: "✅ M-Pesa prompt sent! Enter PIN on your phone to complete material purchase.",
+      message: " M-Pesa prompt sent! Enter PIN on your phone to complete material purchase.",
       checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
     });
 
@@ -519,13 +519,13 @@ router.post("/book-tourism", auth, async (req, res) => {
     const { tourismId, phone, amount, checkIn, checkOut } = req.body;
 
     if (!tourismId || !phone || !amount) {
-      return res.status(400).json({ error: "❌ Tourism ID, phone, and amount are required" });
+      return res.status(400).json({ error: " Tourism ID, phone, and amount are required" });
     }
 
     const TourismListing = await import("../models/TourismListing.js").then(m => m.default);
     const tourism = await TourismListing.findById(tourismId);
     if (!tourism) {
-      return res.status(404).json({ error: "❌ Tourism listing not found" });
+      return res.status(404).json({ error: " Tourism listing not found" });
     }
 
     const token = await getAccessToken();
@@ -570,7 +570,7 @@ router.post("/book-tourism", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: "✅ M-Pesa prompt sent! Enter PIN on your phone to complete tourism booking.",
+      message: " M-Pesa prompt sent! Enter PIN on your phone to complete tourism booking.",
       checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
     });
 
@@ -669,13 +669,13 @@ router.post("/cancel/:transactionId", auth, async (req, res) => {
       (p) => p.transactionId === req.params.transactionId
     );
 
-    if (!payment) return res.status(404).json({ error: "❌ Payment not found" });
-    if (payment.status !== "pending") return res.status(400).json({ error: "❌ Only pending payments can be cancelled" });
+    if (!payment) return res.status(404).json({ error: " Payment not found" });
+    if (payment.status !== "pending") return res.status(400).json({ error: " Only pending payments can be cancelled" });
 
     payment.status = "cancelled";
     await user.save();
 
-    res.json({ success: true, message: "✅ Payment marked as cancelled" });
+    res.json({ success: true, message: " Payment marked as cancelled" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -710,11 +710,11 @@ router.post("/subscribe", auth, async (req, res) => {
     const { subscriptionType, phone } = req.body;
 
     if (!subscriptionType || !phone) {
-      return res.status(400).json({ error: "❌ Subscription type and phone are required" });
+      return res.status(400).json({ error: " Subscription type and phone are required" });
     }
 
     if (req.user.role !== "mover" && req.user.role !== "seller") {
-      return res.status(403).json({ error: "❌ Only movers and sellers can purchase subscriptions" });
+      return res.status(403).json({ error: " Only movers and sellers can purchase subscriptions" });
     }
 
     // Define subscription pricing
@@ -725,7 +725,7 @@ router.post("/subscribe", auth, async (req, res) => {
 
     const plan = pricing[subscriptionType];
     if (!plan) {
-      return res.status(400).json({ error: "❌ Invalid subscription type" });
+      return res.status(400).json({ error: " Invalid subscription type" });
     }
 
     const token = await getAccessToken();
@@ -769,7 +769,7 @@ router.post("/subscribe", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: `✅ M-Pesa prompt sent for ${plan.name}! Enter PIN on your phone.`,
+      message: ` M-Pesa prompt sent for ${plan.name}! Enter PIN on your phone.`,
       checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
       plan: plan.name,
       amount: plan.amount,
@@ -787,17 +787,17 @@ router.post("/boost-material", auth, async (req, res) => {
     const { materialId, plan, phone } = req.body;
 
     if (!materialId || !plan || !phone) {
-      return res.status(400).json({ error: "❌ Material ID, plan, and phone are required" });
+      return res.status(400).json({ error: " Material ID, plan, and phone are required" });
     }
 
     if (req.user.role !== "seller") {
-      return res.status(403).json({ error: "❌ Only sellers can boost materials" });
+      return res.status(403).json({ error: " Only sellers can boost materials" });
     }
 
     // Verify ownership
     const material = await Material.findById(materialId);
     if (!material || material.seller.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: "❌ You can only boost your own materials" });
+      return res.status(403).json({ error: " You can only boost your own materials" });
     }
 
     // Define boost pricing
@@ -808,7 +808,7 @@ router.post("/boost-material", auth, async (req, res) => {
 
     const boostPlan = pricing[plan];
     if (!boostPlan) {
-      return res.status(400).json({ error: "❌ Invalid boost plan" });
+      return res.status(400).json({ error: " Invalid boost plan" });
     }
 
     const token = await getAccessToken();
@@ -852,7 +852,7 @@ router.post("/boost-material", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: `✅ M-Pesa prompt sent for ${boostPlan.name}! Enter PIN on your phone.`,
+      message: ` M-Pesa prompt sent for ${boostPlan.name}! Enter PIN on your phone.`,
       checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
       plan: boostPlan.name,
       amount: boostPlan.amount,
@@ -870,11 +870,11 @@ router.post("/boost-mover", auth, async (req, res) => {
     const { plan, phone } = req.body;
 
     if (!plan || !phone) {
-      return res.status(400).json({ error: "❌ Plan and phone are required" });
+      return res.status(400).json({ error: " Plan and phone are required" });
     }
 
     if (req.user.role !== "mover") {
-      return res.status(403).json({ error: "❌ Only movers can boost their profile" });
+      return res.status(403).json({ error: " Only movers can boost their profile" });
     }
 
     // Define boost pricing
@@ -885,7 +885,7 @@ router.post("/boost-mover", auth, async (req, res) => {
 
     const boostPlan = pricing[plan];
     if (!boostPlan) {
-      return res.status(400).json({ error: "❌ Invalid boost plan" });
+      return res.status(400).json({ error: " Invalid boost plan" });
     }
 
     const token = await getAccessToken();
@@ -928,7 +928,7 @@ router.post("/boost-mover", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: `✅ M-Pesa prompt sent for ${boostPlan.name}! Enter PIN on your phone.`,
+      message: ` M-Pesa prompt sent for ${boostPlan.name}! Enter PIN on your phone.`,
       checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
       plan: boostPlan.name,
       amount: boostPlan.amount,
@@ -1008,7 +1008,7 @@ router.post("/bank-transfer", auth, async (req, res) => {
 
     if (!amount || !transactionRef) {
       console.log("Validation failed: Missing amount or transactionRef");
-      return res.status(400).json({ error: "❌ Amount and transaction reference are required" });
+      return res.status(400).json({ error: " Amount and transaction reference are required" });
     }
 
     console.log("Validation passed. Saving to database...");
@@ -1055,9 +1055,9 @@ router.post("/bank-transfer", auth, async (req, res) => {
         subscriptionType: subscriptionType || undefined,
         read: false,
       });
-      console.log("✅ Pending manual payment notification created for admin");
+      console.log(" Pending manual payment notification created for admin");
     } catch (notifErr) {
-      console.error("❌ Failed to create pending payment notification:", notifErr);
+      console.error(" Failed to create pending payment notification:", notifErr);
     }
 
     console.log("Payment saved successfully. User ID:", req.user.id);
@@ -1066,7 +1066,7 @@ router.post("/bank-transfer", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: "✅ Bank transfer payment initiated. Please complete the payment and use your transaction reference for verification.",
+      message: " Bank transfer payment initiated. Please complete the payment and use your transaction reference for verification.",
       bankInfo: {
         bankName: process.env.BANK_NAME || "I&M BANK",
         paybill: process.env.BANK_PAYBILL || "542542",
@@ -1089,16 +1089,16 @@ router.post("/verify-bank-payment", auth, async (req, res) => {
     const { transactionRef, userId, approve } = req.body;
 
     if (!transactionRef || !userId) {
-      return res.status(400).json({ error: "❌ Transaction reference and user ID are required" });
+      return res.status(400).json({ error: " Transaction reference and user ID are required" });
     }
 
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can verify payments" });
+      return res.status(403).json({ error: " Only admins can verify payments" });
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ error: "❌ User not found" });
+      return res.status(404).json({ error: " User not found" });
     }
 
     const payment = user.paymentHistory.find(
@@ -1106,7 +1106,7 @@ router.post("/verify-bank-payment", auth, async (req, res) => {
     );
 
     if (!payment) {
-      return res.status(404).json({ error: "❌ Payment not found" });
+      return res.status(404).json({ error: " Payment not found" });
     }
 
     if (approve) {
@@ -1156,11 +1156,11 @@ router.post("/verify-bank-payment", auth, async (req, res) => {
       }
 
       await user.save();
-      res.json({ success: true, message: "✅ Payment verified and processed successfully" });
+      res.json({ success: true, message: " Payment verified and processed successfully" });
     } else {
       payment.status = "failed";
       await user.save();
-      res.json({ success: true, message: "✅ Payment rejected" });
+      res.json({ success: true, message: " Payment rejected" });
     }
 
   } catch (error) {
@@ -1176,7 +1176,7 @@ router.get("/pending-bank-payments", auth, async (req, res) => {
 
     if (req.user.role !== "admin") {
       console.log("Access denied: User is not admin");
-      return res.status(403).json({ error: "❌ Only admins can view pending payments" });
+      return res.status(403).json({ error: " Only admins can view pending payments" });
     }
 
     const users = await User.find({
@@ -1214,7 +1214,7 @@ router.get("/pending-bank-payments", auth, async (req, res) => {
 router.get("/notifications", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can view notifications" });
+      return res.status(403).json({ error: " Only admins can view notifications" });
     }
 
     const notifications = await Notification.find({ type: { $ne: "item_request" } })
@@ -1234,7 +1234,7 @@ router.get("/notifications", auth, async (req, res) => {
 router.put("/notifications/:id/read", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ error: "❌ Only admins can update notifications" });
+      return res.status(403).json({ error: " Only admins can update notifications" });
     }
 
     const { approve, badgeId } = req.body;
@@ -1246,7 +1246,7 @@ router.put("/notifications/:id/read", auth, async (req, res) => {
     const notification = await Notification.findById(req.params.id);
 
     if (!notification) {
-      return res.status(404).json({ error: "❌ Notification not found" });
+      return res.status(404).json({ error: " Notification not found" });
     }
 
     notification.read = true;
@@ -1378,10 +1378,10 @@ router.put("/notifications/:id/read", auth, async (req, res) => {
           await user.save();
           console.log(`Saved user status successfully`);
         } else {
-          console.log(`❌ No matching paymentHistory item found in user profile`);
+          console.log(` No matching paymentHistory item found in user profile`);
         }
       } else {
-        console.log(`❌ User with ID ${notification.userId} not found`);
+        console.log(` User with ID ${notification.userId} not found`);
       }
     }
 
@@ -1389,7 +1389,7 @@ router.put("/notifications/:id/read", auth, async (req, res) => {
     console.log(`=== PROCESS MANUAL PAYMENT END ===`);
     res.json({ success: true, notification });
   } catch (err) {
-    console.error("❌ Process notification error:", err);
+    console.error(" Process notification error:", err);
     res.status(500).json({ error: err.message || "Failed to update notification" });
   }
 });
@@ -1402,16 +1402,16 @@ router.post("/withdraw", auth, async (req, res) => {
     const { amount } = req.body;
 
     if (!amount || amount < 100) {
-      return res.status(400).json({ error: "❌ Minimum withdrawal is KES 100" });
+      return res.status(400).json({ error: " Minimum withdrawal is KES 100" });
     }
 
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ error: "❌ User not found" });
+      return res.status(404).json({ error: " User not found" });
     }
 
     if (user.walletBalance < amount) {
-      return res.status(400).json({ error: "❌ Insufficient wallet balance" });
+      return res.status(400).json({ error: " Insufficient wallet balance" });
     }
 
     // Deduct from wallet balance
@@ -1431,7 +1431,7 @@ router.post("/withdraw", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: "✅ Withdrawal request submitted. Funds will be transferred to your M-Pesa account within 24 hours.",
+      message: " Withdrawal request submitted. Funds will be transferred to your M-Pesa account within 24 hours.",
       balance: user.walletBalance,
     });
   } catch (error) {
@@ -1446,20 +1446,20 @@ router.post("/transfer", auth, async (req, res) => {
     const { amount, recipientPhone } = req.body;
 
     if (!amount || amount < 10) {
-      return res.status(400).json({ error: "❌ Minimum transfer is KES 10" });
+      return res.status(400).json({ error: " Minimum transfer is KES 10" });
     }
 
     if (!recipientPhone) {
-      return res.status(400).json({ error: "❌ Recipient phone number is required" });
+      return res.status(400).json({ error: " Recipient phone number is required" });
     }
 
     const sender = await User.findById(req.user.id);
     if (!sender) {
-      return res.status(404).json({ error: "❌ Sender not found" });
+      return res.status(404).json({ error: " Sender not found" });
     }
 
     if (sender.walletBalance < amount) {
-      return res.status(400).json({ error: "❌ Insufficient wallet balance" });
+      return res.status(400).json({ error: " Insufficient wallet balance" });
     }
 
     // Find recipient by phone, prioritizing role: "user", then "landlord", then "mover", then "seller"
@@ -1477,11 +1477,11 @@ router.post("/transfer", auth, async (req, res) => {
       recipient = await User.findOne({ phone: recipientPhone });
     }
     if (!recipient) {
-      return res.status(404).json({ error: "❌ Recipient not found" });
+      return res.status(404).json({ error: " Recipient not found" });
     }
 
     if (recipient._id.toString() === sender._id.toString()) {
-      return res.status(400).json({ error: "❌ Cannot transfer to yourself" });
+      return res.status(400).json({ error: " Cannot transfer to yourself" });
     }
 
     // Perform transfer
@@ -1519,7 +1519,7 @@ router.post("/transfer", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: `✅ KES ${amount} transferred successfully to ${recipient.name}`,
+      message: ` KES ${amount} transferred successfully to ${recipient.name}`,
       balance: sender.walletBalance,
     });
   } catch (error) {
@@ -1533,7 +1533,7 @@ router.get("/wallet-stats", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ error: "❌ User not found" });
+      return res.status(404).json({ error: " User not found" });
     }
 
     const transactions = user.paymentHistory || [];

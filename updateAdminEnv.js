@@ -19,4 +19,4 @@ const adminEnvContent = Object.entries(adminEnvConfig)
   .join('\n');
 
 fs.writeFileSync(adminEnvPath, adminEnvContent);
-console.log('✅ Updated admin panel .env file with REACT_APP_API_URL=https://axx-spaces-backend-1.onrender.com/api');
+console.log(' Updated admin panel .env file with REACT_APP_API_URL=https://axx-spaces-backend-1.onrender.com/api');

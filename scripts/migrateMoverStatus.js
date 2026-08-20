@@ -7,7 +7,7 @@ dotenv.config();
 const migrateMoverStatus = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Find all movers without a status field
     const moversWithoutStatus = await User.find({ 
@@ -38,10 +38,10 @@ const migrateMoverStatus = async () => {
       console.log(`Fixed mover ${mover.email} to status: pending`);
     }
 
-    console.log("✅ Migration completed successfully");
+    console.log(" Migration completed successfully");
     process.exit(0);
   } catch (error) {
-    console.error("❌ Migration error:", error);
+    console.error(" Migration error:", error);
     process.exit(1);
   }
 };

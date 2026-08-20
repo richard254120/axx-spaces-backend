@@ -15,7 +15,7 @@ const addAdmin = async (email, password, name, phone) => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Check if admin already exists
     let admin = await User.findOne({ email, role: "admin" });
@@ -30,7 +30,7 @@ const addAdmin = async (email, password, name, phone) => {
       admin.isEmailVerified = true;
       admin.isApproved = true;
       await admin.save();
-      console.log("✅ Updated existing admin account");
+      console.log(" Updated existing admin account");
     } else {
       // Create new admin account
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -44,19 +44,19 @@ const addAdmin = async (email, password, name, phone) => {
         isApproved: true,
       });
       await admin.save();
-      console.log("✅ Created new admin account");
+      console.log(" Created new admin account");
     }
 
-    console.log("📧 Admin Email:", email);
-    console.log("🔑 Admin Password:", password);
-    console.log("👤 Admin Name:", admin.name);
-    console.log("📱 Admin Phone:", admin.phone);
-    console.log("✅ Admin account setup complete!");
+    console.log(" Admin Email:", email);
+    console.log(" Admin Password:", password);
+    console.log(" Admin Name:", admin.name);
+    console.log(" Admin Phone:", admin.phone);
+    console.log(" Admin account setup complete!");
 
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error adding admin:", error);
+    console.error(" Error adding admin:", error);
     await mongoose.disconnect();
     process.exit(1);
   }

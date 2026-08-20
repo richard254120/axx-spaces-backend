@@ -5,14 +5,14 @@ dotenv.config();
 async function checkBusinessStatus() {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ Connected to MongoDB');
+    console.log(' Connected to MongoDB');
 
     const Business = mongoose.model('Business', new mongoose.Schema({}, { strict: false }), 'businesses');
 
     // Get all businesses
     const businesses = await Business.find({}, { name: 1, status: 1, isApproved: 1, featured: 1 }).sort({ createdAt: -1 });
 
-    console.log(`\n📊 Total businesses: ${businesses.length}\n`);
+    console.log(`\n Total businesses: ${businesses.length}\n`);
 
     // Count by status
     const statusCounts = {
@@ -58,45 +58,45 @@ async function checkBusinessStatus() {
       }
     });
 
-    console.log('📈 Status distribution:');
+    console.log(' Status distribution:');
     Object.entries(statusCounts).forEach(([status, count]) => {
       console.log(`   ${status}: ${count}`);
     });
 
-    console.log('\n📈 isApproved distribution:');
+    console.log('\n isApproved distribution:');
     console.log(`   true: ${isApprovedCounts.true}`);
     console.log(`   false: ${isApprovedCounts.false}`);
 
-    console.log('\n📈 Featured distribution:');
+    console.log('\n Featured distribution:');
     console.log(`   true: ${featuredCounts.true}`);
     console.log(`   false: ${featuredCounts.false}`);
 
     if (mismatched.length > 0) {
-      console.log('\n⚠️  MISMATCHED businesses (isApproved != status):');
+      console.log('\n  MISMATCHED businesses (isApproved != status):');
       mismatched.forEach(b => {
         console.log(`   ${b.name}: isApproved=${b.isApproved}, status=${b.status}, featured=${b.featured}`);
       });
     } else {
-      console.log('\n✅ No mismatches found between isApproved and status');
+      console.log('\n No mismatches found between isApproved and status');
     }
 
     // Show sample of approved businesses
     const approvedBusinesses = businesses.filter(b => b.status === 'approved');
-    console.log(`\n📋 Sample approved businesses (first 10):`);
+    console.log(`\n Sample approved businesses (first 10):`);
     approvedBusinesses.slice(0, 10).forEach(b => {
       console.log(`   ${b.name}: status=${b.status}, isApproved=${b.isApproved}, featured=${b.featured}`);
     });
 
     // Show sample of featured businesses
     const featuredBusinesses = businesses.filter(b => b.featured === true);
-    console.log(`\n📋 Featured businesses (${featuredBusinesses.length}):`);
+    console.log(`\n Featured businesses (${featuredBusinesses.length}):`);
     featuredBusinesses.forEach(b => {
       console.log(`   ${b.name}: status=${b.status}, isApproved=${b.isApproved}, featured=${b.featured}`);
     });
 
     await mongoose.connection.close();
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error(' Error:', error);
     process.exit(1);
   }
 }

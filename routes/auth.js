@@ -133,7 +133,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
       await resend.emails.send({
         from: FROM_EMAIL,
         to: email,
-        subject: "📧 Verify Your Email - Axxspace",
+        subject: " Verify Your Email - Axxspace",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: #0B2140; padding: 20px; text-align: center;">
@@ -149,7 +149,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
               <div style="text-align: center; margin: 32px 0;">
                 <a href="${verificationUrl}"
                   style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-                  ✅ Verify My Email
+                   Verify My Email
                 </a>
               </div>
               <p style="color: #9ca3af; font-size: 12px; text-align: center;">
@@ -161,7 +161,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
         `,
       });
     } else {
-      console.log("📧 [Email Mock] Would send verification email to:", email);
+      console.log(" [Email Mock] Would send verification email to:", email);
     }
 
     if (role === "mover") {
@@ -178,7 +178,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Registration error:", err);
+    console.error(" Registration error:", err);
     res.status(500).json({ error: err.message || "Registration failed" });
   }
 });
@@ -188,7 +188,7 @@ router.post("/login", security.authLimiter, async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    console.log("🔐 Login attempt:", { email, role });
+    console.log(" Login attempt:", { email, role });
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
@@ -197,40 +197,40 @@ router.post("/login", security.authLimiter, async (req, res) => {
     let user;
     if (role) {
       user = await User.findOne({ email, role }).select("+password");
-      console.log("🔍 User found with role:", user ? "YES" : "NO");
+      console.log(" User found with role:", user ? "YES" : "NO");
       // If not found with specific role, try finding by email only
       if (!user) {
         user = await User.findOne({ email }).select("+password");
-        console.log("🔍 User found by email only:", user ? "YES" : "NO");
+        console.log(" User found by email only:", user ? "YES" : "NO");
       }
     } else {
       // Fallback: prioritize admin/team roles first, otherwise return first matching user
       user = await User.findOne({ email, role: { $in: ["admin", "team"] } }).select("+password");
-      console.log("🔍 Admin/Team user found:", user ? "YES" : "NO");
+      console.log(" Admin/Team user found:", user ? "YES" : "NO");
       if (!user) {
         user = await User.findOne({ email }).select("+password");
-        console.log("🔍 Any user found:", user ? "YES" : "NO");
+        console.log(" Any user found:", user ? "YES" : "NO");
       }
     }
 
     if (!user) {
-      console.log("❌ User not found for email:", email);
+      console.log(" User not found for email:", email);
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    console.log("👤 User found:", { email: user.email, role: user.role, isEmailVerified: user.isEmailVerified });
+    console.log(" User found:", { email: user.email, role: user.role, isEmailVerified: user.isEmailVerified });
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      console.log("❌ Password invalid for:", email);
+      console.log(" Password invalid for:", email);
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    console.log("✅ Password valid for:", email);
+    console.log(" Password valid for:", email);
 
     if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
       return res.status(403).json({
-        error: "📧 Please verify your email before logging in. Check your inbox for the verification link.",
+        error: " Please verify your email before logging in. Check your inbox for the verification link.",
         requiresVerification: true,
         email: user.email,
         role: user.role
@@ -239,7 +239,7 @@ router.post("/login", security.authLimiter, async (req, res) => {
 
     if (user.role === "mover" && !user.isApproved) {
       return res.status(403).json({
-        error: "⏳ Your account is pending admin approval. You will be able to log in once approved."
+        error: " Your account is pending admin approval. You will be able to log in once approved."
       });
     }
 
@@ -266,7 +266,7 @@ router.post("/login", security.authLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Login error:", err);
+    console.error(" Login error:", err);
     res.status(500).json({ error: "Server error during login" });
   }
 });
@@ -279,7 +279,7 @@ router.get("/me", auth, async (req, res) => {
     }
     res.json({ user: formatUserResponse(req.user) });
   } catch (err) {
-    console.error("❌ Profile fetch error:", err);
+    console.error(" Profile fetch error:", err);
     res.status(500).json({ error: "Failed to fetch user profile" });
   }
 });
@@ -301,7 +301,7 @@ router.post("/forgot-password", security.passwordResetLimiter, async (req, res) 
 
     // Always return the same message to prevent email enumeration
     if (!user) {
-      return res.json({ message: "✅ If that email exists, a reset link has been sent." });
+      return res.json({ message: " If that email exists, a reset link has been sent." });
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -311,7 +311,7 @@ router.post("/forgot-password", security.passwordResetLimiter, async (req, res) 
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-    console.log("📧 Sending password reset email:");
+    console.log(" Sending password reset email:");
     console.log("  From:", FROM_EMAIL);
     console.log("  To:", email);
     console.log("  Reset URL:", resetUrl);
@@ -319,11 +319,11 @@ router.post("/forgot-password", security.passwordResetLimiter, async (req, res) 
     const sendResult = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: "🔐 Reset Your Axx Spaces Password",
+      subject: " Reset Your Axx Spaces Password",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: #1f2937; padding: 20px; text-align: center;">
-            <h1 style="color: #fbbf24; margin: 0;">🔐 Password Reset</h1>
+            <h1 style="color: #fbbf24; margin: 0;"> Password Reset</h1>
             <p style="color: #94a3b8; margin: 6px 0 0;">Axx Spaces</p>
           </div>
           <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
@@ -335,7 +335,7 @@ router.post("/forgot-password", security.passwordResetLimiter, async (req, res) 
             <div style="text-align: center; margin: 32px 0;">
               <a href="${resetUrl}"
                 style="background: #2427fb; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-                🔑 Reset My Password
+                 Reset My Password
               </a>
             </div>
             <p style="color: #9ca3af; font-size: 12px; text-align: center;">
@@ -349,19 +349,19 @@ router.post("/forgot-password", security.passwordResetLimiter, async (req, res) 
 
     // Check for Resend API errors
     if (sendResult.error) {
-      console.error("❌ Resend API error:", sendResult.error);
+      console.error(" Resend API error:", sendResult.error);
       throw new Error(sendResult.error.message || "Failed to send email via Resend");
     }
 
     // Log Resend's response so you can see exactly what happened
-    console.log("📬 Resend response:", JSON.stringify(sendResult, null, 2));
-    console.log(`✅ Password reset email sent to: ${email}`);
+    console.log(" Resend response:", JSON.stringify(sendResult, null, 2));
+    console.log(` Password reset email sent to: ${email}`);
 
-    res.json({ message: "✅ If that email exists, a reset link has been sent." });
+    res.json({ message: " If that email exists, a reset link has been sent." });
 
   } catch (err) {
-    console.error("❌ Forgot password error:", err);
-    console.error("❌ Resend error details:", err?.response?.data || err?.message);
+    console.error(" Forgot password error:", err);
+    console.error(" Resend error details:", err?.response?.data || err?.message);
     res.status(500).json({ error: "Failed to send reset email" });
   }
 });
@@ -388,7 +388,7 @@ router.post("/reset-password/:token", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ error: "❌ Reset link is invalid or has expired." });
+      return res.status(400).json({ error: " Reset link is invalid or has expired." });
     }
 
     user.password = await bcrypt.hash(password, 10);
@@ -396,11 +396,11 @@ router.post("/reset-password/:token", async (req, res) => {
     user.resetPasswordExpiry = undefined;
     await user.save();
 
-    console.log(`✅ Password reset successfully for: ${user.email}`);
-    res.json({ message: "✅ Password reset successfully! You can now login." });
+    console.log(` Password reset successfully for: ${user.email}`);
+    res.json({ message: " Password reset successfully! You can now login." });
 
   } catch (err) {
-    console.error("❌ Reset password error:", err);
+    console.error(" Reset password error:", err);
     res.status(500).json({ error: "Failed to reset password" });
   }
 });
@@ -416,7 +416,7 @@ router.post("/verify-email/:token", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ error: "❌ Verification link is invalid or has expired." });
+      return res.status(400).json({ error: " Verification link is invalid or has expired." });
     }
 
     user.isEmailVerified = true;
@@ -424,11 +424,11 @@ router.post("/verify-email/:token", async (req, res) => {
     user.emailVerificationExpiry = undefined;
     await user.save();
 
-    console.log(`✅ Email verified successfully for: ${user.email} (role: ${user.role})`);
-    res.json({ message: "✅ Email verified successfully! You can now login.", role: user.role });
+    console.log(` Email verified successfully for: ${user.email} (role: ${user.role})`);
+    res.json({ message: " Email verified successfully! You can now login.", role: user.role });
 
   } catch (err) {
-    console.error("❌ Email verification error:", err);
+    console.error(" Email verification error:", err);
     res.status(500).json({ error: "Failed to verify email" });
   }
 });
@@ -468,7 +468,7 @@ router.post("/resend-verification", async (req, res) => {
     await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: "📧 Verify Your Email - Axxspace",
+      subject: " Verify Your Email - Axxspace",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: #0B2140; padding: 20px; text-align: center;">
@@ -484,7 +484,7 @@ router.post("/resend-verification", async (req, res) => {
             <div style="text-align: center; margin: 32px 0;">
               <a href="${verificationUrl}"
                 style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-                ✅ Verify My Email
+                 Verify My Email
               </a>
             </div>
             <p style="color: #9ca3af; font-size: 12px; text-align: center;">
@@ -496,11 +496,11 @@ router.post("/resend-verification", async (req, res) => {
       `,
     });
 
-    console.log(`📧 Verification email resent to: ${email}`);
-    res.json({ message: "✅ Verification email sent successfully!" });
+    console.log(` Verification email resent to: ${email}`);
+    res.json({ message: " Verification email sent successfully!" });
 
   } catch (err) {
-    console.error("❌ Resend verification error:", err);
+    console.error(" Resend verification error:", err);
     res.status(500).json({ error: "Failed to send verification email" });
   }
 });
@@ -572,7 +572,7 @@ router.post("/google", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Google OAuth error:", err);
+    console.error(" Google OAuth error:", err);
     res.status(500).json({ error: err.message || "Google authentication failed" });
   }
 });
@@ -595,7 +595,7 @@ router.patch("/:id/approve-tourism-provider", auth, async (req, res) => {
     }
     res.json({ success: true, message: `Tourism provider ${approve ? "approved" : "rejected"}`, user });
   } catch (err) {
-    console.error("❌ Approve tourism provider error:", err);
+    console.error(" Approve tourism provider error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -618,7 +618,7 @@ router.patch("/:id/approve-mover", auth, async (req, res) => {
     }
     res.json({ success: true, message: `Mover ${approve ? "approved" : "rejected"}`, user });
   } catch (err) {
-    console.error("❌ Approve mover error:", err);
+    console.error(" Approve mover error:", err);
     res.status(500).json({ error: err.message });
   }
 });

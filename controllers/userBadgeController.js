@@ -61,7 +61,7 @@ export const issueUserBadge = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error("❌ Issue user badge error:", error);
+    console.error(" Issue user badge error:", error);
     res.status(500).json({ error: error.message || "Failed to issue badge" });
   }
 };
@@ -91,7 +91,7 @@ export const removeUserBadge = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error("❌ Remove user badge error:", error);
+    console.error(" Remove user badge error:", error);
     res.status(500).json({ error: error.message || "Failed to remove badge" });
   }
 };
@@ -121,7 +121,7 @@ export const getUserBadges = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Get user badges error:", error);
+    console.error(" Get user badges error:", error);
     res.status(500).json({ error: error.message || "Failed to get badges" });
   }
 };
@@ -153,7 +153,7 @@ export const getAllUserBadges = async (req, res) => {
       users: usersWithBadges,
     });
   } catch (error) {
-    console.error("❌ Get all user badges error:", error);
+    console.error(" Get all user badges error:", error);
     res.status(500).json({ error: error.message || "Failed to get user badges" });
   }
 };
@@ -184,7 +184,7 @@ export const getUserBadgeStats = async (req, res) => {
       stats,
     });
   } catch (error) {
-    console.error("❌ Get user badge stats error:", error);
+    console.error(" Get user badge stats error:", error);
     res.status(500).json({ error: error.message || "Failed to get badge statistics" });
   }
 };
@@ -213,7 +213,7 @@ export const searchUsers = async (req, res) => {
       users,
     });
   } catch (error) {
-    console.error("❌ Search users error:", error);
+    console.error(" Search users error:", error);
     res.status(500).json({ error: error.message || "Failed to search users" });
   }
 };

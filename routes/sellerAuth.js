@@ -67,7 +67,7 @@ router.post("/register", async (req, res) => {
       await resend.emails.send({
         from: FROM_EMAIL,
         to: email,
-        subject: "📧 Verify Your Email - Axxspace",
+        subject: " Verify Your Email - Axxspace",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: #0B2140; padding: 20px; text-align: center;">
@@ -83,7 +83,7 @@ router.post("/register", async (req, res) => {
               <div style="text-align: center; margin: 32px 0;">
                 <a href="${verificationUrl}"
                   style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-                  ✅ Verify My Email
+                   Verify My Email
                 </a>
               </div>
               <p style="color: #9ca3af; font-size: 12px; text-align: center;">
@@ -95,7 +95,7 @@ router.post("/register", async (req, res) => {
         `,
       });
     } else {
-      console.log("📧 [Email Mock] Would send verification email to:", email);
+      console.log(" [Email Mock] Would send verification email to:", email);
     }
 
     res.status(201).json({
@@ -130,7 +130,7 @@ router.post("/login", async (req, res) => {
 
     if (!seller.isEmailVerified) {
       return res.status(403).json({
-        error: "📧 Please verify your email before logging in. Check your inbox for the verification link.",
+        error: " Please verify your email before logging in. Check your inbox for the verification link.",
         requiresVerification: true,
         email: seller.email,
         role: "seller"

@@ -74,7 +74,7 @@ const propertySchema = new mongoose.Schema(
       default: "pending",
     },
 
-    // ✅ NEW FIELDS FOR MONETIZATION 
+    //  NEW FIELDS FOR MONETIZATION 
     isFeatured: {
       type: Boolean,
       default: false,
@@ -110,7 +110,7 @@ const propertySchema = new mongoose.Schema(
       default: 0,
     },
 
-    // ✅ REVIEWS - Added (No other changes made)
+    //  REVIEWS - Added (No other changes made)
     reviews: [{
       name: { type: String, required: true },
       rating: { type: Number, required: true, min: 1, max: 5 },
@@ -118,7 +118,7 @@ const propertySchema = new mongoose.Schema(
       createdAt: { type: Date, default: Date.now }
     }],
 
-    // ✅ VERIFICATION BADGES
+    //  VERIFICATION BADGES
     verificationBadges: [{
       type: {
         type: String,
@@ -137,7 +137,7 @@ const propertySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ✅ Keep availableUnits accurate & auto-unfeature expired promotions
+//  Keep availableUnits accurate & auto-unfeature expired promotions
 propertySchema.pre("save", function (next) {
   this.availableUnits = Math.max(0, this.totalUnits - this.bookedUnits);
 

@@ -15,7 +15,7 @@ const testRoleChange = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Create a test user with landlord role
     const testEmail = "testlandlord@axxspace.com";
@@ -23,7 +23,7 @@ const testRoleChange = async () => {
     const testName = "Test Landlord";
     const testPhone = "0712345678";
 
-    console.log(`\n🧪 Testing role change scenario\n`);
+    console.log(`\n Testing role change scenario\n`);
 
     // Step 1: Create a test user with landlord role
     console.log("Step 1: Creating test user with landlord role...");
@@ -52,7 +52,7 @@ const testRoleChange = async () => {
       await user.save();
     }
     
-    console.log(`   ✅ User created/updated with role: ${user.role}`);
+    console.log(`    User created/updated with role: ${user.role}`);
 
     // Step 2: Try to login as landlord (should fail for admin panel)
     console.log("\nStep 2: Testing login with landlord role...");
@@ -67,14 +67,14 @@ const testRoleChange = async () => {
     console.log(`   Response: ${loginData1.error || "Success"}`);
     
     if (loginResponse1.status === 401) {
-      console.log("   ✅ Correctly rejected - landlord cannot login as admin");
+      console.log("    Correctly rejected - landlord cannot login as admin");
     }
 
     // Step 3: Change role to admin in database
     console.log("\nStep 3: Changing user role to admin in database...");
     user.role = "admin";
     await user.save();
-    console.log(`   ✅ Role changed to: ${user.role}`);
+    console.log(`    Role changed to: ${user.role}`);
 
     // Step 4: Try to login as admin (should succeed)
     console.log("\nStep 4: Testing login with admin role...");
@@ -89,27 +89,27 @@ const testRoleChange = async () => {
     console.log(`   Response: ${loginData2.error || "Success"}`);
     
     if (loginResponse2.status === 200) {
-      console.log("   ✅ Successfully logged in as admin after role change!");
+      console.log("    Successfully logged in as admin after role change!");
       console.log(`   Token: ${loginData2.token.substring(0, 50)}...`);
       console.log(`   User: ${loginData2.user.name} (${loginData2.user.role})`);
     } else {
-      console.log("   ❌ Failed to login after role change - NEEDS FIX");
+      console.log("    Failed to login after role change - NEEDS FIX");
     }
 
     // Cleanup - change back to landlord
     console.log("\nStep 5: Cleaning up - changing role back to landlord...");
     user.role = "landlord";
     await user.save();
-    console.log("   ✅ Role restored to landlord");
+    console.log("    Role restored to landlord");
 
-    console.log("\n🎯 Conclusion:");
+    console.log("\n Conclusion:");
     console.log("   The system should allow role changes in database to immediately");
     console.log("   grant admin access without password changes or additional setup.");
 
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error testing role change:", error);
+    console.error(" Error testing role change:", error);
     await mongoose.disconnect();
     process.exit(1);
   }

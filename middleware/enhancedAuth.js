@@ -121,7 +121,7 @@ export const protect = async (req, res, next) => {
 
     if (!token) {
       return res.status(401).json({ 
-        error: "🔐 Access denied. No token provided.",
+        error: " Access denied. No token provided.",
         code: 'NO_TOKEN'
       });
     }
@@ -134,7 +134,7 @@ export const protect = async (req, res, next) => {
 
     if (!user) {
       return res.status(404).json({ 
-        error: "👤 User no longer exists.",
+        error: " User no longer exists.",
         code: 'USER_NOT_FOUND'
       });
     }
@@ -142,7 +142,7 @@ export const protect = async (req, res, next) => {
     // Check if user is active
     if (user.isBlocked) {
       return res.status(403).json({ 
-        error: "🚫 Account has been blocked",
+        error: " Account has been blocked",
         code: 'ACCOUNT_BLOCKED'
       });
     }
@@ -155,24 +155,24 @@ export const protect = async (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error("❌ Auth error:", error.message);
+    console.error(" Auth error:", error.message);
     
     if (error.name === "TokenExpiredError") {
       return res.status(401).json({ 
-        error: "🔐 Session expired. Please login again.",
+        error: " Session expired. Please login again.",
         code: 'TOKEN_EXPIRED'
       });
     }
     
     if (error.message === 'Token has been revoked') {
       return res.status(401).json({ 
-        error: "🔐 Token has been revoked. Please login again.",
+        error: " Token has been revoked. Please login again.",
         code: 'TOKEN_REVOKED'
       });
     }
     
     return res.status(401).json({ 
-      error: "🔐 Invalid token.",
+      error: " Invalid token.",
       code: 'INVALID_TOKEN'
     });
   }
@@ -187,7 +187,7 @@ export const authorize = (...roles) => {
     
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ 
-        error: "🚫 Access denied. Insufficient permissions.",
+        error: " Access denied. Insufficient permissions.",
         code: 'INSUFFICIENT_PERMISSIONS'
       });
     }

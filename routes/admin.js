@@ -32,7 +32,7 @@ router.get("/pending", protect, adminOnly, async (req, res) => {
       businesses: pendingBusinesses,
     });
   } catch (error) {
-    console.error("❌ Get pending items error:", error);
+    console.error(" Get pending items error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch pending items" });
   }
 });
@@ -50,7 +50,7 @@ router.get("/all", protect, adminOnly, async (req, res) => {
           .sort({ createdAt: -1 });
         break;
       case "materials":
-        // ✅ FIXED: Map "approved" status to "active" for materials
+        //  FIXED: Map "approved" status to "active" for materials
         const materialStatus = status === "approved" ? "active" : status;
         data = await Material.find(materialStatus ? { status: materialStatus } : {})
           .populate("seller", "name email phone")
@@ -84,12 +84,12 @@ router.get("/all", protect, adminOnly, async (req, res) => {
         ];
         break;
       default:
-        return res.status(400).json({ error: "❌ Invalid type parameter" });
+        return res.status(400).json({ error: " Invalid type parameter" });
     }
 
     res.json(data);
   } catch (error) {
-    console.error("❌ Get all items error:", error);
+    console.error(" Get all items error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch items" });
   }
 });
@@ -103,12 +103,12 @@ router.patch("/properties/:id/approve", protect, adminOnly, async (req, res) => 
       { new: true }
     ).populate("owner", "email");
 
-    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (!property) return res.status(404).json({ error: " Property not found" });
 
     await sendPropertyApprovalEmail(property.owner.email, property.title);
-    res.json({ success: true, message: "✅ Property approved", property });
+    res.json({ success: true, message: " Property approved", property });
   } catch (error) {
-    console.error("❌ Approve property error:", error);
+    console.error(" Approve property error:", error);
     res.status(500).json({ error: error.message || "Failed to approve property" });
   }
 });
@@ -122,11 +122,11 @@ router.patch("/properties/:id/reject", protect, adminOnly, async (req, res) => {
       { new: true }
     );
 
-    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (!property) return res.status(404).json({ error: " Property not found" });
 
-    res.json({ success: true, message: "✅ Property rejected", property });
+    res.json({ success: true, message: " Property rejected", property });
   } catch (error) {
-    console.error("❌ Reject property error:", error);
+    console.error(" Reject property error:", error);
     res.status(500).json({ error: error.message || "Failed to reject property" });
   }
 });
@@ -140,12 +140,12 @@ router.patch("/materials/:id/approve", protect, adminOnly, async (req, res) => {
       { new: true }
     ).populate("seller", "email");
 
-    if (!material) return res.status(404).json({ error: "❌ Material not found" });
+    if (!material) return res.status(404).json({ error: " Material not found" });
 
     await sendMaterialApprovalEmail(material.seller.email, material.title);
-    res.json({ success: true, message: "✅ Material approved", material });
+    res.json({ success: true, message: " Material approved", material });
   } catch (error) {
-    console.error("❌ Approve material error:", error);
+    console.error(" Approve material error:", error);
     res.status(500).json({ error: error.message || "Failed to approve material" });
   }
 });
@@ -159,11 +159,11 @@ router.patch("/materials/:id/reject", protect, adminOnly, async (req, res) => {
       { new: true }
     );
 
-    if (!material) return res.status(404).json({ error: "❌ Material not found" });
+    if (!material) return res.status(404).json({ error: " Material not found" });
 
-    res.json({ success: true, message: "✅ Material rejected", material });
+    res.json({ success: true, message: " Material rejected", material });
   } catch (error) {
-    console.error("❌ Reject material error:", error);
+    console.error(" Reject material error:", error);
     res.status(500).json({ error: error.message || "Failed to reject material" });
   }
 });
@@ -177,12 +177,12 @@ router.patch("/tourism/:id/approve", protect, adminOnly, async (req, res) => {
       { new: true }
     ).populate("owner", "email");
 
-    if (!tourism) return res.status(404).json({ error: "❌ Tourism listing not found" });
+    if (!tourism) return res.status(404).json({ error: " Tourism listing not found" });
 
     await sendTourismApprovalEmail(tourism.owner.email, tourism.name);
-    res.json({ success: true, message: "✅ Tourism listing approved", tourism });
+    res.json({ success: true, message: " Tourism listing approved", tourism });
   } catch (error) {
-    console.error("❌ Approve tourism error:", error);
+    console.error(" Approve tourism error:", error);
     res.status(500).json({ error: error.message || "Failed to approve tourism listing" });
   }
 });
@@ -196,11 +196,11 @@ router.patch("/tourism/:id/reject", protect, adminOnly, async (req, res) => {
       { new: true }
     );
 
-    if (!tourism) return res.status(404).json({ error: "❌ Tourism listing not found" });
+    if (!tourism) return res.status(404).json({ error: " Tourism listing not found" });
 
-    res.json({ success: true, message: "✅ Tourism listing rejected", tourism });
+    res.json({ success: true, message: " Tourism listing rejected", tourism });
   } catch (error) {
-    console.error("❌ Reject tourism error:", error);
+    console.error(" Reject tourism error:", error);
     res.status(500).json({ error: error.message || "Failed to reject tourism listing" });
   }
 });
@@ -214,12 +214,12 @@ router.patch("/movers/:id/approve", protect, adminOnly, async (req, res) => {
       { new: true }
     );
 
-    if (!mover) return res.status(404).json({ error: "❌ Mover not found" });
+    if (!mover) return res.status(404).json({ error: " Mover not found" });
 
     await sendMoverApprovalEmail(mover.email, mover.name);
-    res.json({ success: true, message: "✅ Mover approved", mover });
+    res.json({ success: true, message: " Mover approved", mover });
   } catch (error) {
-    console.error("❌ Approve mover error:", error);
+    console.error(" Approve mover error:", error);
     res.status(500).json({ error: error.message || "Failed to approve mover" });
   }
 });
@@ -233,11 +233,11 @@ router.patch("/movers/:id/reject", protect, adminOnly, async (req, res) => {
       { new: true }
     );
 
-    if (!mover) return res.status(404).json({ error: "❌ Mover not found" });
+    if (!mover) return res.status(404).json({ error: " Mover not found" });
 
-    res.json({ success: true, message: "✅ Mover rejected", mover });
+    res.json({ success: true, message: " Mover rejected", mover });
   } catch (error) {
-    console.error("❌ Reject mover error:", error);
+    console.error(" Reject mover error:", error);
     res.status(500).json({ error: error.message || "Failed to reject mover" });
   }
 });
@@ -251,14 +251,14 @@ router.patch("/sellers/:id/approve", protect, adminOnly, async (req, res) => {
       { new: true }
     ).populate("seller", "email");
 
-    if (!seller) return res.status(404).json({ error: "❌ Seller verification not found" });
+    if (!seller) return res.status(404).json({ error: " Seller verification not found" });
 
     // Also update the user's isApproved status
     await User.findByIdAndUpdate(seller.seller._id, { isApproved: true });
 
-    res.json({ success: true, message: "✅ Seller verified", seller });
+    res.json({ success: true, message: " Seller verified", seller });
   } catch (error) {
-    console.error("❌ Approve seller error:", error);
+    console.error(" Approve seller error:", error);
     res.status(500).json({ error: error.message || "Failed to approve seller" });
   }
 });
@@ -272,11 +272,11 @@ router.patch("/sellers/:id/reject", protect, adminOnly, async (req, res) => {
       { new: true }
     );
 
-    if (!seller) return res.status(404).json({ error: "❌ Seller verification not found" });
+    if (!seller) return res.status(404).json({ error: " Seller verification not found" });
 
-    res.json({ success: true, message: "✅ Seller rejected", seller });
+    res.json({ success: true, message: " Seller rejected", seller });
   } catch (error) {
-    console.error("❌ Reject seller error:", error);
+    console.error(" Reject seller error:", error);
     res.status(500).json({ error: error.message || "Failed to reject seller" });
   }
 });
@@ -321,7 +321,7 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
       businesses: { total: totalBusinesses, pending: pendingBusinesses },
     });
   } catch (error) {
-    console.error("❌ Get stats error:", error);
+    console.error(" Get stats error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch stats" });
   }
 });
@@ -341,7 +341,7 @@ router.get("/users", protect, adminOnly, async (req, res) => {
 
     res.json({ success: true, users });
   } catch (error) {
-    console.error("❌ Get users error:", error);
+    console.error(" Get users error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch users" });
   }
 });
@@ -365,7 +365,7 @@ router.get("/public/users", async (req, res) => {
 
     res.json({ success: true, users });
   } catch (error) {
-    console.error("❌ Get public users error:", error);
+    console.error(" Get public users error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch users" });
   }
 });
@@ -374,16 +374,16 @@ router.get("/public/users", async (req, res) => {
 router.delete("/users/:id", protect, adminOnly, async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) return res.status(404).json({ error: "❌ User not found" });
+    if (!user) return res.status(404).json({ error: " User not found" });
 
     // Also delete user's properties, materials, and tourism listings
     await Property.deleteMany({ owner: req.params.id });
     await Material.deleteMany({ seller: req.params.id });
     await TourismListing.deleteMany({ owner: req.params.id });
 
-    res.json({ success: true, message: "✅ User deleted successfully" });
+    res.json({ success: true, message: " User deleted successfully" });
   } catch (error) {
-    console.error("❌ Delete user error:", error);
+    console.error(" Delete user error:", error);
     res.status(500).json({ error: error.message || "Failed to delete user" });
   }
 });
@@ -392,11 +392,11 @@ router.delete("/users/:id", protect, adminOnly, async (req, res) => {
 router.delete("/properties/:id", protect, adminOnly, async (req, res) => {
   try {
     const property = await Property.findByIdAndDelete(req.params.id);
-    if (!property) return res.status(404).json({ error: "❌ Property not found" });
+    if (!property) return res.status(404).json({ error: " Property not found" });
 
-    res.json({ success: true, message: "✅ Property deleted successfully" });
+    res.json({ success: true, message: " Property deleted successfully" });
   } catch (error) {
-    console.error("❌ Delete property error:", error);
+    console.error(" Delete property error:", error);
     res.status(500).json({ error: error.message || "Failed to delete property" });
   }
 });
@@ -408,12 +408,12 @@ router.delete("/materials/:id", protect, adminOnly, async (req, res) => {
     const material = await Material.findByIdAndDelete(req.params.id);
     if (!material) {
       console.log("Material not found with ID:", req.params.id);
-      return res.status(404).json({ error: "❌ Material not found" });
+      return res.status(404).json({ error: " Material not found" });
     }
     console.log("Material deleted successfully:", material._id);
-    res.json({ success: true, message: "✅ Material deleted successfully" });
+    res.json({ success: true, message: " Material deleted successfully" });
   } catch (error) {
-    console.error("❌ Delete material error:", error);
+    console.error(" Delete material error:", error);
     res.status(500).json({ error: error.message || "Failed to delete material" });
   }
 });
@@ -422,11 +422,11 @@ router.delete("/materials/:id", protect, adminOnly, async (req, res) => {
 router.delete("/tourism/:id", protect, adminOnly, async (req, res) => {
   try {
     const tourism = await TourismListing.findByIdAndDelete(req.params.id);
-    if (!tourism) return res.status(404).json({ error: "❌ Tourism listing not found" });
+    if (!tourism) return res.status(404).json({ error: " Tourism listing not found" });
 
-    res.json({ success: true, message: "✅ Tourism listing deleted successfully" });
+    res.json({ success: true, message: " Tourism listing deleted successfully" });
   } catch (error) {
-    console.error("❌ Delete tourism error:", error);
+    console.error(" Delete tourism error:", error);
     res.status(500).json({ error: error.message || "Failed to delete tourism listing" });
   }
 });
@@ -435,11 +435,11 @@ router.delete("/tourism/:id", protect, adminOnly, async (req, res) => {
 router.delete("/movers/:id", protect, adminOnly, async (req, res) => {
   try {
     const mover = await User.findByIdAndDelete(req.params.id);
-    if (!mover) return res.status(404).json({ error: "❌ Mover not found" });
+    if (!mover) return res.status(404).json({ error: " Mover not found" });
 
-    res.json({ success: true, message: "✅ Mover deleted successfully" });
+    res.json({ success: true, message: " Mover deleted successfully" });
   } catch (error) {
-    console.error("❌ Delete mover error:", error);
+    console.error(" Delete mover error:", error);
     res.status(500).json({ error: error.message || "Failed to delete mover" });
   }
 });
@@ -553,7 +553,7 @@ router.get("/view-stats", protect, adminOnly, async (req, res) => {
 
     res.json({ success: true, data });
   } catch (error) {
-    console.error("❌ Get view stats error:", error);
+    console.error(" Get view stats error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch view statistics" });
   }
 });
@@ -610,7 +610,7 @@ router.get("/top-viewed", protect, adminOnly, async (req, res) => {
 
     res.json({ success: true, data });
   } catch (error) {
-    console.error("❌ Get top viewed error:", error);
+    console.error(" Get top viewed error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch top viewed items" });
   }
 });
@@ -747,7 +747,7 @@ router.get("/notifications", protect, adminOnly, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Get notifications error:", error);
+    console.error(" Get notifications error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch notifications" });
   }
 });
@@ -815,7 +815,7 @@ router.post("/feature-item", protect, adminOnly, async (req, res) => {
       item,
     });
   } catch (error) {
-    console.error("❌ Feature item error:", error);
+    console.error(" Feature item error:", error);
     res.status(500).json({ error: error.message || "Failed to feature item" });
   }
 });
@@ -866,7 +866,7 @@ router.get("/featured-items", protect, adminOnly, async (req, res) => {
       featuredItems,
     });
   } catch (error) {
-    console.error("❌ Get featured items error:", error);
+    console.error(" Get featured items error:", error);
     res.status(500).json({ error: error.message || "Failed to get featured items" });
   }
 });

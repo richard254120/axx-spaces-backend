@@ -15,7 +15,7 @@ const createAdmin = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Admin credentials
     const adminEmail = "admin@axxspace.com";
@@ -34,7 +34,7 @@ const createAdmin = async () => {
       admin.isEmailVerified = true;
       admin.isApproved = true;
       await admin.save();
-      console.log("✅ Updated existing admin account");
+      console.log(" Updated existing admin account");
     } else {
       // Create new admin account
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
@@ -48,17 +48,17 @@ const createAdmin = async () => {
         isApproved: true,
       });
       await admin.save();
-      console.log("✅ Created new admin account");
+      console.log(" Created new admin account");
     }
 
-    console.log("📧 Admin Email:", adminEmail);
-    console.log("🔑 Admin Password:", adminPassword);
-    console.log("✅ Admin account setup complete!");
+    console.log(" Admin Email:", adminEmail);
+    console.log(" Admin Password:", adminPassword);
+    console.log(" Admin account setup complete!");
 
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error creating admin:", error);
+    console.error(" Error creating admin:", error);
     await mongoose.disconnect();
     process.exit(1);
   }

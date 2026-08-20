@@ -110,7 +110,7 @@ const materialSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // ✅ MONETIZATION: FEATURED/PROMOTED LISTINGS
+    //  MONETIZATION: FEATURED/PROMOTED LISTINGS
     isFeatured: {
       type: Boolean,
       default: false,
@@ -126,7 +126,7 @@ const materialSchema = new mongoose.Schema(
       type: Date,
     },
 
-    // ✅ VERIFICATION BADGES
+    //  VERIFICATION BADGES
     verificationBadges: [{
       type: {
         type: String,

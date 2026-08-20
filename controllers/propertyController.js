@@ -2,7 +2,7 @@ const Property = require('../models/Property');
 
 exports.createProperty = async (req, res) => {
   try {
-    // ✅ Strict Whitelist - Prevents Mass Assignment
+    //  Strict Whitelist - Prevents Mass Assignment
     const allowedFields = [
       'title', 'county', 'area', 'price', 'deposit', 'type',
       'bedrooms', 'bathrooms', 'description', 'phone',

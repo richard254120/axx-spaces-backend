@@ -14,15 +14,15 @@ const checkUser = async (email) => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log(" Connected to MongoDB");
 
     // Find user by email
     const user = await User.findOne({ email }).select("name email phone role isEmailVerified isApproved _id");
     
     if (!user) {
-      console.log(`❌ No user found with email: ${email}`);
+      console.log(` No user found with email: ${email}`);
     } else {
-      console.log(`\n👤 User found:\n`);
+      console.log(`\n User found:\n`);
       console.log(`Name: ${user.name}`);
       console.log(`Email: ${user.email}`);
       console.log(`Phone: ${user.phone}`);
@@ -32,16 +32,16 @@ const checkUser = async (email) => {
       console.log(`ID: ${user._id}`);
       
       if (user.role !== "admin") {
-        console.log(`\n⚠️ WARNING: User has role "${user.role}" but needs role "admin" to access admin panel`);
+        console.log(`\n WARNING: User has role "${user.role}" but needs role "admin" to access admin panel`);
       } else {
-        console.log(`\n✅ User has admin role and should be able to login`);
+        console.log(`\n User has admin role and should be able to login`);
       }
     }
 
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error checking user:", error);
+    console.error(" Error checking user:", error);
     await mongoose.disconnect();
     process.exit(1);
   }

@@ -1,12 +1,12 @@
 const CATEGORY_META = {
-  "Beach Resort": { color: "#0ea5e9", emoji: "🏖️" },
-  "City Hotel": { color: "#f59e0b", emoji: "🏨" },
-  "Mountain Lodge": { color: "#22c55e", emoji: "⛰️" },
-  "Safari Camp": { color: "#a855f7", emoji: "🦁" },
-  "Camping Grounds": { color: "#84cc16", emoji: "🏕️" },
-  "Boutique Hotel": { color: "#f97316", emoji: "🌿" },
-  "Eco Lodge": { color: "#10b981", emoji: "🌱" },
-  Hotel: { color: "#6366f1", emoji: "🏨" },
+  "Beach Resort": { color: "#0ea5e9", emoji: "" },
+  "City Hotel": { color: "#f59e0b", emoji: "" },
+  "Mountain Lodge": { color: "#22c55e", emoji: "" },
+  "Safari Camp": { color: "#a855f7", emoji: "" },
+  "Camping Grounds": { color: "#84cc16", emoji: "" },
+  "Boutique Hotel": { color: "#f97316", emoji: "" },
+  "Eco Lodge": { color: "#10b981", emoji: "" },
+  Hotel: { color: "#6366f1", emoji: "" },
 };
 
 function averageRating(reviews = []) {
@@ -17,7 +17,7 @@ function averageRating(reviews = []) {
 
 export function formatTourismCard(listing) {
   const obj = listing.toObject ? listing.toObject() : listing;
-  const meta = CATEGORY_META[obj.category] || { color: obj.color || "#0ea5e9", emoji: obj.emoji || "🏨" };
+  const meta = CATEGORY_META[obj.category] || { color: obj.color || "#0ea5e9", emoji: obj.emoji || "" };
   const rating = averageRating(obj.reviews);
   const reviewCount = obj.reviews?.length || 0;
 

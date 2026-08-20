@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 
 export const sendNewPropertyNotification = async (property, owner) => {
   try {
-    console.log("📧 EMAIL ENV CHECK:", {
+    console.log(" EMAIL ENV CHECK:", {
       service: process.env.EMAIL_SERVICE,
       user: process.env.EMAIL_USER,
       passLength: process.env.EMAIL_PASSWORD?.length,
@@ -19,11 +19,11 @@ export const sendNewPropertyNotification = async (property, owner) => {
     await transporter.sendMail({
       from: `"Axxspace" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_USER,
-      subject: `🏠 New Property Submitted — ${property.title}`,
+      subject: ` New Property Submitted — ${property.title}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 24px; border-radius: 10px;">
           <div style="background: #1f2937; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
-            <h1 style="color: #fbbf24; margin: 0; font-size: 22px;">🏠 New Property Submitted</h1>
+            <h1 style="color: #fbbf24; margin: 0; font-size: 22px;"> New Property Submitted</h1>
             <p style="color: #94a3b8; margin: 6px 0 0; font-size: 14px;">Axxspace Admin Notification</p>
           </div>
 
@@ -63,7 +63,7 @@ export const sendNewPropertyNotification = async (property, owner) => {
                 <td style="padding: 10px 0; color: #6b7280;">Status</td>
                 <td style="padding: 10px 0;">
                   <span style="background: #fef3c7; color: #d97706; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: bold;">
-                    ⏳ PENDING APPROVAL
+                     PENDING APPROVAL
                   </span>
                 </td>
               </tr>
@@ -95,7 +95,7 @@ export const sendNewPropertyNotification = async (property, owner) => {
                 href="${process.env.FRONTEND_URL}/dashboard" 
                 style="background: #fbbf24; color: #000; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;"
               >
-                ✅ Review &amp; Approve Property
+                 Review &amp; Approve Property
               </a>
             </div>
 
@@ -108,9 +108,9 @@ export const sendNewPropertyNotification = async (property, owner) => {
       `,
     });
 
-    console.log(`✅ Email sent successfully for property: ${property.title}`);
+    console.log(` Email sent successfully for property: ${property.title}`);
   } catch (err) {
-    console.error("❌ Failed to send email notification:", err.message);
-    console.error("❌ Email error details:", err);
+    console.error(" Failed to send email notification:", err.message);
+    console.error(" Email error details:", err);
   }
 };

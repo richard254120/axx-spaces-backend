@@ -52,12 +52,12 @@ const verificationDir = path.join(uploadsDir, 'verification');
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('✅ Created uploads directory');
+  console.log(' Created uploads directory');
 }
 
 if (!fs.existsSync(verificationDir)) {
   fs.mkdirSync(verificationDir, { recursive: true });
-  console.log('✅ Created uploads/verification directory');
+  console.log(' Created uploads/verification directory');
 }
 
 const app = express();
@@ -75,14 +75,14 @@ security.applyTo(app);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
-console.log("✅ Security middleware configured");
+console.log(" Security middleware configured");
 
 // ====================== MONGODB CONNECTION ======================
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
-    console.log("✅ MongoDB connected");
-    console.log("📍 Database:", mongoose.connection.name);
-    console.log("📍 Connection string:", process.env.MONGO_URI);
+    console.log(" MongoDB connected");
+    console.log(" Database:", mongoose.connection.name);
+    console.log(" Connection string:", process.env.MONGO_URI);
 
     // Run database index migrations
     try {
@@ -93,16 +93,16 @@ mongoose.connect(process.env.MONGO_URI)
 
         // List existing indexes
         const indexes = await usersCollection.indexes();
-        console.log("🔍 Checking existing indexes on 'users' collection...");
+        console.log(" Checking existing indexes on 'users' collection...");
 
         // Look for single field unique indexes on email and phone
         for (const index of indexes) {
           if (index.name === "email_1" && index.unique) {
-            console.log("🗑️ Dropping index email_1...");
+            console.log(" Dropping index email_1...");
             await usersCollection.dropIndex("email_1");
           }
           if (index.name === "phone_1" && index.unique) {
-            console.log("🗑️ Dropping index phone_1...");
+            console.log(" Dropping index phone_1...");
             await usersCollection.dropIndex("phone_1");
           }
         }
@@ -110,14 +110,14 @@ mongoose.connect(process.env.MONGO_URI)
         // Create new compound indexes if they don't exist
         // REMOVED: Compound unique indexes prevent role changes in database
         // Users should be able to change roles (e.g., landlord -> admin) without conflicts
-        console.log("ℹ️  Skipping compound unique index creation to allow role changes");
+        console.log("  Skipping compound unique index creation to allow role changes");
       }
     } catch (indexErr) {
-      console.error("⚠️ Error updating unique indexes:", indexErr.message);
+      console.error(" Error updating unique indexes:", indexErr.message);
     }
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
+    console.error(" MongoDB connection error:", err.message);
     process.exit(1);
   });
 
@@ -181,9 +181,9 @@ const PORT = process.env.PORT || 1001;
 
 app.listen(PORT, () => {
   console.log("==================================");
-  console.log("🚀 AXX SPACES SERVER STARTED");
+  console.log(" AXX SPACES SERVER STARTED");
   console.log("==================================");
-  console.log(`📍 Port: ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log("🔒 Security: Active (Helmet + Rate Limiting + Sanitization + CSP + Auth)");
+  console.log(` Port: ${PORT}`);
+  console.log(` Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(" Security: Active (Helmet + Rate Limiting + Sanitization + CSP + Auth)");
 });

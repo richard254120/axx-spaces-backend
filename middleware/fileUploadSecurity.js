@@ -231,7 +231,7 @@ export const detectUploadAttack = (req, res, next) => {
   
   // Check all request data
   if (checkValue(req.body) || checkValue(req.query) || checkValue(req.params)) {
-    console.log('🚨 File upload attack detected');
+    console.log(' File upload attack detected');
     return res.status(400).json({ error: 'Malicious request detected' });
   }
   

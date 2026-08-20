@@ -116,7 +116,7 @@ function applyTo(app) {
     next();
   });
 
-  console.log("🔒 [security.js] All security middleware applied successfully");
+  console.log(" [security.js] All security middleware applied successfully");
 }
 
 export default {
