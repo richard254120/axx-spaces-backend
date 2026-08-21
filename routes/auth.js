@@ -62,9 +62,6 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
     const newUser = new User({
       name, email, password: hashedPassword, phone,
       role: targetRole,
@@ -72,8 +69,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
         targetRole === "landlord" && landlordType === "university"
           ? "university"
           : "general",
-      emailVerificationToken: verificationToken,
-      emailVerificationExpiry: verificationExpiry,
+      isEmailVerified: true,
     });
 
     if (role === "mover") {
@@ -127,43 +123,6 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
 
     await newUser.save();
 
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-
-    if (resend) {
-      await resend.emails.send({
-        from: FROM_EMAIL,
-        to: email,
-        subject: " Verify Your Email - Axxspace",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #0B2140; padding: 20px; text-align: center;">
-              <h1 style="color: #fbbf24; margin: 0;">Axxspace</h1>
-              <p style="color: #94a3b8; margin: 6px 0 0;">Kenya's Premier Platform</p>
-            </div>
-            <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
-              <p style="color: #1f2937; font-size: 15px;">Hi <strong>${name}</strong>,</p>
-              <p style="color: #6b7280; font-size: 14px;">
-                Thank you for registering with Axxspace! Please verify your email address to activate your account.
-                This link expires in <strong>24 hours</strong>.
-              </p>
-              <div style="text-align: center; margin: 32px 0;">
-                <a href="${verificationUrl}"
-                  style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-                   Verify My Email
-                </a>
-              </div>
-              <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-                If you did not create an account with Axxspace, ignore this email.<br/>
-                Link expires in 24 hours.
-              </p>
-            </div>
-          </div>
-        `,
-      });
-    } else {
-      console.log(" [Email Mock] Would send verification email to:", email);
-    }
-
     if (role === "mover") {
       await sendMoverRegistrationEmail(newUser);
     } else if (role === "seller") {
@@ -173,8 +132,8 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
     }
 
     res.status(201).json({
-      message: "Registration successful! Please check your email to verify your account.",
-      requiresVerification: true,
+      message: "Registration successful! You can now log in with your credentials.",
+      requiresVerification: false,
     });
 
   } catch (err) {
@@ -228,14 +187,15 @@ router.post("/login", security.authLimiter, async (req, res) => {
 
     console.log(" Password valid for:", email);
 
-    if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
-      return res.status(403).json({
-        error: " Please verify your email before logging in. Check your inbox for the verification link.",
-        requiresVerification: true,
-        email: user.email,
-        role: user.role
-      });
-    }
+    // Email verification check disabled - users can login immediately after registration
+    // if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
+    //   return res.status(403).json({
+    //     error: " Please verify your email before logging in. Check your inbox for the verification link.",
+    //     requiresVerification: true,
+    //     email: user.email,
+    //     role: user.role
+    //   });
+    // }
 
     if (user.role === "mover" && !user.isApproved) {
       return res.status(403).json({
