@@ -548,7 +548,7 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
 
     // Handle remainingImages array parsing
     let parsedRemainingImages = [];
-    if (req.body.hasOwnProperty("remainingImages")) {
+    if (Object.prototype.hasOwnProperty.call(req.body, "remainingImages")) {
       if (remainingImages) {
         try {
           parsedRemainingImages = typeof remainingImages === "string" ? JSON.parse(remainingImages) : remainingImages;
