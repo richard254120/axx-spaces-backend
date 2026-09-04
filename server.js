@@ -17,6 +17,7 @@ const __dirname = path.dirname(__filename);
 
 // Routes
 import authRoutes from "./routes/auth.js";
+import caretakerRoutes from "./routes/caretaker.js";
 import propertyRoutes from "./routes/property.js";
 import paymentRoutes from "./routes/payment.js";
 import moverRoutes from "./routes/moverRoutes.js";
@@ -123,6 +124,7 @@ mongoose.connect(process.env.MONGO_URI)
 
 // ====================== ROUTES ======================
 app.use("/api/auth", authRoutes);
+app.use("/api/caretaker", security.apiLimiter, caretakerRoutes);
 app.use("/api/properties", security.apiLimiter, propertyRoutes);
 app.use("/api/payment", security.apiLimiter, paymentRoutes);
 app.use("/api/movers", security.apiLimiter, moverRoutes);

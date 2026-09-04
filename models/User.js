@@ -31,13 +31,30 @@ const userSchema = new mongoose.Schema(
     //  ROLE IDENTIFICATION — added "seller" and "team"
     role: {
       type: String,
-      enum: ["user", "mover", "admin", "landlord", "seller", "team"],
+      enum: ["user", "mover", "admin", "landlord", "seller", "team", "caretaker"],
       default: "user",
     },
     landlordType: {
       type: String,
       enum: ["general", "university"],
       default: "general",
+    },
+    //  CARETAKER SPECIFIC FIELDS
+    managedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    assignedProperties: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Property",
+      },
+    ],
+    caretakerInviteStatus: {
+      type: String,
+      enum: ["pending", "accepted", "none"],
+      default: "none",
     },
 
     //  MOVER SPECIFIC FIELDS
