@@ -622,7 +622,13 @@ router.patch("/:id/book", auth, async (req, res) => {
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ error: " Property not found" });
 
-    if (property.owner.toString() !== req.user._id.toString()) {
+    const isOwner = property.owner.toString() === req.user._id.toString();
+    const isAssignedCaretaker =
+      req.user.role === "caretaker" &&
+      Array.isArray(req.user.assignedProperties) &&
+      req.user.assignedProperties.map(String).includes(property._id.toString());
+
+    if (!isOwner && !isAssignedCaretaker) {
       return res.status(403).json({ error: " Unauthorized" });
     }
 
