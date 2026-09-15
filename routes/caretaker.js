@@ -88,4 +88,65 @@ router.get("/my-properties", protect, authorize("caretaker"), async (req, res) =
   }
 });
 
+
+// ====================== LANDLORD: Update caretaker's assigned properties ======================
+router.patch("/:id/properties", protect, authorize("landlord"), async (req, res) => {
+  try {
+    const { propertyIds } = req.body;
+
+    const caretaker = await User.findOne({
+      _id: req.params.id,
+      managedBy: req.user._id,
+      role: "caretaker",
+    });
+
+    if (!caretaker) {
+      return res.status(404).json({ error: "Caretaker not found" });
+    }
+
+    let validProperties = [];
+    if (propertyIds && propertyIds.length > 0) {
+      const props = await Property.find({
+        _id: { $in: propertyIds },
+        owner: req.user._id,
+      });
+      validProperties = props.map((p) => p._id);
+    }
+
+    caretaker.assignedProperties = validProperties;
+    await caretaker.save();
+
+    const updated = await User.findById(caretaker._id)
+      .select("-password")
+      .populate("assignedProperties", "title location");
+
+    res.json({ message: "Caretaker's properties updated", caretaker: updated });
+  } catch (error) {
+    console.error("Update caretaker properties error:", error.message);
+    res.status(500).json({ error: "Server error while updating caretaker" });
+  }
+});
+
+// ====================== LANDLORD: Remove a caretaker ======================
+router.delete("/:id", protect, authorize("landlord"), async (req, res) => {
+  try {
+    const caretaker = await User.findOneAndDelete({
+      _id: req.params.id,
+      managedBy: req.user._id,
+      role: "caretaker",
+    });
+
+    if (!caretaker) {
+      return res.status(404).json({ error: "Caretaker not found" });
+    }
+
+    res.json({ message: "Caretaker removed successfully" });
+  } catch (error) {
+    console.error("Remove caretaker error:", error.message);
+    res.status(500).json({ error: "Server error while removing caretaker" });
+  }
+});
+
 export default router;
+
+// (Insert before export default - handled below via patch script)
