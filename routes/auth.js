@@ -247,7 +247,7 @@ router.get("/me", auth, async (req, res) => {
 // ====================== FORGOT PASSWORD ======================
 router.post("/forgot-password", security.passwordResetLimiter, async (req, res) => {
   try {
-    const { email, role } = req.body;
+    const { email, role, platform } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
@@ -269,7 +269,9 @@ router.post("/forgot-password", security.passwordResetLimiter, async (req, res) 
     user.resetPasswordExpiry = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const resetUrl = platform === "app"
+      ? `axxlandlordportal://reset-password/${resetToken}`
+      : `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     console.log(" Sending password reset email:");
     console.log("  From:", FROM_EMAIL);
@@ -396,7 +398,7 @@ router.post("/verify-email/:token", async (req, res) => {
 // ====================== RESEND VERIFICATION EMAIL ======================
 router.post("/resend-verification", async (req, res) => {
   try {
-    const { email, role } = req.body;
+    const { email, role, platform } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
