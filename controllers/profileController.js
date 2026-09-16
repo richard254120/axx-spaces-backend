@@ -26,3 +26,31 @@ export const updateProfile = async (req, res) => {
     return handleServiceError(res, error);
   }
 };
+
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const result = await profileService.changeUserPassword(
+      req.user._id,
+      currentPassword,
+      newPassword
+    );
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
+
+export const changeEmail = async (req, res) => {
+  try {
+    const { newEmail, password } = req.body;
+    const user = await profileService.changeUserEmail(
+      req.user._id,
+      newEmail,
+      password
+    );
+    return res.json({ success: true, message: "Email updated successfully", data: { user } });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+};
