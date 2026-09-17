@@ -177,6 +177,83 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ====================== OWNER PROFILE ======================
+router.get("/owner/profile", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Get owner's accommodations
+    const accommodations = await Accommodation.find({ owner: req.user._id })
+      .sort({ createdAt: -1 });
+
+    // Get images for all accommodations
+    const accommodationIds = accommodations.map(a => a._id);
+    const images = await AccommodationImage.find({ accommodation: { $in: accommodationIds } })
+      .sort({ order: 1 });
+
+    const imagesMap = {};
+    images.forEach(img => {
+      if (!imagesMap[img.accommodation]) {
+        imagesMap[img.accommodation] = [];
+      }
+      imagesMap[img.accommodation].push(img);
+    });
+
+    // Calculate stats
+    const stats = {
+      total: accommodations.length,
+      approved: accommodations.filter(a => a.status === "active").length,
+      pending: accommodations.filter(a => a.status === "pending_review").length,
+      rejected: accommodations.filter(a => a.status === "inactive").length,
+      totalViews: accommodations.reduce((sum, a) => sum + (a.views || 0), 0),
+    };
+
+    res.json({
+      user,
+      stats,
+      listings: accommodations.map(a => ({
+        id: a._id,
+        name: a.name,
+        category: a.type,
+        location: a.address,
+        price: a.pricePerNight || 0,
+        status: a.status,
+        images: imagesMap[a._id]?.map(img => img.imageUrl) || [],
+        videos: a.videos || [],
+        views: a.views || 0,
+        thumbnail: imagesMap[a._id]?.find(img => img.isPrimary)?.imageUrl || null,
+        emoji: a.emoji,
+      })),
+    });
+  } catch (error) {
+    console.error("Get owner profile error:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch profile" });
+  }
+});
+
+router.patch("/owner/profile", auth, async (req, res) => {
+  try {
+    const { name, phone } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: { ...user.toObject(), password: undefined },
+    });
+  } catch (error) {
+    console.error("Update owner profile error:", error);
+    res.status(500).json({ error: error.message || "Failed to update profile" });
+  }
+});
+
 // ====================== MY ACCOMMODATIONS ======================
 // This must come before /:id routes
 router.get("/my-accommodations/all", auth, async (req, res) => {
