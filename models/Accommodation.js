@@ -62,10 +62,21 @@ const accommodationSchema = new mongoose.Schema(
       required: [true, "Please provide total number of rooms"],
       min: 1,
     },
+    // Pricing fields
+    basePrice: {
+      type: Number,
+      required: [true, "Please provide base price per night"],
+      min: 0,
+    },
+    currency: {
+      type: String,
+      default: "KES",
+    },
     status: {
       type: String,
       enum: ["active", "inactive", "pending_review"],
       default: "pending_review",
+      required: [true, "Please provide status"],
     },
     // Monetization fields
     isFeatured: {

@@ -76,3 +76,16 @@ export const authorize = (...roles) => {
     next();
   };
 };
+
+// 5. Host-only middleware for accommodation routes
+export const hostOnly = async (req, res, next) => {
+  try {
+    if (!req.user || (req.user.role !== "host" && req.user.role !== "admin")) {
+      return res.status(403).json({ error: " Access denied. Host only." });
+    }
+    next();
+  } catch (error) {
+    console.error(" Host auth error:", error.message);
+    return res.status(500).json({ error: " Server error" });
+  }
+};

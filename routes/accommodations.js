@@ -7,7 +7,7 @@ import Availability from "../models/Availability.js";
 import Booking from "../models/Booking.js";
 import Review from "../models/Review.js";
 import User from "../models/User.js";
-import { auth, adminOnly, authorize } from "../middleware/auth.js";
+import { auth, adminOnly, authorize, hostOnly } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import security from "../middleware/security.js";
 
