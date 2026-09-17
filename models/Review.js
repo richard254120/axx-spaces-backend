@@ -30,7 +30,7 @@ const reviewSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ["general", "property", "mover", "merchant", "tourism"],
+    enum: ["general", "property", "mover", "merchant", "tourism", "accommodation"],
     default: "general",
   },
   relatedId: {
@@ -39,7 +39,7 @@ const reviewSchema = new mongoose.Schema({
   },
   categoryModel: {
     type: String,
-    enum: ["Property", "User", "Material", "Tourism", null],
+    enum: ["Property", "User", "Material", "Tourism", "Accommodation", null],
   },
   isVerified: {
     type: Boolean,
@@ -89,12 +89,12 @@ reviewSchema.index({ createdAt: -1 });
 reviewSchema.index({ isApproved: 1 });
 
 // Virtual for average rating
-reviewSchema.virtual('averageRating').get(function() {
+reviewSchema.virtual('averageRating').get(function () {
   return this.rating;
 });
 
 // Method to check if user has marked review as helpful
-reviewSchema.methods.isHelpfulByUser = function(userId) {
+reviewSchema.methods.isHelpfulByUser = function (userId) {
   return this.helpfulBy.includes(userId);
 };
 
