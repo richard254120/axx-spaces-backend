@@ -92,10 +92,13 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
   }
 });
 
-// ====================== ADMIN: GET PENDING ACCOMMODATIONS ======================
+// ====================== ADMIN: GET ACCOMMODATIONS BY STATUS ======================
 router.get("/admin/pending", auth, adminOnly, async (req, res) => {
   try {
-    const accommodations = await Accommodation.find({ status: "pending_review" })
+    const { status } = req.query;
+    const query = status ? { status } : {};
+
+    const accommodations = await Accommodation.find(query)
       .populate("owner", "name phone email verificationBadges")
       .sort({ createdAt: -1 });
 
@@ -119,8 +122,8 @@ router.get("/admin/pending", auth, adminOnly, async (req, res) => {
 
     res.json(processed);
   } catch (error) {
-    console.error("Get pending accommodations error:", error);
-    res.status(500).json({ error: "Failed to fetch pending accommodations" });
+    console.error("Get accommodations error:", error);
+    res.status(500).json({ error: "Failed to fetch accommodations" });
   }
 });
 
