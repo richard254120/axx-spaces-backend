@@ -14,7 +14,7 @@ import security from "../middleware/security.js";
 const router = express.Router();
 
 // ====================== CREATE ACCOMMODATION ======================
-router.post("/", auth, security.uploadLimiter, upload.array("images", 10), async (req, res) => {
+router.post("/", auth, upload.array("images", 10), async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return res.status(401).json({
