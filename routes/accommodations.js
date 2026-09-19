@@ -50,8 +50,8 @@ router.post("/", auth, security.uploadLimiter, upload.array("images", 10), async
       houseRules: houseRules || "",
       checkInTime: checkInTime || "14:00",
       checkOutTime: checkOutTime || "11:00",
-      maxGuests: parseInt(maxGuests),
-      totalRooms: parseInt(totalRooms),
+      maxGuests: maxGuests ? parseInt(maxGuests) : 2,
+      totalRooms: totalRooms ? parseInt(totalRooms) : 1,
       status: "pending_review",
     });
 
