@@ -25,7 +25,7 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
     const {
       name, type, description, address, lat, lng,
       amenities, houseRules, checkInTime, checkOutTime,
-      maxGuests, totalRooms
+      maxGuests, totalRooms, basePrice
     } = req.body;
 
     if (!name || !type || !description || !address || !lat || !lng) {
