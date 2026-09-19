@@ -14,7 +14,15 @@ const accommodationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["hotel", "bnb", "guesthouse", "apartment", "beach-resort", "city-hotel", "mountain-lodge", "safari-camp", "camping-grounds", "boutique-hotel", "eco-lodge"],
+      enum: [
+        "hotel", "bnb", "guesthouse", "apartment", "hostel", "villa", "cottage", "treehouse",
+        "beach-resort", "city-hotel", "mountain-lodge", "safari-camp", "camping-grounds",
+        "boutique-hotel", "eco-lodge", "glamping-site", "luxury-tented-camp", "safari-lodge",
+        "game-lodge", "bush-camp", "airport-hotel", "business-hotel", "conference-hotel",
+        "resort-hotel", "all-inclusive-resort", "family-resort", "adults-only-resort",
+        "beach-hotel", "lake-resort", "river-lodge", "forest-lodge", "hill-station",
+        "holiday-home"
+      ],
       required: [true, "Please provide accommodation type"],
     },
     description: {

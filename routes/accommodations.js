@@ -52,6 +52,7 @@ router.post("/", auth, security.uploadLimiter, upload.array("images", 10), async
       checkOutTime: checkOutTime || "11:00",
       maxGuests: maxGuests ? parseInt(maxGuests) : 2,
       totalRooms: totalRooms ? parseInt(totalRooms) : 1,
+      basePrice: basePrice ? parseFloat(basePrice) : 0,
       status: "pending_review",
     });
 
