@@ -92,6 +92,63 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
   }
 });
 
+// ====================== ADMIN: GET PENDING ACCOMMODATIONS ======================
+router.get("/admin/pending", auth, adminOnly, async (req, res) => {
+  try {
+    const accommodations = await Accommodation.find({ status: "pending_review" })
+      .populate("owner", "name phone email verificationBadges")
+      .sort({ createdAt: -1 });
+
+    // Get images for each accommodation
+    const accommodationIds = accommodations.map(a => a._id);
+    const images = await AccommodationImage.find({ accommodation: { $in: accommodationIds } })
+      .sort({ order: 1 });
+
+    const imagesMap = {};
+    images.forEach(img => {
+      if (!imagesMap[img.accommodation]) {
+        imagesMap[img.accommodation] = [];
+      }
+      imagesMap[img.accommodation].push(img);
+    });
+
+    const processed = accommodations.map(acc => ({
+      ...acc.toObject(),
+      images: imagesMap[acc._id] || [],
+    }));
+
+    res.json(processed);
+  } catch (error) {
+    console.error("Get pending accommodations error:", error);
+    res.status(500).json({ error: "Failed to fetch pending accommodations" });
+  }
+});
+
+// ====================== ADMIN: UPDATE ACCOMMODATION STATUS ======================
+router.patch("/:id/status", auth, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!["active", "inactive", "pending_review"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const accommodation = await Accommodation.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    ).populate("owner", "name phone email");
+
+    if (!accommodation) {
+      return res.status(404).json({ error: "Accommodation not found" });
+    }
+
+    res.json(accommodation);
+  } catch (error) {
+    console.error("Update accommodation status error:", error);
+    res.status(500).json({ error: "Failed to update accommodation status" });
+  }
+});
+
 // ====================== GET ALL ACCOMMODATIONS (PUBLIC) ======================
 // Supports query params for filtering and search
 router.get("/", async (req, res) => {
