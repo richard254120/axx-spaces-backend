@@ -350,7 +350,8 @@ router.get("/my-accommodations/all", auth, async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const accommodation = await Accommodation.findById(req.params.id)
-      .populate("owner", "name phone email verificationBadges");
+      .populate("owner", "name phone email verificationBadges")
+      .populate("assignedAgent", "name agentProfile");
 
     if (!accommodation) return res.status(404).json({ error: "Accommodation not found" });
 

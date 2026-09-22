@@ -7,6 +7,11 @@ const accommodationSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    assignedAgent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     name: {
       type: String,
       required: [true, "Please provide accommodation name"],

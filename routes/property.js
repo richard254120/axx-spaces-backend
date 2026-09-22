@@ -218,7 +218,8 @@ router.get("/", async (req, res) => {
 router.get("/:id", trackPropertyView, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id)
-      .populate("owner", "name phone email");
+      .populate("owner", "name phone email")
+      .populate("assignedAgent", "name agentProfile");
 
     if (!property) return res.status(404).json({ error: " Property not found" });
 
@@ -383,7 +384,7 @@ router.get("/:id/qr-stats", auth, async (req, res) => {
     // Daily scan history (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const dailyHistory = await QRScan.aggregate([
       {
         $match: {

@@ -28,10 +28,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    //  ROLE IDENTIFICATION — added "seller", "team", and "host"
+    //  ROLE IDENTIFICATION — added "seller", "team", "host", and "agent"
     role: {
       type: String,
-      enum: ["user", "mover", "admin", "landlord", "seller", "team", "caretaker", "host"],
+      enum: ["user", "mover", "admin", "landlord", "seller", "team", "caretaker", "host", "agent"],
       default: "user",
     },
     landlordType: {
@@ -313,6 +313,30 @@ const userSchema = new mongoose.Schema(
         type: Number,
       },
     }],
+
+    //  AGENT SPECIFIC FIELDS
+    agentProfile: {
+      phone: {
+        type: String,
+        trim: true,
+      },
+      county: {
+        type: String,
+        trim: true,
+      },
+      bio: {
+        type: String,
+        trim: true,
+      },
+      verified: {
+        type: Boolean,
+        default: false,
+      },
+      photo: {
+        type: String,
+        default: "",
+      },
+    },
   },
   { timestamps: true }
 );
