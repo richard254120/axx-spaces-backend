@@ -47,6 +47,7 @@ import accommodationRoutes from "./routes/accommodations.js";
 import accommodationBookingRoutes from "./routes/accommodationBookings.js";
 import accommodationReviewRoutes from "./routes/accommodationReviews.js";
 import agentsRoutes from "./routes/agents.js";
+import agentRequestRoutes from "./routes/agentRequests.js";
 
 dotenv.config();
 
@@ -157,6 +158,7 @@ app.use("/api/accommodations", security.apiLimiter, accommodationRoutes);
 app.use("/api/accommodation-bookings", security.apiLimiter, accommodationBookingRoutes);
 app.use("/api/accommodation-reviews", security.apiLimiter, accommodationReviewRoutes);
 app.use("/api/agents", security.apiLimiter, agentsRoutes);
+app.use("/api/agent-requests", security.apiLimiter, agentRequestRoutes);
 
 // ====================== STATIC FILE SERVING ======================
 // Serve uploaded files

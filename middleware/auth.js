@@ -89,3 +89,16 @@ export const hostOnly = async (req, res, next) => {
     return res.status(500).json({ error: " Server error" });
   }
 };
+
+// 6. Agent-only middleware for agent routes
+export const agentOnly = async (req, res, next) => {
+  try {
+    if (!req.user || (req.user.role !== "agent" && req.user.role !== "admin")) {
+      return res.status(403).json({ error: " Access denied. Agent only." });
+    }
+    next();
+  } catch (error) {
+    console.error(" Agent auth error:", error.message);
+    return res.status(500).json({ error: " Server error" });
+  }
+};
