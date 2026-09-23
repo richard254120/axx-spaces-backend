@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import User from "../models/User.js";
 import Property from "../models/Property.js";
 import { protect, authorize } from "../middleware/auth.js";
+import { sendCaretakerInviteEmail } from "../utils/email.js";
 
 const router = express.Router();
 
@@ -46,7 +47,9 @@ router.post("/invite", protect, authorize("landlord"), async (req, res) => {
       caretakerInviteStatus: "pending",
     });
 
-    // TODO: send invite email with tempPassword via Resend (follow existing email pattern)
+    sendCaretakerInviteEmail(email, name, req.user.name, tempPassword).catch((err) =>
+      console.error("Failed to send caretaker invite email:", err.message)
+    );
 
     res.status(201).json({
       message: "Caretaker invited successfully",

@@ -523,3 +523,41 @@ export const sendItemRequestEmail = async (itemRequest) => {
     }
   }
 }
+
+export const sendCaretakerInviteEmail = async (email, name, landlordName, tempPassword) => {
+  const getEmailHtml = () => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">You've Been Added as a Caretaker</h1>
+        <p style="color: #94a3b8; margin: 6px 0 0;">Axxspace Manager</p>
+      </div>
+      <div style="background: white; padding: 24px; border: 1px solid #e5e7eb;">
+        <p>Hi <strong>${name}</strong>,</p>
+        <p><strong>${landlordName}</strong> has added you as a caretaker on Axxspace Manager. You can now log in to manage the properties assigned to you.</p>
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 20px 0;">
+          <p style="margin: 0 0 6px;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 0;"><strong>Temporary Password:</strong> ${tempPassword}</p>
+        </div>
+        <p style="color: #b45309; font-size: 13px;">For your security, please change this password after logging in (Settings → Change Password).</p>
+        <p style="color: #6b7280; font-size: 13px;">Download the Axxspace Manager app and sign in as "Caretaker" using the credentials above.</p>
+      </div>
+    </div>
+  `;
+
+  console.log(`Attempting to send caretaker invite email to: ${email}`);
+  if (!resend) {
+    console.log("[Email Mock] Would send caretaker invite email to:", email);
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: `${landlordName} added you as a Caretaker on Axxspace`,
+      html: getEmailHtml(),
+    });
+    console.log(`Caretaker invite email sent to: ${email}`);
+  } catch (err) {
+    console.error(`Caretaker invite email failed to ${email}:`, err.message);
+  }
+};
