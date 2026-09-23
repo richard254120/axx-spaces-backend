@@ -19,9 +19,14 @@ router.get("/", auth, agentOnly, async (req, res) => {
   }
 });
 
-// GET /api/agent-requests/provider - Get all requests for current provider
-router.get("/provider", auth, hostOnly, async (req, res) => {
+// GET /api/agent-requests/provider - Get all requests for current provider (host or landlord)
+router.get("/provider", auth, async (req, res) => {
   try {
+    // Allow both hosts and landlords to view their requests
+    if (req.user.role !== "host" && req.user.role !== "landlord") {
+      return res.status(403).json({ error: "Access denied. Provider only." });
+    }
+
     const requests = await AgentRequest.find({ provider: req.user._id })
       .populate("agent", "name email phone profileImage agentProfile")
       .sort({ requestedAt: -1 });
@@ -33,7 +38,7 @@ router.get("/provider", auth, hostOnly, async (req, res) => {
   }
 });
 
-// POST /api/agent-requests/send - Send request to a provider
+// POST /api/agent-requests/send - Send request to a provider (host or landlord)
 router.post("/send", auth, agentOnly, async (req, res) => {
   try {
     const { providerId, message } = req.body;
@@ -42,13 +47,13 @@ router.post("/send", auth, agentOnly, async (req, res) => {
       return res.status(400).json({ error: "Provider ID is required" });
     }
 
-    // Check if provider exists and is a host
+    // Check if provider exists and is a host or landlord
     const provider = await User.findById(providerId);
     if (!provider) {
       return res.status(404).json({ error: "Provider not found" });
     }
-    if (provider.role !== "host") {
-      return res.status(400).json({ error: "User is not a provider" });
+    if (provider.role !== "host" && provider.role !== "landlord") {
+      return res.status(400).json({ error: "User is not a provider (host or landlord)" });
     }
 
     // Check if request already exists
@@ -78,9 +83,14 @@ router.post("/send", auth, agentOnly, async (req, res) => {
   }
 });
 
-// PUT /api/agent-requests/:requestId/accept - Accept a request (provider only)
-router.put("/:requestId/accept", auth, hostOnly, async (req, res) => {
+// PUT /api/agent-requests/:requestId/accept - Accept a request (provider only - host or landlord)
+router.put("/:requestId/accept", auth, async (req, res) => {
   try {
+    // Allow both hosts and landlords to accept requests
+    if (req.user.role !== "host" && req.user.role !== "landlord") {
+      return res.status(403).json({ error: "Access denied. Provider only." });
+    }
+
     const request = await AgentRequest.findById(req.params.requestId);
 
     if (!request) {
@@ -108,9 +118,14 @@ router.put("/:requestId/accept", auth, hostOnly, async (req, res) => {
   }
 });
 
-// PUT /api/agent-requests/:requestId/reject - Reject a request (provider only)
-router.put("/:requestId/reject", auth, hostOnly, async (req, res) => {
+// PUT /api/agent-requests/:requestId/reject - Reject a request (provider only - host or landlord)
+router.put("/:requestId/reject", auth, async (req, res) => {
   try {
+    // Allow both hosts and landlords to reject requests
+    if (req.user.role !== "host" && req.user.role !== "landlord") {
+      return res.status(403).json({ error: "Access denied. Provider only." });
+    }
+
     const { response } = req.body;
     const request = await AgentRequest.findById(req.params.requestId);
 
@@ -140,11 +155,11 @@ router.put("/:requestId/reject", auth, hostOnly, async (req, res) => {
   }
 });
 
-// GET /api/agent-requests/providers - Get all providers (for agents to send requests)
+// GET /api/agent-requests/providers - Get all providers (hosts and landlords for agents to send requests)
 router.get("/providers", auth, agentOnly, async (req, res) => {
   try {
-    const providers = await User.find({ role: "host" })
-      .select("name email phone profileImage agentProfile")
+    const providers = await User.find({ role: { $in: ["host", "landlord"] } })
+      .select("name email phone profileImage agentProfile landlordType")
       .sort({ name: 1 });
 
     res.json(providers);
