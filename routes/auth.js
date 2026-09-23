@@ -203,9 +203,9 @@ router.post("/login", security.authLimiter, async (req, res) => {
       });
     }
 
-    // Landlord/tourism providers don't require account approval - auto-approve on login
+    // Landlord/host/tourism providers don't require account approval - auto-approve on login
     // Only their property listings need admin approval
-    if (user.role === "landlord" && !user.isApproved) {
+    if ((user.role === "landlord" || user.role === "host") && !user.isApproved) {
       user.isApproved = true;
       await user.save();
     }

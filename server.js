@@ -43,6 +43,11 @@ import userBadgeRoutes from "./routes/userBadges.js";
 import notificationRoutes from "./routes/notifications.js";
 import itemRequestRoutes from "./routes/itemRequests.js";
 import configRoutes from "./routes/config.js";
+import accommodationRoutes from "./routes/accommodations.js";
+import accommodationBookingRoutes from "./routes/accommodationBookings.js";
+import accommodationReviewRoutes from "./routes/accommodationReviews.js";
+import agentsRoutes from "./routes/agents.js";
+import agentRequestRoutes from "./routes/agentRequests.js";
 
 dotenv.config();
 
@@ -149,6 +154,11 @@ app.use("/api/analytics", security.apiLimiter, analyticsRoutes);
 app.use("/api/notifications", security.apiLimiter, notificationRoutes);
 app.use("/api/item-requests", security.apiLimiter, itemRequestRoutes);
 app.use("/api/config", security.apiLimiter, configRoutes);
+app.use("/api/accommodations", security.apiLimiter, accommodationRoutes);
+app.use("/api/accommodation-bookings", security.apiLimiter, accommodationBookingRoutes);
+app.use("/api/accommodation-reviews", security.apiLimiter, accommodationReviewRoutes);
+app.use("/api/agents", security.apiLimiter, agentsRoutes);
+app.use("/api/agent-requests", security.apiLimiter, agentRequestRoutes);
 
 // ====================== STATIC FILE SERVING ======================
 // Serve uploaded files

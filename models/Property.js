@@ -68,6 +68,11 @@ const propertySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    assignedAgent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected", "sold"],
