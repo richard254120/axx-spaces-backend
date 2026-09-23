@@ -159,7 +159,7 @@ router.put("/:requestId/reject", auth, async (req, res) => {
 router.get("/providers", auth, agentOnly, async (req, res) => {
   try {
     const providers = await User.find({ role: { $in: ["host", "landlord"] } })
-      .select("name email phone profileImage agentProfile landlordType")
+      .select("name email phone profileImage agentProfile landlordType role")
       .sort({ name: 1 });
 
     res.json(providers);
