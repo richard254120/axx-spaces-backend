@@ -172,9 +172,18 @@ router.get("/", async (req, res) => {
 
     const query = { status: "active" };
 
-    if (type) query.type = type;
+    const resolvedType = type || req.query.category;
+    if (resolvedType && resolvedType !== "All") {
+      query.type = resolvedType.toLowerCase().replace(/\s+/g, "-");
+    }
     if (featured === "true") query.isFeatured = true;
     if (status) query.status = status;
+
+    if (minPrice || maxPrice) {
+      query.basePrice = {};
+      if (minPrice) query.basePrice.$gte = parseFloat(minPrice);
+      if (maxPrice) query.basePrice.$lte = parseFloat(maxPrice);
+    }
 
     if (search) {
       const re = new RegExp(search, "i");

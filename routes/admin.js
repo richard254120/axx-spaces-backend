@@ -6,6 +6,7 @@ import TourismListing from "../models/TourismListing.js";
 import SellerVerification from "../models/SellerVerification.js";
 import Business from "../models/Business.js";
 import Notification from "../models/Notification.js";
+import Accommodation from "../models/Accommodation.js";
 import { protect, adminOnly } from "../middleware/auth.js";
 import { sendPropertyApprovalEmail, sendMaterialApprovalEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 
@@ -14,13 +15,14 @@ const router = express.Router();
 // ====================== GET ALL PENDING ITEMS ======================
 router.get("/pending", protect, adminOnly, async (req, res) => {
   try {
-    const [pendingProperties, pendingMaterials, pendingTourism, pendingMovers, pendingSellers, pendingBusinesses] = await Promise.all([
+    const [pendingProperties, pendingMaterials, pendingTourism, pendingMovers, pendingSellers, pendingBusinesses, pendingAccommodations] = await Promise.all([
       Property.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
       Material.find({ status: "pending" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
       TourismListing.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
       User.find({ role: "mover", status: "pending" }).sort({ createdAt: -1 }),
       SellerVerification.find({ status: "pending" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
       Business.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
+      Accommodation.find({ status: "pending_review" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
     ]);
 
     res.json({
@@ -30,6 +32,7 @@ router.get("/pending", protect, adminOnly, async (req, res) => {
       movers: pendingMovers,
       sellers: pendingSellers,
       businesses: pendingBusinesses,
+      accommodations: pendingAccommodations,
     });
   } catch (error) {
     console.error(" Get pending items error:", error);
@@ -202,6 +205,42 @@ router.patch("/tourism/:id/reject", protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error(" Reject tourism error:", error);
     res.status(500).json({ error: error.message || "Failed to reject tourism listing" });
+  }
+});
+
+// ====================== APPROVE ACCOMMODATION ======================
+router.patch("/accommodations/:id/approve", protect, adminOnly, async (req, res) => {
+  try {
+    const accommodation = await Accommodation.findByIdAndUpdate(
+      req.params.id,
+      { status: "active" },
+      { new: true }
+    ).populate("owner", "name email phone");
+
+    if (!accommodation) return res.status(404).json({ error: " Accommodation not found" });
+
+    res.json({ success: true, message: " Accommodation approved", accommodation });
+  } catch (error) {
+    console.error(" Approve accommodation error:", error);
+    res.status(500).json({ error: error.message || "Failed to approve accommodation" });
+  }
+});
+
+// ====================== REJECT ACCOMMODATION ======================
+router.patch("/accommodations/:id/reject", protect, adminOnly, async (req, res) => {
+  try {
+    const accommodation = await Accommodation.findByIdAndUpdate(
+      req.params.id,
+      { status: "inactive" },
+      { new: true }
+    );
+
+    if (!accommodation) return res.status(404).json({ error: " Accommodation not found" });
+
+    res.json({ success: true, message: " Accommodation rejected", accommodation });
+  } catch (error) {
+    console.error(" Reject accommodation error:", error);
+    res.status(500).json({ error: error.message || "Failed to reject accommodation" });
   }
 });
 
@@ -428,6 +467,19 @@ router.delete("/tourism/:id", protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error(" Delete tourism error:", error);
     res.status(500).json({ error: error.message || "Failed to delete tourism listing" });
+  }
+});
+
+// ====================== DELETE ACCOMMODATION ======================
+router.delete("/accommodations/:id", protect, adminOnly, async (req, res) => {
+  try {
+    const accommodation = await Accommodation.findByIdAndDelete(req.params.id);
+    if (!accommodation) return res.status(404).json({ error: " Accommodation not found" });
+
+    res.json({ success: true, message: " Accommodation deleted successfully" });
+  } catch (error) {
+    console.error(" Delete accommodation error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete accommodation" });
   }
 });
 
