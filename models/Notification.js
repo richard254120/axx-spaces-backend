@@ -3,7 +3,19 @@ import mongoose from "mongoose";
 const notificationSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ["property_booking", "material_purchase", "tourism_booking", "boost", "subscription", "kyc_approved", "kyc_rejected", "item_request"],
+    enum: [
+      "property_booking",
+      "material_purchase",
+      "tourism_booking",
+      "boost",
+      "subscription",
+      "kyc_approved",
+      "kyc_rejected",
+      "item_request",
+      "accommodation_approved",
+      "accommodation_rejected",
+      "accommodation_upload"
+    ],
     required: true,
   },
   userId: {
@@ -41,6 +53,10 @@ const notificationSchema = new mongoose.Schema({
   moverId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
+  },
+  accommodationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Accommodation",
   },
   checkIn: Date,
   checkOut: Date,

@@ -7,6 +7,7 @@ import SellerVerification from "../models/SellerVerification.js";
 import Business from "../models/Business.js";
 import Notification from "../models/Notification.js";
 import Accommodation from "../models/Accommodation.js";
+import AccommodationImage from "../models/AccommodationImage.js";
 import { protect, adminOnly } from "../middleware/auth.js";
 import { sendPropertyApprovalEmail, sendMaterialApprovalEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
 
@@ -15,15 +16,30 @@ const router = express.Router();
 // ====================== GET ALL PENDING ITEMS ======================
 router.get("/pending", protect, adminOnly, async (req, res) => {
   try {
-    const [pendingProperties, pendingMaterials, pendingTourism, pendingMovers, pendingSellers, pendingBusinesses, pendingAccommodations] = await Promise.all([
+    const [pendingProperties, pendingMaterials, pendingTourism, pendingMovers, pendingSellers, pendingBusinesses, pendingAccommodationsRaw] = await Promise.all([
       Property.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
       Material.find({ status: "pending" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
       TourismListing.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
       User.find({ role: "mover", status: "pending" }).sort({ createdAt: -1 }),
       SellerVerification.find({ status: "pending" }).populate("seller", "name email phone").sort({ createdAt: -1 }),
       Business.find({ status: "pending" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
-      Accommodation.find({ status: "pending_review" }).populate("owner", "name email phone").sort({ createdAt: -1 }),
+      Accommodation.find({ status: { $in: ["pending_review", "pending"] } }).populate("owner", "name email phone").sort({ createdAt: -1 }),
     ]);
+
+    // Populate images for pending accommodations
+    const accIds = pendingAccommodationsRaw.map(a => a._id);
+    const accImages = await AccommodationImage.find({ accommodation: { $in: accIds } }).sort({ order: 1 });
+    const accImagesMap = {};
+    accImages.forEach(img => {
+      const accIdStr = img.accommodation.toString();
+      if (!accImagesMap[accIdStr]) accImagesMap[accIdStr] = [];
+      accImagesMap[accIdStr].push(img);
+    });
+
+    const pendingAccommodations = pendingAccommodationsRaw.map(acc => ({
+      ...acc.toObject(),
+      images: accImagesMap[acc._id.toString()] || [],
+    }));
 
     res.json({
       properties: pendingProperties,
@@ -72,6 +88,37 @@ router.get("/all", protect, adminOnly, async (req, res) => {
         data = await SellerVerification.find(status ? { status } : {})
           .populate("seller", "name email phone")
           .sort({ createdAt: -1 });
+        break;
+      case "accommodations":
+        let accStatusFilter = {};
+        if (status) {
+          if (status === "pending" || status === "pending_review") {
+            accStatusFilter = { status: { $in: ["pending_review", "pending"] } };
+          } else if (status === "approved" || status === "active") {
+            accStatusFilter = { status: "active" };
+          } else if (status === "rejected" || status === "inactive") {
+            accStatusFilter = { status: "inactive" };
+          } else {
+            accStatusFilter = { status };
+          }
+        }
+        const accList = await Accommodation.find(accStatusFilter)
+          .populate("owner", "name email phone")
+          .sort({ createdAt: -1 });
+
+        const accItemIds = accList.map(a => a._id);
+        const allAccImgs = await AccommodationImage.find({ accommodation: { $in: accItemIds } }).sort({ order: 1 });
+        const allAccImgsMap = {};
+        allAccImgs.forEach(img => {
+          const accIdStr = img.accommodation.toString();
+          if (!allAccImgsMap[accIdStr]) allAccImgsMap[accIdStr] = [];
+          allAccImgsMap[accIdStr].push(img);
+        });
+
+        data = accList.map(acc => ({
+          ...acc.toObject(),
+          images: allAccImgsMap[acc._id.toString()] || [],
+        }));
         break;
       case "sold":
         // Get all sold items across different types
@@ -336,6 +383,8 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
       pendingSellers,
       totalBusinesses,
       pendingBusinesses,
+      totalAccommodations,
+      pendingAccommodations,
     ] = await Promise.all([
       Property.countDocuments(),
       Property.countDocuments({ status: "pending" }),
@@ -349,6 +398,8 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
       SellerVerification.countDocuments({ status: "pending" }),
       Business.countDocuments(),
       Business.countDocuments({ status: "pending" }),
+      Accommodation.countDocuments(),
+      Accommodation.countDocuments({ status: { $in: ["pending_review", "pending"] } }),
     ]);
 
     res.json({
@@ -358,6 +409,7 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
       movers: { total: totalMovers, pending: pendingMovers },
       sellers: { total: totalSellers, pending: pendingSellers },
       businesses: { total: totalBusinesses, pending: pendingBusinesses },
+      accommodations: { total: totalAccommodations, pending: pendingAccommodations },
     });
   } catch (error) {
     console.error(" Get stats error:", error);
@@ -688,6 +740,7 @@ router.get("/notifications", protect, adminOnly, async (req, res) => {
       pendingMovers,
       pendingSellers,
       pendingBusinesses,
+      pendingAccommodations,
     ] = await Promise.all([
       Property.find({ status: "pending" })
         .populate("owner", "name email phone")
@@ -709,6 +762,10 @@ router.get("/notifications", protect, adminOnly, async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(20),
       Business.find({ status: "pending" })
+        .populate("owner", "name email phone")
+        .sort({ createdAt: -1 })
+        .limit(20),
+      Accommodation.find({ status: { $in: ["pending_review", "pending"] } })
         .populate("owner", "name email phone")
         .sort({ createdAt: -1 })
         .limit(20),
@@ -738,7 +795,7 @@ router.get("/notifications", protect, adminOnly, async (req, res) => {
       _id: item._id,
       type,
       title: item.title || item.name || item.businessName || "—",
-      category: item.category || item.county || item.vehicleType || "—",
+      category: item.category || item.county || item.vehicleType || item.type || "—",
       owner: item.owner || item.seller,
       ownerName: item.owner?.name || item.seller?.name || item.name || "—",
       ownerPhone: item.owner?.phone || item.seller?.phone || item.phone || "—",
@@ -766,6 +823,7 @@ router.get("/notifications", protect, adminOnly, async (req, res) => {
       ...pendingMovers.map(m => transformToNotification(m, "mover")),
       ...pendingSellers.map(s => transformToNotification(s, "seller")),
       ...pendingBusinesses.map(b => transformToNotification(b, "business")),
+      ...pendingAccommodations.map(a => transformToNotification(a, "accommodation")),
       ...pendingAnnouncements.map(a => ({
         ...a,
         type: "announcement",

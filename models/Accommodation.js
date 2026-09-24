@@ -119,7 +119,7 @@ const accommodationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "inactive", "pending_review"],
+      enum: ["active", "inactive", "pending_review", "pending", "approved", "rejected"],
       default: "pending_review",
       required: [true, "Please provide status"],
     },

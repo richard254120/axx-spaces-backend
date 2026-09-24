@@ -11,6 +11,7 @@ import { auth, adminOnly, authorize, hostOnly } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import accommodationUpload from "../config/multerAccommodation.js";
 import security from "../middleware/security.js";
+import { notifyUser } from "../utils/userNotifications.js";
 
 const router = express.Router();
 
@@ -153,7 +154,18 @@ router.post("/", auth, uploadAccommodationMedia, async (req, res) => {
 router.get("/admin/pending", auth, adminOnly, async (req, res) => {
   try {
     const { status } = req.query;
-    const query = status ? { status } : {};
+    let query = {};
+    if (status) {
+      if (status === "pending" || status === "pending_review") {
+        query = { status: { $in: ["pending", "pending_review"] } };
+      } else if (status === "approved" || status === "active") {
+        query = { status: "active" };
+      } else if (status === "rejected" || status === "inactive") {
+        query = { status: "inactive" };
+      } else {
+        query = { status };
+      }
+    }
 
     const accommodations = await Accommodation.find(query)
       .populate("owner", "name phone email verificationBadges")
@@ -166,15 +178,16 @@ router.get("/admin/pending", auth, adminOnly, async (req, res) => {
 
     const imagesMap = {};
     images.forEach(img => {
-      if (!imagesMap[img.accommodation]) {
-        imagesMap[img.accommodation] = [];
+      const accIdStr = img.accommodation.toString();
+      if (!imagesMap[accIdStr]) {
+        imagesMap[accIdStr] = [];
       }
-      imagesMap[img.accommodation].push(img);
+      imagesMap[accIdStr].push(img);
     });
 
     const processed = accommodations.map(acc => ({
       ...acc.toObject(),
-      images: imagesMap[acc._id] || [],
+      images: imagesMap[acc._id.toString()] || [],
     }));
 
     res.json(processed);
@@ -187,7 +200,11 @@ router.get("/admin/pending", auth, adminOnly, async (req, res) => {
 // ====================== ADMIN: UPDATE ACCOMMODATION STATUS ======================
 router.patch("/:id/status", auth, adminOnly, async (req, res) => {
   try {
-    const { status } = req.body;
+    let { status } = req.body;
+    if (status === "approved") status = "active";
+    if (status === "rejected") status = "inactive";
+    if (status === "pending") status = "pending_review";
+
     if (!["active", "inactive", "pending_review"].includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
@@ -200,6 +217,23 @@ router.patch("/:id/status", auth, adminOnly, async (req, res) => {
 
     if (!accommodation) {
       return res.status(404).json({ error: "Accommodation not found" });
+    }
+
+    if (accommodation.owner) {
+      const ownerId = accommodation.owner._id || accommodation.owner;
+      if (status === "active") {
+        notifyUser(ownerId, {
+          type: "accommodation_approved",
+          title: "Accommodation Approved! 🎉",
+          message: `Your accommodation "${accommodation.name}" has been approved and is now live on AxxSpace!`,
+        }).catch(e => console.error("Notify error:", e.message));
+      } else if (status === "inactive") {
+        notifyUser(ownerId, {
+          type: "accommodation_rejected",
+          title: "Accommodation Status Update",
+          message: `Your accommodation "${accommodation.name}" was not approved at this time. Please review details and resubmit.`,
+        }).catch(e => console.error("Notify error:", e.message));
+      }
     }
 
     res.json(accommodation);
@@ -609,29 +643,6 @@ router.delete("/:id", auth, async (req, res) => {
     res.json({ success: true, message: "Accommodation deleted successfully" });
   } catch (error) {
     console.error("Delete accommodation error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ====================== ADMIN: UPDATE STATUS ======================
-router.patch("/:id/status", auth, adminOnly, async (req, res) => {
-  try {
-    const { status } = req.body;
-    if (!["active", "inactive", "pending_review"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status value" });
-    }
-
-    const accommodation = await Accommodation.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    ).populate("owner", "email");
-
-    if (!accommodation) return res.status(404).json({ error: "Accommodation not found" });
-
-    res.json({ success: true, message: `Accommodation ${status}`, accommodation });
-  } catch (error) {
-    console.error("Update status error:", error);
     res.status(500).json({ error: error.message });
   }
 });
