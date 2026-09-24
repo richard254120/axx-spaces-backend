@@ -53,6 +53,30 @@ const accommodationSchema = new mongoose.Schema(
     amenities: [{
       type: String,
     }],
+    videos: [{
+      type: String,
+      trim: true,
+    }],
+    county: {
+      type: String,
+      trim: true,
+    },
+    town: {
+      type: String,
+      trim: true,
+    },
+    commonLocation: {
+      type: String,
+      trim: true,
+    },
+    mapLink: {
+      type: String,
+      trim: true,
+    },
+    bookingUrl: {
+      type: String,
+      trim: true,
+    },
     houseRules: {
       type: String,
       trim: true,
@@ -79,6 +103,14 @@ const accommodationSchema = new mongoose.Schema(
     basePrice: {
       type: Number,
       required: [true, "Please provide base price per night"],
+      min: 0,
+    },
+    weekendPrice: {
+      type: Number,
+      min: 0,
+    },
+    peakPrice: {
+      type: Number,
       min: 0,
     },
     currency: {

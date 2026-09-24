@@ -9,12 +9,29 @@ import Review from "../models/Review.js";
 import User from "../models/User.js";
 import { auth, adminOnly, authorize, hostOnly } from "../middleware/auth.js";
 import upload from "../config/multer.js";
+import accommodationUpload from "../config/multerAccommodation.js";
 import security from "../middleware/security.js";
 
 const router = express.Router();
 
+const uploadAccommodationMedia = (req, res, next) => {
+  accommodationUpload.fields([
+    { name: "images", maxCount: 20 },
+    { name: "videos", maxCount: 10 },
+  ])(req, res, (err) => {
+    if (err) {
+      console.error("Accommodation upload error:", err);
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "File too large. Maximum size for media is 100MB." });
+      }
+      return res.status(400).json({ error: err.message || "File upload failed" });
+    }
+    next();
+  });
+};
+
 // ====================== CREATE ACCOMMODATION ======================
-router.post("/", auth, upload.array("images", 10), async (req, res) => {
+router.post("/", auth, uploadAccommodationMedia, async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return res.status(401).json({
@@ -25,7 +42,8 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
     const {
       name, type, description, address, lat, lng,
       amenities, houseRules, checkInTime, checkOutTime,
-      maxGuests, totalRooms, basePrice
+      maxGuests, totalRooms, basePrice, weekendPrice, peakPrice,
+      county, town, commonLocation, mapLink, bookingUrl
     } = req.body;
 
     if (!name || !type || !description || !address || !lat || !lng) {
@@ -39,12 +57,47 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
       parsedAmenities = Array.isArray(amenities) ? amenities : [];
     }
 
+    // Extract image files and video files
+    const imageFiles = req.files?.images || [];
+    const videoFiles = req.files?.videos || [];
+
+    // Support flat req.files array if provided
+    if (Array.isArray(req.files)) {
+      req.files.forEach((f) => {
+        if (f.mimetype && f.mimetype.startsWith("video/")) {
+          videoFiles.push(f);
+        } else {
+          imageFiles.push(f);
+        }
+      });
+    }
+
+    // Parse any video URLs passed directly in body
+    let initialVideos = [];
+    if (req.body.videos) {
+      try {
+        initialVideos = typeof req.body.videos === "string" ? JSON.parse(req.body.videos) : req.body.videos;
+      } catch (e) {
+        initialVideos = Array.isArray(req.body.videos) ? req.body.videos : [req.body.videos];
+      }
+      if (!Array.isArray(initialVideos)) initialVideos = [];
+    }
+
+    // Collect uploaded video URLs from Cloudinary
+    const uploadedVideoUrls = videoFiles.map((file) => file.path || file.secure_url).filter(Boolean);
+    const allVideos = [...initialVideos, ...uploadedVideoUrls];
+
     const accommodation = new Accommodation({
       owner: req.user._id,
       name,
       type,
       description,
       address,
+      county: county || "",
+      town: town || "",
+      commonLocation: commonLocation || "",
+      mapLink: mapLink || "",
+      bookingUrl: bookingUrl || "",
       location: { lat: parseFloat(lat), lng: parseFloat(lng) },
       amenities: parsedAmenities,
       houseRules: houseRules || "",
@@ -53,14 +106,17 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
       maxGuests: maxGuests ? parseInt(maxGuests) : 2,
       totalRooms: totalRooms ? parseInt(totalRooms) : 1,
       basePrice: basePrice ? parseFloat(basePrice) : 0,
+      weekendPrice: weekendPrice ? parseFloat(weekendPrice) : undefined,
+      peakPrice: peakPrice ? parseFloat(peakPrice) : undefined,
+      videos: allVideos,
       status: "pending_review",
     });
 
     await accommodation.save();
 
     // Handle image uploads
-    if (req.files && req.files.length > 0) {
-      const imageUrls = req.files.map((file) => file.path || file.secure_url);
+    if (imageFiles.length > 0) {
+      const imageUrls = imageFiles.map((file) => file.path || file.secure_url).filter(Boolean);
 
       for (let i = 0; i < imageUrls.length; i++) {
         const accommodationImage = new AccommodationImage({
@@ -73,7 +129,7 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
       }
     }
 
-    console.log(`Accommodation created successfully | Owner: ${req.user._id}`);
+    console.log(`Accommodation created successfully | Owner: ${req.user._id} | Videos: ${allVideos.length} | Images: ${imageFiles.length}`);
 
     res.status(201).json({
       success: true,
@@ -82,6 +138,7 @@ router.post("/", auth, upload.array("images", 10), async (req, res) => {
         _id: accommodation._id,
         name: accommodation.name,
         status: accommodation.status,
+        videos: accommodation.videos,
         createdAt: accommodation.createdAt,
       }
     });
@@ -393,7 +450,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // ====================== UPDATE ACCOMMODATION (OWNER OR ADMIN) ======================
-router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
+router.patch("/:id", auth, uploadAccommodationMedia, async (req, res) => {
   try {
     const accommodation = await Accommodation.findById(req.params.id);
     if (!accommodation) return res.status(404).json({ error: "Accommodation not found" });
@@ -408,7 +465,9 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     const {
       name, type, description, address, lat, lng,
       amenities, houseRules, checkInTime, checkOutTime,
-      maxGuests, totalRooms, remainingImages
+      maxGuests, totalRooms, basePrice, weekendPrice, peakPrice,
+      county, town, commonLocation, mapLink, bookingUrl,
+      remainingImages, removeVideos
     } = req.body;
 
     let parsedAmenities = [];
@@ -444,7 +503,8 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     }
 
     // Add new images
-    const newImageUrls = req.files ? req.files.map((file) => file.path || file.secure_url) : [];
+    const imageFiles = req.files?.images || [];
+    const newImageUrls = imageFiles.map((file) => file.path || file.secure_url).filter(Boolean);
 
     for (let i = 0; i < newImageUrls.length; i++) {
       const accommodationImage = new AccommodationImage({
@@ -456,19 +516,43 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
       await accommodationImage.save();
     }
 
+    // Handle video removals & new video uploads
+    let currentVideos = Array.isArray(accommodation.videos) ? [...accommodation.videos] : [];
+    if (removeVideos) {
+      let parsedRemoveVideos = [];
+      try {
+        parsedRemoveVideos = typeof removeVideos === "string" ? JSON.parse(removeVideos) : removeVideos;
+      } catch (e) {
+        parsedRemoveVideos = Array.isArray(removeVideos) ? removeVideos : [removeVideos];
+      }
+      currentVideos = currentVideos.filter((v) => !parsedRemoveVideos.includes(v));
+    }
+
+    const videoFiles = req.files?.videos || [];
+    const newVideoUrls = videoFiles.map((file) => file.path || file.secure_url).filter(Boolean);
+    accommodation.videos = [...currentVideos, ...newVideoUrls];
+
     // Update fields
     if (name !== undefined) accommodation.name = name;
     if (type !== undefined) accommodation.type = type;
     if (description !== undefined) accommodation.description = description;
     if (address !== undefined) accommodation.address = address;
-    if (lat !== undefined) accommodation.location.lat = parseFloat(lat);
-    if (lng !== undefined) accommodation.location.lng = parseFloat(lng);
+    if (county !== undefined) accommodation.county = county;
+    if (town !== undefined) accommodation.town = town;
+    if (commonLocation !== undefined) accommodation.commonLocation = commonLocation;
+    if (mapLink !== undefined) accommodation.mapLink = mapLink;
+    if (bookingUrl !== undefined) accommodation.bookingUrl = bookingUrl;
+    if (lat !== undefined && !isNaN(parseFloat(lat))) accommodation.location.lat = parseFloat(lat);
+    if (lng !== undefined && !isNaN(parseFloat(lng))) accommodation.location.lng = parseFloat(lng);
     if (amenities !== undefined) accommodation.amenities = parsedAmenities;
     if (houseRules !== undefined) accommodation.houseRules = houseRules;
     if (checkInTime !== undefined) accommodation.checkInTime = checkInTime;
     if (checkOutTime !== undefined) accommodation.checkOutTime = checkOutTime;
     if (maxGuests !== undefined) accommodation.maxGuests = parseInt(maxGuests);
     if (totalRooms !== undefined) accommodation.totalRooms = parseInt(totalRooms);
+    if (basePrice !== undefined) accommodation.basePrice = parseFloat(basePrice);
+    if (weekendPrice !== undefined) accommodation.weekendPrice = parseFloat(weekendPrice);
+    if (peakPrice !== undefined) accommodation.peakPrice = parseFloat(peakPrice);
 
     // Landlord edits reset status to pending_review; Admin edits preserve status
     if (!isAdmin) {
@@ -476,7 +560,7 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     }
 
     await accommodation.save();
-    console.log(`Accommodation updated successfully | ID: ${accommodation._id} | By: ${req.user._id}`);
+    console.log(`Accommodation updated successfully | ID: ${accommodation._id} | By: ${req.user._id} | Videos: ${accommodation.videos.length}`);
 
     res.json({
       success: true,
