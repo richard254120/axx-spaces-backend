@@ -59,6 +59,8 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
 
     const imageUrls = req.files.map((file) => file.path || file.secure_url);
 
+    const isAgent = req.user.role === "agent";
+
     const property = new Property({
       title,
       description,
@@ -69,6 +71,7 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
       amenities: parsedAmenities,
       images: imageUrls,
       owner: req.user._id,
+      assignedAgent: isAgent ? req.user._id : undefined,
       totalUnits: parseInt(totalUnits) || 1,
       status: "pending",
       propertyType,
@@ -594,6 +597,9 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     if (university !== undefined) property.university = university;
     if (universityId !== undefined) property.universityId = universityId;
     property.images = updatedImages;
+    if (req.user.role === "agent" && !property.assignedAgent) {
+      property.assignedAgent = req.user._id;
+    }
 
     // Editable listings update automatically without needing re-review
     // Existing status (e.g. approved / active) is preserved
