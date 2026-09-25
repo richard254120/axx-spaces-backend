@@ -131,8 +131,16 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
       await sendLandlordRegistrationEmail(newUser);
     }
 
+    const token = jwt.sign(
+      { userId: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     res.status(201).json({
-      message: "Registration successful! You can now log in with your credentials.",
+      message: "Registration successful! Welcome to AxxSpace.",
+      token,
+      user: formatUserResponse(newUser),
       requiresVerification: false,
     });
 
@@ -476,23 +484,17 @@ router.post("/google", async (req, res) => {
       return res.status(400).json({ error: "Google ID, email, and name are required" });
     }
 
-    const targetRole = role || "landlord";
+    const targetRole = role || "user";
 
-    let user = await User.findOne({ googleId, role: targetRole });
-
-    if (user) {
-      const token = jwt.sign(
-        { userId: user._id, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-      return res.json({ token, user: formatUserResponse(user) });
+    // 1. Check if user exists by googleId (any role)
+    let user = await User.findOne({ googleId });
+    if (!user) {
+      // 2. Check if user exists with this email
+      user = await User.findOne({ email });
     }
 
-    user = await User.findOne({ email, role: targetRole });
-
     if (user) {
-      user.googleId = googleId;
+      if (!user.googleId) user.googleId = googleId;
       user.isGoogleUser = true;
       user.isEmailVerified = true;
       if (picture && !user.profileImage) user.profileImage = picture;
@@ -506,13 +508,14 @@ router.post("/google", async (req, res) => {
       return res.json({ token, user: formatUserResponse(user) });
     }
 
+    // 3. New member: create account automatically
     const newUser = new User({
       name,
       email,
       googleId,
       isGoogleUser: true,
       isEmailVerified: true,
-      phone: `google-${googleId}`,
+      phone: `google-${googleId.slice(0, 10)}`,
       profileImage: picture || "",
       password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
       role: targetRole,
@@ -531,6 +534,7 @@ router.post("/google", async (req, res) => {
       token,
       user: formatUserResponse(newUser),
       requiresPhone: true,
+      isNewMember: true,
     });
 
   } catch (err) {
