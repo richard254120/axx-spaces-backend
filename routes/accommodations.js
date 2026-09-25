@@ -15,6 +15,18 @@ import { notifyUser } from "../utils/userNotifications.js";
 
 const router = express.Router();
 
+const formatCloudinaryVideoUrl = (url) => {
+  if (!url || typeof url !== "string") return "";
+  let clean = url.trim().replace(/^http:\/\//i, "https://");
+  if (clean.includes("cloudinary.com") && clean.includes("/video/upload/")) {
+    clean = clean.replace(/\.(mov|quicktime|mkv|avi|webm|ogv|m4v)$/i, ".mp4");
+    if (!/\.(mp4|webm)$/i.test(clean)) {
+      clean = `${clean}.mp4`;
+    }
+  }
+  return clean;
+};
+
 const uploadAccommodationMedia = (req, res, next) => {
   accommodationUpload.fields([
     { name: "images", maxCount: 20 },
@@ -85,8 +97,8 @@ router.post("/", auth, uploadAccommodationMedia, async (req, res) => {
     }
 
     // Collect uploaded video URLs from Cloudinary
-    const uploadedVideoUrls = videoFiles.map((file) => file.path || file.secure_url).filter(Boolean);
-    const allVideos = [...initialVideos, ...uploadedVideoUrls];
+    const uploadedVideoUrls = videoFiles.map((file) => formatCloudinaryVideoUrl(file.secure_url || file.path)).filter(Boolean);
+    const allVideos = [...initialVideos.map(formatCloudinaryVideoUrl).filter(Boolean), ...uploadedVideoUrls];
 
     const accommodation = new Accommodation({
       owner: req.user._id,
@@ -563,8 +575,8 @@ router.patch("/:id", auth, uploadAccommodationMedia, async (req, res) => {
     }
 
     const videoFiles = req.files?.videos || [];
-    const newVideoUrls = videoFiles.map((file) => file.path || file.secure_url).filter(Boolean);
-    accommodation.videos = [...currentVideos, ...newVideoUrls];
+    const newVideoUrls = videoFiles.map((file) => formatCloudinaryVideoUrl(file.secure_url || file.path)).filter(Boolean);
+    accommodation.videos = [...currentVideos.map(formatCloudinaryVideoUrl).filter(Boolean), ...newVideoUrls];
 
     // Update fields
     if (name !== undefined) accommodation.name = name;
@@ -588,19 +600,15 @@ router.patch("/:id", auth, uploadAccommodationMedia, async (req, res) => {
     if (weekendPrice !== undefined) accommodation.weekendPrice = parseFloat(weekendPrice);
     if (peakPrice !== undefined) accommodation.peakPrice = parseFloat(peakPrice);
 
-    // Landlord edits reset status to pending_review; Admin edits preserve status
-    if (!isAdmin) {
-      accommodation.status = "pending_review";
-    }
+    // Editable listings update automatically without needing re-review
+    // Existing status (e.g. active) is preserved
 
     await accommodation.save();
     console.log(`Accommodation updated successfully | ID: ${accommodation._id} | By: ${req.user._id} | Videos: ${accommodation.videos.length}`);
 
     res.json({
       success: true,
-      message: isAdmin
-        ? "Accommodation updated successfully!"
-        : "Accommodation updated successfully! Pending admin approval.",
+      message: "Accommodation updated successfully!",
       accommodation,
     });
   } catch (error) {

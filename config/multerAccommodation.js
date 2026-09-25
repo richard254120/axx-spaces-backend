@@ -18,7 +18,7 @@ const storage = new CloudinaryStorage({
     return {
       folder: "axx-spaces/accommodations",
       resource_type: isVideo ? "video" : "image",
-      ...(isVideo ? {} : { format: "jpg" }),
+      format: isVideo ? "mp4" : "jpg",
       public_id: `acc-${isVideo ? "video" : "img"}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     };
   },

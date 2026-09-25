@@ -595,19 +595,15 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     if (universityId !== undefined) property.universityId = universityId;
     property.images = updatedImages;
 
-    // Landlord edits reset status to pending; Admin edits preserve status
-    if (!isAdmin) {
-      property.status = "pending";
-    }
+    // Editable listings update automatically without needing re-review
+    // Existing status (e.g. approved / active) is preserved
 
     await property.save();
     console.log(` Property updated successfully | ID: ${property._id} | By: ${req.user._id}`);
 
     res.json({
       success: true,
-      message: isAdmin
-        ? " Property updated successfully!"
-        : " Property updated successfully! Pending admin approval.",
+      message: " Property updated successfully!",
       property,
     });
   } catch (error) {
