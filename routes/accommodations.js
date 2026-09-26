@@ -427,6 +427,40 @@ router.patch("/owner/profile", auth, async (req, res) => {
   }
 });
 
+// ====================== TOGGLE FEATURED (ADMIN ONLY) ======================
+router.patch("/:id/featured", adminOnly, async (req, res) => {
+  try {
+    const { isFeatured, promotionTier, durationDays } = req.body;
+    const accommodation = await Accommodation.findById(req.params.id);
+
+    if (!accommodation) {
+      return res.status(404).json({ error: "Accommodation not found" });
+    }
+
+    if (isFeatured) {
+      accommodation.isFeatured = true;
+      accommodation.promotionTier = promotionTier || "boost-7days";
+      const days = durationDays || 7;
+      accommodation.promotionEndDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    } else {
+      accommodation.isFeatured = false;
+      accommodation.promotionTier = "none";
+      accommodation.promotionEndDate = null;
+    }
+
+    await accommodation.save();
+
+    res.json({
+      success: true,
+      message: isFeatured ? "Accommodation featured successfully" : "Accommodation unfeatured successfully",
+      accommodation,
+    });
+  } catch (error) {
+    console.error("Toggle featured error:", error);
+    res.status(500).json({ error: error.message || "Failed to toggle featured status" });
+  }
+});
+
 // ====================== MY ACCOMMODATIONS ======================
 // This must come before /:id routes
 router.get("/my-accommodations/all", auth, async (req, res) => {
