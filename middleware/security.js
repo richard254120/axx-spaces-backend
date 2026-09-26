@@ -90,6 +90,22 @@ const uploadLimiter = rateLimit({
   message: { error: "Too many upload attempts. Please try again later." },
 });
 
+const reportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,             // 1 hour
+  max: 5,                               // 5 reports per hour per IP
+  message: { error: "Too many report submissions. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const inquiryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,             // 15 minutes
+  max: 20,                              // 20 inquiry logs per 15 minutes per IP
+  message: { error: "Too many inquiry attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 function applyTo(app) {
   // Order is important
   app.use(cookieParser({
@@ -125,4 +141,6 @@ export default {
   authLimiter,
   apiLimiter,
   uploadLimiter,
+  reportLimiter,
+  inquiryLimiter,
 };

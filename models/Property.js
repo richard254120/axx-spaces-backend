@@ -73,6 +73,21 @@ const propertySchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    listingAuthorization: {
+      method: {
+        type: String,
+        enum: ["owner_listed", "landlord_otp_confirmed", "authorization_letter"],
+        default: "owner_listed",
+      },
+      proofUrl: {
+        type: String,
+        default: "",
+      },
+      confirmedAt: {
+        type: Date,
+        default: null,
+      },
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected", "sold"],

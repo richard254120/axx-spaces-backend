@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema(
     //  ROLE IDENTIFICATION — added "seller", "team", "host", and "agent"
     role: {
       type: String,
-      enum: ["user", "mover", "admin", "landlord", "seller", "team", "caretaker", "host", "agent"],
+      enum: ["user", "mover", "admin", "landlord", "seller", "team", "caretaker", "host", "agent", "agency_admin"],
       default: "user",
     },
     landlordType: {
@@ -328,13 +328,40 @@ const userSchema = new mongoose.Schema(
         type: String,
         trim: true,
       },
-      verified: {
-        type: Boolean,
-        default: false,
-      },
       photo: {
         type: String,
         default: "",
+      },
+      idNumber: {
+        type: String,
+        trim: true,
+      },
+      idPhotoFront: {
+        type: String,
+        default: "",
+      },
+      selfiePhoto: {
+        type: String,
+        default: "",
+      },
+      verificationStatus: {
+        type: String,
+        enum: ["pending", "verified", "rejected"],
+        default: "pending",
+      },
+      agencyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Agency",
+        default: null,
+      },
+      subscriptionTier: {
+        type: String,
+        enum: ["none", "basic", "pro"],
+        default: "none",
+      },
+      subscriptionExpiresAt: {
+        type: Date,
+        default: null,
       },
     },
   },
