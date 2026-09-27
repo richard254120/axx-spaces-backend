@@ -1,4 +1,5 @@
 import express from "express";
+// QuickSales listings (legacy path/module name: materials)
 import { auth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import security from "../middleware/security.js";

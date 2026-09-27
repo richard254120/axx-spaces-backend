@@ -1,4 +1,5 @@
 import express from "express";
+// QuickSales account auth (legacy path/module name: seller-auth)
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
