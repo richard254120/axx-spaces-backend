@@ -911,6 +911,21 @@ router.post("/feature-item", protect, adminOnly, async (req, res) => {
           { new: true }
         );
         break;
+      case "accommodation": {
+        const accommodationUpdate = {
+          isFeatured: featured,
+          promotionTier: featured ? "boost-7days" : "none",
+          promotionEndDate: featured
+            ? (featuredUntil ? new Date(featuredUntil) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
+            : null,
+        };
+        item = await Accommodation.findByIdAndUpdate(
+          itemId,
+          accommodationUpdate,
+          { new: true }
+        );
+        break;
+      }
       default:
         return res.status(400).json({ error: "Invalid item type" });
     }
@@ -969,6 +984,13 @@ router.get("/featured-items", protect, adminOnly, async (req, res) => {
       const featuredMovers = await User.find({ isFeatured: true, role: "mover", status: "approved" })
         .sort({ createdAt: -1 });
       featuredItems.push(...featuredMovers.map(m => ({ ...m.toObject(), itemType: "mover" })));
+    }
+
+    if (!itemType || itemType === "accommodations") {
+      const featuredAccommodations = await Accommodation.find({ isFeatured: true, status: "active" })
+        .populate("owner", "name email phone")
+        .sort({ createdAt: -1 });
+      featuredItems.push(...featuredAccommodations.map(a => ({ ...a.toObject(), itemType: "accommodation" })));
     }
 
     res.json({

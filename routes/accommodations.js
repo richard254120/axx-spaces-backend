@@ -428,7 +428,7 @@ router.patch("/owner/profile", auth, async (req, res) => {
 });
 
 // ====================== TOGGLE FEATURED (ADMIN ONLY) ======================
-router.patch("/:id/featured", adminOnly, async (req, res) => {
+router.patch("/:id/featured", auth, adminOnly, async (req, res) => {
   try {
     const { isFeatured, promotionTier, durationDays } = req.body;
     const accommodation = await Accommodation.findById(req.params.id);
