@@ -21,7 +21,17 @@ const storage = new CloudinaryStorage({
   params: {
     folder: "axx-spaces", // Creates folder in Cloudinary
     resource_type: "auto", // Auto-detect file type
-    format: async (req, file) => "jpg", // Convert all to JPG
+    format: async (req, file) => {
+      // Preserve original format for videos, otherwise convert images to JPG
+      const mimetype = file.mimetype || '';
+      if (mimetype.startsWith('video/')) {
+        // Use original file extension for video
+        const ext = file.originalname.split('.').pop();
+        return ext;
+      }
+      // For images, convert to JPG for consistency
+      return "jpg";
+    }, // Preserve video format, convert images to JPG
     public_id: (req, file) => {
       // Generate unique filename
       return `property-${Date.now()}-${Math.random().toString(36).substring(7)}`;

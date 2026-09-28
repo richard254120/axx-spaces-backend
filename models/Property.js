@@ -57,6 +57,7 @@ const propertySchema = new mongoose.Schema(
     bathrooms: { type: Number, required: true },
     amenities: [String],
     images: [String],
+    videos: [String],
 
     // BOOKING SYSTEM
     totalUnits: { type: Number, required: true, default: 1, min: 1 },
