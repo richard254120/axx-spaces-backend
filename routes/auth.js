@@ -239,6 +239,43 @@ router.post("/login", security.authLimiter, async (req, res) => {
   }
 });
 
+// ====================== GUEST SIGN‑IN ======================
+router.post("/guest-signin", async (req, res) => {
+  try {
+    const { email, phone } = req.body;
+    if (!email || !phone) {
+      return res.status(400).json({ error: "Email and phone are required" });
+    }
+    // Check if a guest user already exists with this email and phone
+    let user = await User.findOne({ email, phone, role: "guest" }).select("+password");
+    if (!user) {
+      // Generate a simple 6‑digit numeric password
+      const rawPassword = Math.floor(100000 + Math.random() * 900000).toString();
+      const hashedPassword = await bcrypt.hash(rawPassword, 10);
+      user = new User({
+        name: email.split('@')[0],
+        email,
+        phone,
+        password: hashedPassword,
+        role: "guest",
+        isEmailVerified: true,
+        isApproved: true,
+      });
+      await user.save();
+      // Optionally, you could send the rawPassword via SMS/email, but omitted for simplicity
+    }
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    res.status(200).json({
+      token,
+      user: formatUserResponse(user),
+      role: "guest",
+    });
+  } catch (err) {
+    console.error(" Guest sign‑in error:", err);
+    res.status(500).json({ error: "Server error during guest sign‑in" });
+  }
+});
+
 // ====================== GET ME ======================
 router.get("/me", auth, async (req, res) => {
   try {
