@@ -12,7 +12,7 @@ import { trackPropertyView } from "../middleware/viewTracking.js";
 const router = express.Router();
 
 // ====================== CREATE PROPERTY ======================
-router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images", 10), async (req, res) => {
+router.post(["/", "/create"], auth, security.uploadLimiter, upload.fields([{ name: "images", maxCount: 10 }, { name: "videos", maxCount: 10 }]), async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return res.status(401).json({
@@ -31,8 +31,8 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
       return res.status(400).json({ error: " Missing required fields" });
     }
 
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: " Please upload at least one image" });
+    if (!req.files || (!req.files["images"]?.length && !req.files["videos"]?.length)) {
+      return res.status(400).json({ error: " Please upload at least one image or video" });
     }
 
     const owner = await User.findById(req.user._id).select("landlordType");
@@ -57,7 +57,8 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
       return res.status(400).json({ error: " Please select at least one amenity" });
     }
 
-    const imageUrls = req.files.map((file) => file.path || file.secure_url);
+    const imageUrls = (req.files["images"] || []).map((file) => file.path || file.secure_url);
+      const videoUrls = (req.files["videos"] || []).map((file) => file.path || file.secure_url);
 
     const isAgent = req.user.role === "agent";
 
@@ -70,6 +71,7 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.array("images
       bathrooms: parseInt(bathrooms),
       amenities: parsedAmenities,
       images: imageUrls,
+      videos: videoUrls,
       owner: req.user._id,
       assignedAgent: isAgent ? req.user._id : undefined,
       totalUnits: parseInt(totalUnits) || 1,
