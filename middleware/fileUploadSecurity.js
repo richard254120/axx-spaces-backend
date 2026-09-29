@@ -6,7 +6,12 @@ const ALLOWED_FILE_TYPES = {
   images: {
     extensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'],
     mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 10 * 1024 * 1024, // 10MB
+  },
+  videos: {
+    extensions: ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.3gp', '.m4v', '.qt'],
+    mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/3gpp', 'video/x-m4v'],
+    maxSize: 100 * 1024 * 1024, // 100MB
   },
   documents: {
     extensions: ['.pdf', '.doc', '.docx', '.txt'],

@@ -44,15 +44,18 @@ console.log(" CloudinaryStorage configured");
 // ============ ENHANCED FILE FILTER ============
 const fileFilter = (req, file, cb) => {
   try {
+    const isVideo = file.mimetype.startsWith('video/') || file.fieldname === 'videos';
+    const category = isVideo ? 'videos' : 'images';
+
     // Use enhanced file type validation
-    const typeValidation = validateFileType(file, 'images');
+    const typeValidation = validateFileType(file, category);
     if (!typeValidation.isValid) {
       console.error(" File rejected:", file.originalname, typeValidation.error);
       return cb(new Error(typeValidation.error), false);
     }
 
     // Use enhanced file size validation
-    const sizeValidation = validateFileSize(file, 'images');
+    const sizeValidation = validateFileSize(file, category);
     if (!sizeValidation.isValid) {
       console.error(" File rejected:", file.originalname, sizeValidation.error);
       return cb(new Error(sizeValidation.error), false);
@@ -61,7 +64,7 @@ const fileFilter = (req, file, cb) => {
     // Sanitize filename
     file.originalname = sanitizeFilename(file.originalname);
 
-    console.log(" Image file accepted:", file.originalname);
+    console.log(` ${category === 'videos' ? 'Video' : 'Image'} file accepted:`, file.originalname);
     cb(null, true);
   } catch (error) {
     console.error(" File filter error:", error);
@@ -74,7 +77,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 8 * 1024 * 1024, // 8MB limit
+    fileSize: 100 * 1024 * 1024, // 100MB limit for video support
   },
 });
 

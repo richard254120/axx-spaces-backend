@@ -176,6 +176,18 @@ app.get("/api/health", (req, res) =>
   res.json({ status: "OK", timestamp: new Date().toISOString() })
 );
 
+// ====================== GLOBAL ERROR HANDLER ======================
+app.use((err, req, res, next) => {
+  console.error(" Global error caught:", err);
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({ error: "File too large. Maximum size is 100MB for videos and 10MB for photos." });
+  }
+  if (err.message) {
+    return res.status(400).json({ error: err.message });
+  }
+  res.status(500).json({ error: "Internal server error during request processing." });
+});
+
 // ====================== 404 HANDLER ======================
 app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
