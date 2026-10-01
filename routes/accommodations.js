@@ -390,7 +390,7 @@ router.get("/owner/profile", auth, async (req, res) => {
         name: a.name,
         category: a.type,
         location: a.address,
-        price: a.pricePerNight || 0,
+        price: a.basePrice || a.price || 0,
         status: a.status,
         images: imagesMap[a._id]?.map(img => img.imageUrl) || [],
         videos: a.videos || [],
