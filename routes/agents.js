@@ -104,7 +104,10 @@ router.get("/verified", async (req, res) => {
     const agentsWithLocations = await Promise.all(
       agents.map(async (agent) => {
         const properties = await Property.find({
-          assignedAgent: agent._id,
+          $or: [
+            { assignedAgent: agent._id },
+            { assignedAgent: agent._id.toString() }
+          ],
           status: "approved"
         }).select("location county").lean();
 
