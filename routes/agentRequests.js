@@ -160,7 +160,20 @@ router.get("/providers", auth, agentOnly, async (req, res) => {
   try {
     const providers = await User.find({ role: { $in: ["host", "landlord"] } })
       .select("name email phone profileImage agentProfile landlordType role county")
-      .sort({ name: 1 });
+      .sort({ name: 1 })
+      .lean();
+
+    // Fetch the real location based on their uploaded properties
+    const Property = (await import("../models/Property.js")).default;
+    
+    for (const provider of providers) {
+      if (!provider.county || provider.county.trim() === "") {
+        const prop = await Property.findOne({ owner: provider._id }).select("county location").lean();
+        if (prop) {
+          provider.county = prop.county || prop.location || "Kenya";
+        }
+      }
+    }
 
     res.json(providers);
   } catch (error) {
