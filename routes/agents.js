@@ -78,11 +78,23 @@ router.get("/", auth, adminOnly, async (req, res) => {
 
 // ====================== GET /api/agents/verified ======================
 // Public - list all verified agents for the listings page
+// Also includes agents who have live listings (assigned properties with approved status)
 router.get("/verified", async (req, res) => {
   try {
+    const Property = (await import("../models/Property.js")).default;
+
+    // Find agents who are verified OR have approved properties assigned to them
+    const agentsWithProperties = await Property.distinct("assignedAgent", {
+      status: "approved",
+      assignedAgent: { $ne: null }
+    });
+
     const agents = await User.find({
       role: "agent",
-      "agentProfile.verificationStatus": "verified"
+      $or: [
+        { "agentProfile.verificationStatus": "verified" },
+        { _id: { $in: agentsWithProperties } }
+      ]
     })
       .select("-password")
       .sort({ name: 1 });
