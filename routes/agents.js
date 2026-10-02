@@ -79,6 +79,7 @@ router.get("/", auth, adminOnly, async (req, res) => {
 // ====================== GET /api/agents/verified ======================
 // Public - list all verified agents for the listings page
 // Also includes agents who have live listings (assigned properties with approved status)
+// Includes each agent's property locations
 router.get("/verified", async (req, res) => {
   try {
     const Property = (await import("../models/Property.js")).default;
@@ -99,7 +100,25 @@ router.get("/verified", async (req, res) => {
       .select("-password")
       .sort({ name: 1 });
 
-    res.json(agents);
+    // Fetch properties for each agent to get their listing locations
+    const agentsWithLocations = await Promise.all(
+      agents.map(async (agent) => {
+        const properties = await Property.find({
+          assignedAgent: agent._id,
+          status: "approved"
+        }).select("location county").lean();
+
+        // Extract unique locations
+        const uniqueLocations = [...new Set(properties.map(p => p.location || p.county).filter(Boolean))];
+
+        return {
+          ...agent.toObject(),
+          listingLocations: uniqueLocations
+        };
+      })
+    );
+
+    res.json(agentsWithLocations);
   } catch (error) {
     console.error("Get verified agents error:", error);
     res.status(500).json({ error: "Failed to fetch verified agents" });
