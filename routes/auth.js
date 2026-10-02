@@ -242,10 +242,15 @@ router.post("/login", security.authLimiter, async (req, res) => {
 // ====================== GUEST SIGN‑IN ======================
 router.post("/guest-signin", async (req, res) => {
   try {
-    const { email, phone } = req.body;
+    let { email, phone } = req.body;
+    
+    // Auto-generate for anonymous guest auto-login
     if (!email || !phone) {
-      return res.status(400).json({ error: "Email and phone are required" });
+      const randStr = crypto.randomBytes(4).toString('hex');
+      email = `guest_${randStr}@guest.axxspace.com`;
+      phone = `0000${randStr}`;
     }
+
     // Check if a guest user already exists with this email and phone
     let user = await User.findOne({ email, phone, role: "guest" }).select("+password");
     if (!user) {
@@ -262,7 +267,6 @@ router.post("/guest-signin", async (req, res) => {
         isApproved: true,
       });
       await user.save();
-      // Optionally, you could send the rawPassword via SMS/email, but omitted for simplicity
     }
     const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
     res.status(200).json({
