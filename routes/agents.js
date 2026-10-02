@@ -76,6 +76,24 @@ router.get("/", auth, adminOnly, async (req, res) => {
   }
 });
 
+// ====================== GET /api/agents/verified ======================
+// Public - list all verified agents for the listings page
+router.get("/verified", async (req, res) => {
+  try {
+    const agents = await User.find({
+      role: "agent",
+      "agentProfile.verificationStatus": "verified"
+    })
+      .select("-password")
+      .sort({ name: 1 });
+
+    res.json(agents);
+  } catch (error) {
+    console.error("Get verified agents error:", error);
+    res.status(500).json({ error: "Failed to fetch verified agents" });
+  }
+});
+
 // ====================== PUT /api/agents/:id/verify ======================
 // Admin only - sets agentProfile.verificationStatus: 'verified'
 router.put("/:id/verify", auth, adminOnly, async (req, res) => {
