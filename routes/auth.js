@@ -226,11 +226,7 @@ router.post("/login", security.authLimiter, async (req, res) => {
 
     res.json({
       token,
-      user: {
-        _id: user._id, name: user.name, email: user.email,
-        phone: user.phone, role: user.role, landlordType: user.landlordType || "general",
-        isApproved: user.isApproved
-      },
+      user: formatUserResponse(user),
     });
 
   } catch (err) {
