@@ -128,6 +128,47 @@ router.get("/verified", async (req, res) => {
   }
 });
 
+// ====================== GET /api/agents/:id/public ======================
+// Public - get a single agent's profile and their approved listings
+router.get("/:id/public", async (req, res) => {
+  try {
+    const agent = await User.findById(req.params.id).select("-password -idPhotoFront -selfiePhoto").lean();
+
+    if (!agent || agent.role !== "agent") {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
+    // Fetch the agent's approved properties
+    const properties = await Property.find({
+      $or: [
+        { assignedAgent: agent._id },
+        { owner: agent._id }
+      ],
+      status: "approved"
+    })
+      .select("title location county price propertyType bedrooms bathrooms images")
+      .lean();
+
+    res.json({
+      _id: agent._id,
+      name: agent.name,
+      email: agent.email,
+      profileImage: agent.profileImage || "",
+      agentProfile: {
+        phone: agent.agentProfile?.phone || "",
+        county: agent.agentProfile?.county || "",
+        bio: agent.agentProfile?.bio || "",
+        verificationStatus: agent.agentProfile?.verificationStatus || "pending",
+      },
+      listingCount: properties.length,
+      listings: properties,
+    });
+  } catch (error) {
+    console.error("Get public agent error:", error);
+    res.status(500).json({ error: "Failed to fetch agent profile" });
+  }
+});
+
 // ====================== PUT /api/agents/:id/verify ======================
 // Admin only - sets agentProfile.verificationStatus: 'verified'
 router.put("/:id/verify", auth, adminOnly, async (req, res) => {
