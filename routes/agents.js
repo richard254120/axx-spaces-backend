@@ -744,18 +744,21 @@ router.delete("/cancel-pending-purchase", auth, async (req, res) => {
     }
 
     // Log the current state for debugging
-    console.log(`Cancelling pending purchase | User: ${user._id} | Status: ${pendingPurchase.status} | Tier: ${pendingPurchase.tier}`);
+    console.log(`Cancelling pending purchase | User: ${user._id} | Status: ${pendingPurchase.status} | Full object:`, JSON.stringify(pendingPurchase));
 
     // Clear the pending purchase regardless of status
     user.agentProfile.pendingPackagePurchase = null;
+
+    console.log("Saving user after clearing pending purchase...");
     await user.save();
 
-    console.log(`Pending purchase cancelled | User: ${user._id}`);
+    console.log(`Pending purchase cancelled successfully | User: ${user._id}`);
 
     res.json({ success: true, message: "Pending purchase cancelled successfully" });
   } catch (error) {
-    console.error("Cancel pending purchase error:", error);
-    res.status(500).json({ error: "Failed to cancel pending purchase" });
+    console.error("Cancel pending purchase error:", error.message);
+    console.error("Error stack:", error.stack);
+    res.status(500).json({ error: "Failed to cancel pending purchase", details: error.message });
   }
 });
 
