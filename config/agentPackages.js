@@ -92,26 +92,26 @@ const calculateExpiryDate = (days = PACKAGE_DURATION_DAYS) => {
 const canAddListing = (agent) => {
   const tier = agent.agentProfile?.subscriptionTier || "none";
   const packageConfig = getPackage(tier);
-  
+
   if (!packageConfig) {
     return false;
   }
-  
+
   // Verified agents have unlimited listings
   if (tier === "verified") {
     return true;
   }
-  
+
   // Check if subscription is active
   if (!agent.agentProfile?.subscriptionExpiresAt) {
     return false;
   }
-  
+
   const now = new Date();
   if (new Date(agent.agentProfile.subscriptionExpiresAt) < now) {
     return false;
   }
-  
+
   // Count active listings for this agent
   // This will be handled in the route/middleware
   return true;
@@ -123,7 +123,7 @@ const getMaxListings = (tier) => {
   return packageConfig ? packageConfig.maxActiveListings : 0;
 };
 
-module.exports = {
+export {
   AGENT_PACKAGES,
   PACKAGE_DURATION_DAYS,
   getPackage,
