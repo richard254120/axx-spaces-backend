@@ -382,6 +382,20 @@ const userSchema = new mongoose.Schema(
         expiresAt: Date,
         paymentReference: String,
       }],
+      pendingPackagePurchase: {
+        tier: String,
+        amount: Number,
+        paymentMessage: String,
+        submittedAt: Date,
+        status: {
+          type: String,
+          enum: ["pending", "approved", "rejected"],
+          default: "pending",
+        },
+        reviewedAt: Date,
+        reviewedBy: String,
+        rejectionReason: String,
+      },
     },
   },
   { timestamps: true }

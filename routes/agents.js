@@ -488,18 +488,13 @@ router.get("/packages", async (req, res) => {
 });
 
 // ====================== POST /api/agents/purchase-package ======================
-// Auth required - agent purchases a package
+// Auth required - submit package purchase request for admin approval
 router.post("/purchase-package", auth, async (req, res) => {
   try {
-    const { tier, paymentReference } = req.body;
+    const { tier, paymentMessage } = req.body;
 
     if (!tier) {
       return res.status(400).json({ error: "Package tier is required" });
-    }
-
-    const packageConfig = getPackage(tier);
-    if (!packageConfig) {
-      return res.status(400).json({ error: "Invalid package tier" });
     }
 
     const user = await User.findById(req.user._id);
@@ -507,66 +502,91 @@ router.post("/purchase-package", auth, async (req, res) => {
       return res.status(403).json({ error: "Only agents can purchase packages" });
     }
 
-    // For paid packages, require payment reference
-    if (packageConfig.price > 0 && !paymentReference) {
-      return res.status(400).json({ error: "Payment reference is required for paid packages" });
+    const packageConfig = getPackage(tier);
+    if (!packageConfig) {
+      return res.status(400).json({ error: "Invalid package tier" });
     }
 
-    // Calculate expiry date (30 days from now)
-    const expiresAt = calculateExpiryDate();
+    // For free packages (basic), activate immediately
+    if (packageConfig.price === 0) {
+      const expiresAt = calculateExpiryDate();
 
-    // Record current package in history before updating
-    if (user.agentProfile?.subscriptionTier && user.agentProfile.subscriptionTier !== "none") {
+      // Update agent package
+      user.agentProfile.subscriptionTier = tier;
+      user.agentProfile.subscriptionExpiresAt = expiresAt;
+      user.agentProfile.packagePurchasedAt = new Date();
+      user.agentProfile.packageAmount = 0;
+      user.agentProfile.packagePaymentReference = "FREE";
+
+      // Add new purchase to history
       user.agentProfile.packageHistory = user.agentProfile.packageHistory || [];
       user.agentProfile.packageHistory.push({
-        tier: user.agentProfile.subscriptionTier,
-        amount: user.agentProfile.packageAmount || 0,
-        purchasedAt: user.agentProfile.packagePurchasedAt || new Date(),
-        expiresAt: user.agentProfile.subscriptionExpiresAt || new Date(),
-        paymentReference: user.agentProfile.packagePaymentReference || "",
+        tier: tier,
+        amount: 0,
+        purchasedAt: new Date(),
+        expiresAt: expiresAt,
+        paymentReference: "FREE",
+      });
+
+      await user.save();
+
+      console.log(`Free package activated | User: ${user._id} | Tier: ${tier}`);
+
+      return res.json({
+        success: true,
+        message: "Package activated successfully",
+        package: {
+          tier: tier,
+          name: packageConfig.name,
+          price: 0,
+          expiresAt: expiresAt,
+          maxActiveListings: packageConfig.maxActiveListings,
+        },
+        user: {
+          _id: user._id,
+          name: user.name,
+          agentProfile: user.agentProfile,
+        },
       });
     }
 
-    // Update agent package
-    user.agentProfile.subscriptionTier = tier;
-    user.agentProfile.subscriptionExpiresAt = expiresAt;
-    user.agentProfile.packagePurchasedAt = new Date();
-    user.agentProfile.packageAmount = packageConfig.price;
-    user.agentProfile.packagePaymentReference = paymentReference || "";
+    // For paid packages, require payment message and create pending purchase
+    if (!paymentMessage || !paymentMessage.trim()) {
+      return res.status(400).json({ error: "M-Pesa payment message is required for paid packages" });
+    }
 
-    // Add new purchase to history
-    user.agentProfile.packageHistory = user.agentProfile.packageHistory || [];
-    user.agentProfile.packageHistory.push({
+    // Check if there's already a pending purchase
+    if (user.agentProfile?.pendingPackagePurchase?.status === "pending") {
+      return res.status(400).json({ error: "You already have a pending package purchase awaiting approval" });
+    }
+
+    // Create pending purchase
+    user.agentProfile.pendingPackagePurchase = {
       tier: tier,
       amount: packageConfig.price,
-      purchasedAt: new Date(),
-      expiresAt: expiresAt,
-      paymentReference: paymentReference || "",
-    });
+      paymentMessage: paymentMessage.trim(),
+      submittedAt: new Date(),
+      status: "pending",
+    };
 
     await user.save();
 
-    console.log(`Package purchased | User: ${user._id} | Tier: ${tier} | Amount: ${packageConfig.price}`);
+    console.log(`Package purchase submitted | User: ${user._id} | Tier: ${tier} | Amount: ${packageConfig.price}`);
 
     res.json({
       success: true,
-      message: "Package purchased successfully",
-      package: {
+      message: "Package purchase submitted for approval. Please wait for admin verification.",
+      pendingPurchase: {
         tier: tier,
         name: packageConfig.name,
-        price: packageConfig.price,
-        expiresAt: expiresAt,
-        maxActiveListings: packageConfig.maxActiveListings,
-      },
-      user: {
-        _id: user._id,
-        name: user.name,
-        agentProfile: user.agentProfile,
+        amount: packageConfig.price,
+        paymentMessage: paymentMessage.trim(),
+        submittedAt: user.agentProfile.pendingPackagePurchase.submittedAt,
       },
     });
   } catch (error) {
     console.error("Purchase package error:", error);
-    res.status(500).json({ error: "Failed to purchase package" });
+    res.status(500).json({ error: "Failed to submit package purchase" });
   }
 });
 
@@ -648,6 +668,136 @@ router.get("/all-packages", auth, adminOnly, async (req, res) => {
   } catch (error) {
     console.error("Get all packages error:", error);
     res.status(500).json({ error: "Failed to fetch agent packages" });
+  }
+});
+
+// ====================== GET /api/agents/pending-purchases ======================
+// Admin only - get all pending package purchases
+router.get("/pending-purchases", auth, adminOnly, async (req, res) => {
+  try {
+    const agents = await User.find({
+      role: "agent",
+      "agentProfile.pendingPackagePurchase.status": "pending"
+    })
+      .select("-password")
+      .lean();
+
+    const pendingPurchases = agents.map(agent => ({
+      _id: agent._id,
+      name: agent.name,
+      email: agent.email,
+      phone: agent.phone,
+      county: agent.county,
+      pendingPurchase: agent.agentProfile.pendingPackagePurchase,
+    }));
+
+    res.json(pendingPurchases);
+  } catch (error) {
+    console.error("Get pending purchases error:", error);
+    res.status(500).json({ error: "Failed to fetch pending purchases" });
+  }
+});
+
+// ====================== PUT /api/agents/approve-purchase/:userId ======================
+// Admin only - approve a pending package purchase
+router.put("/approve-purchase/:userId", auth, adminOnly, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+
+    if (!user || user.role !== "agent") {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
+    const pendingPurchase = user.agentProfile?.pendingPackagePurchase;
+    if (!pendingPurchase || pendingPurchase.status !== "pending") {
+      return res.status(400).json({ error: "No pending purchase found" });
+    }
+
+    const packageConfig = getPackage(pendingPurchase.tier);
+    if (!packageConfig) {
+      return res.status(400).json({ error: "Invalid package tier" });
+    }
+
+    // Activate the package
+    const expiresAt = calculateExpiryDate();
+    user.agentProfile.subscriptionTier = pendingPurchase.tier;
+    user.agentProfile.subscriptionExpiresAt = expiresAt;
+    user.agentProfile.packagePurchasedAt = new Date();
+    user.agentProfile.packageAmount = pendingPurchase.amount;
+    user.agentProfile.packagePaymentReference = pendingPurchase.paymentMessage;
+
+    // Add to history
+    user.agentProfile.packageHistory = user.agentProfile.packageHistory || [];
+    user.agentProfile.packageHistory.push({
+      tier: pendingPurchase.tier,
+      amount: pendingPurchase.amount,
+      purchasedAt: new Date(),
+      expiresAt: expiresAt,
+      paymentReference: pendingPurchase.paymentMessage,
+    });
+
+    // Update pending purchase status
+    user.agentProfile.pendingPackagePurchase.status = "approved";
+    user.agentProfile.pendingPackagePurchase.reviewedAt = new Date();
+    user.agentProfile.pendingPackagePurchase.reviewedBy = req.user._id;
+
+    await user.save();
+
+    console.log(`Package purchase approved | User: ${userId} | Tier: ${pendingPurchase.tier}`);
+
+    res.json({
+      success: true,
+      message: "Package purchase approved successfully",
+      package: {
+        tier: pendingPurchase.tier,
+        name: packageConfig.name,
+        amount: pendingPurchase.amount,
+        expiresAt: expiresAt,
+        maxActiveListings: packageConfig.maxActiveListings,
+      },
+    });
+  } catch (error) {
+    console.error("Approve purchase error:", error);
+    res.status(500).json({ error: "Failed to approve purchase" });
+  }
+});
+
+// ====================== PUT /api/agents/reject-purchase/:userId ======================
+// Admin only - reject a pending package purchase
+router.put("/reject-purchase/:userId", auth, adminOnly, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user || user.role !== "agent") {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
+    const pendingPurchase = user.agentProfile?.pendingPackagePurchase;
+    if (!pendingPurchase || pendingPurchase.status !== "pending") {
+      return res.status(400).json({ error: "No pending purchase found" });
+    }
+
+    // Update pending purchase status
+    user.agentProfile.pendingPackagePurchase.status = "rejected";
+    user.agentProfile.pendingPackagePurchase.reviewedAt = new Date();
+    user.agentProfile.pendingPackagePurchase.reviewedBy = req.user._id;
+    user.agentProfile.pendingPackagePurchase.rejectionReason = reason || "Payment verification failed";
+
+    await user.save();
+
+    console.log(`Package purchase rejected | User: ${userId} | Reason: ${reason}`);
+
+    res.json({
+      success: true,
+      message: "Package purchase rejected",
+    });
+  } catch (error) {
+    console.error("Reject purchase error:", error);
+    res.status(500).json({ error: "Failed to reject purchase" });
   }
 });
 
