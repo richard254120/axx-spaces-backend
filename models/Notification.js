@@ -14,7 +14,9 @@ const notificationSchema = new mongoose.Schema({
       "item_request",
       "accommodation_approved",
       "accommodation_rejected",
-      "accommodation_upload"
+      "accommodation_upload",
+      "package_approved",
+      "package_rejected"
     ],
     required: true,
   },
@@ -62,6 +64,8 @@ const notificationSchema = new mongoose.Schema({
   checkOut: Date,
   plan: String,
   subscriptionType: String,
+  message: String,
+  agentPackageTier: String,
   createdAt: {
     type: Date,
     default: Date.now,

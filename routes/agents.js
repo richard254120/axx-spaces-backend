@@ -2,6 +2,7 @@ import express from "express";
 import User from "../models/User.js";
 import Accommodation from "../models/Accommodation.js";
 import Property from "../models/Property.js";
+import Notification from "../models/Notification.js";
 import { auth, adminOnly } from "../middleware/auth.js";
 import { getPackage, getAllPackages, calculateExpiryDate, getMaxListings } from "../config/agentPackages.js";
 
@@ -845,6 +846,23 @@ router.put("/approve-purchase/:userId", auth, adminOnly, async (req, res) => {
 
     await user.save();
 
+    // Create notification for agent
+    try {
+      const expiryDateStr = expiresAt.toLocaleDateString();
+      await Notification.create({
+        type: 'package_approved',
+        userId: user._id,
+        userName: user.name,
+        userEmail: user.email,
+        amount: pendingPurchase.amount,
+        message: `Your package has been upgraded to ${packageConfig.name}. Active until ${expiryDateStr}`,
+        agentPackageTier: pendingPurchase.tier,
+        status: 'confirmed'
+      });
+    } catch (notifErr) {
+      console.error('Failed to create approval notification:', notifErr);
+    }
+
     console.log(`Package purchase approved | User: ${userId} | Tier: ${pendingPurchase.tier}`);
 
     res.json({
@@ -889,6 +907,23 @@ router.put("/reject-purchase/:userId", auth, adminOnly, async (req, res) => {
     user.agentProfile.pendingPackagePurchase.rejectionReason = reason || "Payment verification failed";
 
     await user.save();
+
+    // Create notification for agent
+    try {
+      const rejectionMessage = reason || "Payment verification failed";
+      await Notification.create({
+        type: 'package_rejected',
+        userId: user._id,
+        userName: user.name,
+        userEmail: user.email,
+        amount: pendingPurchase.amount,
+        message: rejectionMessage,
+        agentPackageTier: pendingPurchase.tier,
+        status: 'rejected'
+      });
+    } catch (notifErr) {
+      console.error('Failed to create rejection notification:', notifErr);
+    }
 
     console.log(`Package purchase rejected | User: ${userId} | Reason: ${reason}`);
 
