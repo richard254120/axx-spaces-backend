@@ -705,6 +705,29 @@ router.get("/my-pending-purchase", auth, async (req, res) => {
   }
 });
 
+// ====================== GET /api/agents/debug-pending-purchase ======================
+// Auth required - debug route to check pending purchase state
+router.get("/debug-pending-purchase", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== "agent") {
+      return res.status(403).json({ error: "Only agents can view debug info" });
+    }
+
+    const pendingPurchase = user.agentProfile?.pendingPackagePurchase;
+
+    res.json({
+      userId: user._id,
+      hasPendingPurchase: !!pendingPurchase,
+      pendingPurchase: pendingPurchase || null,
+      fullAgentProfile: user.agentProfile,
+    });
+  } catch (error) {
+    console.error("Debug pending purchase error:", error);
+    res.status(500).json({ error: "Failed to fetch debug info" });
+  }
+});
+
 // ====================== DELETE /api/agents/cancel-pending-purchase ======================
 // Auth required - cancel current agent's pending purchase
 router.delete("/cancel-pending-purchase", auth, async (req, res) => {
