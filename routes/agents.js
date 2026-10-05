@@ -746,8 +746,8 @@ router.delete("/cancel-pending-purchase", auth, async (req, res) => {
     // Log the current state for debugging
     console.log(`Cancelling pending purchase | User: ${user._id} | Status: ${pendingPurchase.status} | Full object:`, JSON.stringify(pendingPurchase));
 
-    // Clear the pending purchase regardless of status
-    user.agentProfile.pendingPackagePurchase = null;
+    // Use unset to remove the field entirely (avoids validation error)
+    user.agentProfile.unset("pendingPackagePurchase");
 
     console.log("Saving user after clearing pending purchase...");
     await user.save();
