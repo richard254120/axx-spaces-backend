@@ -716,10 +716,14 @@ router.delete("/cancel-pending-purchase", auth, async (req, res) => {
 
     const pendingPurchase = user.agentProfile?.pendingPackagePurchase;
 
-    if (!pendingPurchase || pendingPurchase.status !== "pending") {
+    if (!pendingPurchase) {
       return res.status(400).json({ error: "No pending purchase to cancel" });
     }
 
+    // Log the current state for debugging
+    console.log(`Cancelling pending purchase | User: ${user._id} | Status: ${pendingPurchase.status} | Tier: ${pendingPurchase.tier}`);
+
+    // Clear the pending purchase regardless of status
     user.agentProfile.pendingPackagePurchase = null;
     await user.save();
 
