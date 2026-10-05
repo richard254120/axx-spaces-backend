@@ -733,30 +733,41 @@ router.get("/debug-pending-purchase", auth, async (req, res) => {
 router.delete("/cancel-pending-purchase", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    if (!user || user.role !== "agent") {
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (user.role !== "agent") {
       return res.status(403).json({ error: "Only agents can cancel pending purchases" });
+    }
+
+    // Ensure agentProfile exists
+    if (!user.agentProfile) {
+      user.agentProfile = {};
     }
 
     const pendingPurchase = user.agentProfile?.pendingPackagePurchase;
 
-    if (!pendingPurchase) {
+    if (!pendingPurchase || !pendingPurchase.status || pendingPurchase.status !== "pending") {
       return res.status(400).json({ error: "No pending purchase to cancel" });
     }
 
     // Log the current state for debugging
-    console.log(`Cancelling pending purchase | User: ${user._id} | Status: ${pendingPurchase.status} | Full object:`, JSON.stringify(pendingPurchase));
+    console.log(`Cancelling pending purchase | User: ${user._id} | Status: ${pendingPurchase.status}`);
 
     // Set status to cancelled instead of removing the field
     user.agentProfile.pendingPackagePurchase.status = "cancelled";
     user.agentProfile.pendingPackagePurchase.cancelledAt = new Date();
-    await user.save();
+    const savedUser = await user.save();
 
     console.log(`Pending purchase cancelled successfully | User: ${user._id}`);
 
-    res.json({ success: true, message: "Pending purchase cancelled successfully" });
+    res.json({ 
+      success: true, 
+      message: "Pending purchase cancelled successfully",
+      pendingPurchase: savedUser.agentProfile.pendingPackagePurchase
+    });
   } catch (error) {
-    console.error("Cancel pending purchase error:", error.message);
-    console.error("Error stack:", error.stack);
+    console.error("Cancel pending purchase error:", error);
     res.status(500).json({ error: "Failed to cancel pending purchase", details: error.message });
   }
 });
