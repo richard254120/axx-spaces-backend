@@ -746,12 +746,14 @@ router.delete("/cancel-pending-purchase", auth, async (req, res) => {
     // Log the current state for debugging
     console.log(`Cancelling pending purchase | User: ${user._id} | Status: ${pendingPurchase.status} | Full object:`, JSON.stringify(pendingPurchase));
 
-    // Use direct MongoDB update with $unset to remove the field
-    await User.updateOne(
+    // Use findOneAndUpdate with $unset to remove the field
+    const result = await User.findOneAndUpdate(
       { _id: user._id },
-      { $unset: { "agentProfile.pendingPackagePurchase": "" } }
+      { $unset: { "agentProfile.pendingPackagePurchase": "" } },
+      { new: true }
     );
 
+    console.log(`Update result:`, result);
     console.log(`Pending purchase cancelled successfully | User: ${user._id}`);
 
     res.json({ success: true, message: "Pending purchase cancelled successfully" });
