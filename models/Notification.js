@@ -16,7 +16,8 @@ const notificationSchema = new mongoose.Schema({
       "accommodation_rejected",
       "accommodation_upload",
       "package_approved",
-      "package_rejected"
+      "package_rejected",
+      "package_pending"
     ],
     required: true,
   },

@@ -572,7 +572,22 @@ router.post("/purchase-package", auth, async (req, res) => {
 
     await user.save();
 
-    console.log(`Package purchase submitted | User: ${user._id} | Tier: ${tier} | Amount: ${packageConfig.price}`);
+    // Create notification for admin
+    const adminNotification = await Notification.create({
+      type: "package_pending",
+      message: `${user.name} submitted a payment for ${packageConfig.name} package (KES ${packageConfig.price})`,
+      userId: user._id,
+      userName: user.name,
+      userEmail: user.email,
+      userPhone: user.phone,
+      amount: packageConfig.price,
+      agentPackageTier: tier,
+      transactionId: paymentMessage.trim(),
+      read: false,
+      createdAt: new Date(),
+    });
+
+    console.log(`Package purchase submitted | User: ${user._id} | Tier: ${tier} | Amount: ${packageConfig.price} | Notification: ${adminNotification._id}`);
 
     res.json({
       success: true,
