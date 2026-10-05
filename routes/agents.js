@@ -671,6 +671,67 @@ router.get("/all-packages", auth, adminOnly, async (req, res) => {
   }
 });
 
+// ====================== GET /api/agents/my-pending-purchase ======================
+// Auth required - get current agent's pending purchase status
+router.get("/my-pending-purchase", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== "agent") {
+      return res.status(403).json({ error: "Only agents can view pending purchase status" });
+    }
+
+    const pendingPurchase = user.agentProfile?.pendingPackagePurchase;
+
+    if (!pendingPurchase || pendingPurchase.status !== "pending") {
+      return res.json({ hasPending: false, pendingPurchase: null });
+    }
+
+    const packageConfig = getPackage(pendingPurchase.tier);
+
+    res.json({
+      hasPending: true,
+      pendingPurchase: {
+        tier: pendingPurchase.tier,
+        name: packageConfig?.name,
+        amount: pendingPurchase.amount,
+        paymentMessage: pendingPurchase.paymentMessage,
+        submittedAt: pendingPurchase.submittedAt,
+        status: pendingPurchase.status,
+      },
+    });
+  } catch (error) {
+    console.error("Get my pending purchase error:", error);
+    res.status(500).json({ error: "Failed to fetch pending purchase status" });
+  }
+});
+
+// ====================== DELETE /api/agents/cancel-pending-purchase ======================
+// Auth required - cancel current agent's pending purchase
+router.delete("/cancel-pending-purchase", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== "agent") {
+      return res.status(403).json({ error: "Only agents can cancel pending purchases" });
+    }
+
+    const pendingPurchase = user.agentProfile?.pendingPackagePurchase;
+
+    if (!pendingPurchase || pendingPurchase.status !== "pending") {
+      return res.status(400).json({ error: "No pending purchase to cancel" });
+    }
+
+    user.agentProfile.pendingPackagePurchase = null;
+    await user.save();
+
+    console.log(`Pending purchase cancelled | User: ${user._id}`);
+
+    res.json({ success: true, message: "Pending purchase cancelled successfully" });
+  } catch (error) {
+    console.error("Cancel pending purchase error:", error);
+    res.status(500).json({ error: "Failed to cancel pending purchase" });
+  }
+});
+
 // ====================== GET /api/agents/pending-purchases ======================
 // Admin only - get all pending package purchases
 router.get("/pending-purchases", auth, adminOnly, async (req, res) => {
