@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import Accommodation from "../models/Accommodation.js";
 import Property from "../models/Property.js";
 import { auth, adminOnly } from "../middleware/auth.js";
+import { getPackage, getAllPackages, calculateExpiryDate, getMaxListings } from "../config/agentPackages.js";
 
 const router = express.Router();
 
@@ -471,6 +472,182 @@ router.post("/:rentalId/authorization-letter", auth, async (req, res) => {
   } catch (error) {
     console.error("Upload authorization letter error:", error);
     res.status(500).json({ error: "Failed to upload authorization letter" });
+  }
+});
+
+// ====================== GET /api/agents/packages ======================
+// Public - get all available agent packages
+router.get("/packages", async (req, res) => {
+  try {
+    const packages = getAllPackages();
+    res.json(packages);
+  } catch (error) {
+    console.error("Get packages error:", error);
+    res.status(500).json({ error: "Failed to fetch packages" });
+  }
+});
+
+// ====================== POST /api/agents/purchase-package ======================
+// Auth required - agent purchases a package
+router.post("/purchase-package", auth, async (req, res) => {
+  try {
+    const { tier, paymentReference } = req.body;
+
+    if (!tier) {
+      return res.status(400).json({ error: "Package tier is required" });
+    }
+
+    const packageConfig = getPackage(tier);
+    if (!packageConfig) {
+      return res.status(400).json({ error: "Invalid package tier" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== "agent") {
+      return res.status(403).json({ error: "Only agents can purchase packages" });
+    }
+
+    // For paid packages, require payment reference
+    if (packageConfig.price > 0 && !paymentReference) {
+      return res.status(400).json({ error: "Payment reference is required for paid packages" });
+    }
+
+    // Calculate expiry date (30 days from now)
+    const expiresAt = calculateExpiryDate();
+
+    // Record current package in history before updating
+    if (user.agentProfile?.subscriptionTier && user.agentProfile.subscriptionTier !== "none") {
+      user.agentProfile.packageHistory = user.agentProfile.packageHistory || [];
+      user.agentProfile.packageHistory.push({
+        tier: user.agentProfile.subscriptionTier,
+        amount: user.agentProfile.packageAmount || 0,
+        purchasedAt: user.agentProfile.packagePurchasedAt || new Date(),
+        expiresAt: user.agentProfile.subscriptionExpiresAt || new Date(),
+        paymentReference: user.agentProfile.packagePaymentReference || "",
+      });
+    }
+
+    // Update agent package
+    user.agentProfile.subscriptionTier = tier;
+    user.agentProfile.subscriptionExpiresAt = expiresAt;
+    user.agentProfile.packagePurchasedAt = new Date();
+    user.agentProfile.packageAmount = packageConfig.price;
+    user.agentProfile.packagePaymentReference = paymentReference || "";
+
+    // Add new purchase to history
+    user.agentProfile.packageHistory = user.agentProfile.packageHistory || [];
+    user.agentProfile.packageHistory.push({
+      tier: tier,
+      amount: packageConfig.price,
+      purchasedAt: new Date(),
+      expiresAt: expiresAt,
+      paymentReference: paymentReference || "",
+    });
+
+    await user.save();
+
+    console.log(`Package purchased | User: ${user._id} | Tier: ${tier} | Amount: ${packageConfig.price}`);
+
+    res.json({
+      success: true,
+      message: "Package purchased successfully",
+      package: {
+        tier: tier,
+        name: packageConfig.name,
+        price: packageConfig.price,
+        expiresAt: expiresAt,
+        maxActiveListings: packageConfig.maxActiveListings,
+      },
+      user: {
+        _id: user._id,
+        name: user.name,
+        agentProfile: user.agentProfile,
+      },
+    });
+  } catch (error) {
+    console.error("Purchase package error:", error);
+    res.status(500).json({ error: "Failed to purchase package" });
+  }
+});
+
+// ====================== GET /api/agents/my-package ======================
+// Auth required - get current agent's package status
+router.get("/my-package", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== "agent") {
+      return res.status(403).json({ error: "Only agents can view package status" });
+    }
+
+    const currentTier = user.agentProfile?.subscriptionTier || "none";
+    const packageConfig = getPackage(currentTier);
+    const expiresAt = user.agentProfile?.subscriptionExpiresAt;
+    const now = new Date();
+    const isActive = expiresAt && new Date(expiresAt) > now;
+
+    // Count active listings for this agent
+    const activeListingsCount = await Property.countDocuments({
+      assignedAgent: user._id,
+      status: "approved"
+    });
+
+    res.json({
+      currentTier: currentTier,
+      isActive: isActive,
+      expiresAt: expiresAt,
+      package: packageConfig,
+      activeListingsCount: activeListingsCount,
+      canAddMore: isActive && (currentTier === "verified" || activeListingsCount < (packageConfig?.maxActiveListings || 0)),
+      packageHistory: user.agentProfile?.packageHistory || [],
+    });
+  } catch (error) {
+    console.error("Get my package error:", error);
+    res.status(500).json({ error: "Failed to fetch package status" });
+  }
+});
+
+// ====================== GET /api/agents/all-packages ======================
+// Admin only - get all agents with their package status
+router.get("/all-packages", auth, adminOnly, async (req, res) => {
+  try {
+    const agents = await User.find({ role: "agent" })
+      .select("-password")
+      .lean();
+
+    const agentsWithPackages = await Promise.all(
+      agents.map(async (agent) => {
+        const currentTier = agent.agentProfile?.subscriptionTier || "none";
+        const packageConfig = getPackage(currentTier);
+        const expiresAt = agent.agentProfile?.subscriptionExpiresAt;
+        const now = new Date();
+        const isActive = expiresAt && new Date(expiresAt) > now;
+
+        // Count active listings for this agent
+        const activeListingsCount = await Property.countDocuments({
+          assignedAgent: agent._id,
+          status: "approved"
+        });
+
+        return {
+          _id: agent._id,
+          name: agent.name,
+          email: agent.email,
+          phone: agent.phone,
+          county: agent.county,
+          currentTier: currentTier,
+          isActive: isActive,
+          expiresAt: expiresAt,
+          package: packageConfig,
+          activeListingsCount: activeListingsCount,
+          packageHistory: agent.agentProfile?.packageHistory || [],
+        };
+      })
+    );
+
+    res.json(agentsWithPackages);
+  } catch (error) {
+    console.error("Get all packages error:", error);
+    res.status(500).json({ error: "Failed to fetch agent packages" });
   }
 });
 

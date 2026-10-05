@@ -356,13 +356,32 @@ const userSchema = new mongoose.Schema(
       },
       subscriptionTier: {
         type: String,
-        enum: ["none", "basic", "pro"],
+        enum: ["none", "basic", "pro", "pro_plus", "verified"],
         default: "none",
       },
       subscriptionExpiresAt: {
         type: Date,
         default: null,
       },
+      packagePurchasedAt: {
+        type: Date,
+        default: null,
+      },
+      packageAmount: {
+        type: Number,
+        default: 0,
+      },
+      packagePaymentReference: {
+        type: String,
+        default: "",
+      },
+      packageHistory: [{
+        tier: String,
+        amount: Number,
+        purchasedAt: Date,
+        expiresAt: Date,
+        paymentReference: String,
+      }],
     },
   },
   { timestamps: true }
