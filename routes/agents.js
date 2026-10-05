@@ -555,9 +555,9 @@ router.post("/purchase-package", auth, async (req, res) => {
       return res.status(400).json({ error: "M-Pesa payment message is required for paid packages" });
     }
 
-    // Check if there's already a pending purchase
+    // Check if there's already a pending purchase (not cancelled or rejected)
     if (user.agentProfile?.pendingPackagePurchase?.status === "pending") {
-      return res.status(400).json({ error: "You already have a pending package purchase awaiting approval" });
+      return res.status(400).json({ error: "You already have a pending package purchase awaiting approval. Please cancel it first to submit a new one." });
     }
 
     // Create pending purchase
@@ -746,14 +746,11 @@ router.delete("/cancel-pending-purchase", auth, async (req, res) => {
     // Log the current state for debugging
     console.log(`Cancelling pending purchase | User: ${user._id} | Status: ${pendingPurchase.status} | Full object:`, JSON.stringify(pendingPurchase));
 
-    // Use findOneAndUpdate with $unset to remove the field
-    const result = await User.findOneAndUpdate(
-      { _id: user._id },
-      { $unset: { "agentProfile.pendingPackagePurchase": "" } },
-      { new: true }
-    );
+    // Set status to cancelled instead of removing the field
+    user.agentProfile.pendingPackagePurchase.status = "cancelled";
+    user.agentProfile.pendingPackagePurchase.cancelledAt = new Date();
+    await user.save();
 
-    console.log(`Update result:`, result);
     console.log(`Pending purchase cancelled successfully | User: ${user._id}`);
 
     res.json({ success: true, message: "Pending purchase cancelled successfully" });
