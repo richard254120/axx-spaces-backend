@@ -820,19 +820,27 @@ router.get("/pending-purchases", auth, adminOnly, async (req, res) => {
 router.put("/approve-purchase/:userId", auth, adminOnly, async (req, res) => {
   try {
     const { userId } = req.params;
+    console.log(`🔍 [Approve] Starting approval for user: ${userId}`);
+    
     const user = await User.findById(userId);
+    console.log(`🔍 [Approve] User found: ${user ? user._id : 'NOT FOUND'}`);
 
     if (!user || user.role !== "agent") {
+      console.log(`❌ [Approve] User not found or not agent`);
       return res.status(404).json({ error: "Agent not found" });
     }
 
     const pendingPurchase = user.agentProfile?.pendingPackagePurchase;
+    console.log(`🔍 [Approve] Pending purchase status:`, pendingPurchase?.status);
+    
     if (!pendingPurchase || pendingPurchase.status !== "pending") {
+      console.log(`❌ [Approve] No pending purchase or status not pending`);
       return res.status(400).json({ error: "No pending purchase found" });
     }
 
     const packageConfig = getPackage(pendingPurchase.tier);
     if (!packageConfig) {
+      console.log(`❌ [Approve] Invalid package tier: ${pendingPurchase.tier}`);
       return res.status(400).json({ error: "Invalid package tier" });
     }
 
@@ -859,7 +867,8 @@ router.put("/approve-purchase/:userId", auth, adminOnly, async (req, res) => {
     user.agentProfile.pendingPackagePurchase.reviewedAt = new Date();
     user.agentProfile.pendingPackagePurchase.reviewedBy = req.user._id;
 
-    await user.save();
+    const savedUser = await user.save();
+    console.log(`✅ [Approve] User saved with new tier: ${savedUser.agentProfile.subscriptionTier}`);
 
     // Create notification for agent
     try {
@@ -874,11 +883,12 @@ router.put("/approve-purchase/:userId", auth, adminOnly, async (req, res) => {
         agentPackageTier: pendingPurchase.tier,
         status: 'confirmed'
       });
+      console.log(`✅ [Approve] Notification created`);
     } catch (notifErr) {
-      console.error('Failed to create approval notification:', notifErr);
+      console.error('❌ [Approve] Failed to create approval notification:', notifErr);
     }
 
-    console.log(`Package purchase approved | User: ${userId} | Tier: ${pendingPurchase.tier}`);
+    console.log(`✅ [Approve] Package purchase approved | User: ${userId} | Tier: ${pendingPurchase.tier}`);
 
     res.json({
       success: true,
@@ -892,7 +902,7 @@ router.put("/approve-purchase/:userId", auth, adminOnly, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Approve purchase error:", error);
+    console.error("❌ [Approve] Approve purchase error:", error);
     res.status(500).json({ error: "Failed to approve purchase" });
   }
 });
