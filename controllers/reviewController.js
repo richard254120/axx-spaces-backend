@@ -1,5 +1,6 @@
 import Review from "../models/Review.js";
 import User from "../models/User.js";
+import AuditLog from "../models/AuditLog.js";
 
 // ====================== CREATE REVIEW ======================
 export const createReview = async (req, res) => {
@@ -267,6 +268,14 @@ export const approveReview = async (req, res) => {
       success: true,
       review,
       message: `Review ${review.isApproved ? 'approved' : 'unapproved'} successfully`,
+      // Audit log
+      await AuditLog.create({
+        admin: req.user._id,
+        action: review.isApproved ? 'approve_review' : 'unapprove_review',
+        targetId: review._id,
+        targetType: 'Review',
+        details: { isApproved: review.isApproved }
+      }),
     });
   } catch (error) {
     console.error(" Approve review error:", error);

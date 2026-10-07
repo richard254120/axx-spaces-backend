@@ -1,5 +1,6 @@
-import Material from "../models/Material.js";
+import AuditLog from "../models/AuditLog.js";
 import User from "../models/User.js";
+import Material from "../models/Material.js";
 import { sendMaterialEmail, sendMaterialApprovalEmail } from "../utils/email.js";
 
 // ============ CREATE MATERIAL ============
@@ -130,7 +131,14 @@ export const approveMaterial = async (req, res) => {
     ).populate("seller", "email");
     if (!material) return res.status(404).json({ error: "Material not found" });
     await sendMaterialApprovalEmail(material.seller.email, material.title);
-    res.json({ success: true, message: "Material approved!", material });
+    await AuditLog.create({
+  admin: req.user._id,
+  action: 'approve_material',
+  targetId: material._id,
+  targetType: 'Material',
+  details: { status: material.status, isVerified: material.isVerified }
+});
+res.json({ success: true, message: "Material approved!", material });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -1,4 +1,5 @@
 import Verification from "../models/Verification.js";
+import AuditLog from "../models/AuditLog.js";
 import User from "../models/User.js";
 import { faceMatchService } from "../services/faceMatchService.js";
 import { toAbsoluteUploadUrl } from "../utils/fileUrls.js";
@@ -279,7 +280,14 @@ export const approveVerification = async (req, res) => {
       data: { verificationId: String(verification._id), level: verification.verificationLevel },
     });
 
-    res.status(200).json({
+    await AuditLog.create({
+  admin: req.user._id,
+  action: 'approve_verification',
+  targetId: verification._id,
+  targetType: 'Verification',
+  details: { status: verification.status, level: verification.verificationLevel }
+});
+res.status(200).json({
       success: true,
       message: "Verification approved successfully",
       data: verification,
