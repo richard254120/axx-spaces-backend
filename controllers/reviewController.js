@@ -264,19 +264,18 @@ export const approveReview = async (req, res) => {
     review.isApproved = !review.isApproved;
     await review.save();
 
-    res.json({
-      success: true,
-      review,
-      message: `Review ${review.isApproved ? 'approved' : 'unapproved'} successfully`,
-      // Audit log
-      await AuditLog.create({
-        admin: req.user._id,
-        action: review.isApproved ? 'approve_review' : 'unapprove_review',
-        targetId: review._id,
-        targetType: 'Review',
-        details: { isApproved: review.isApproved }
-      }),
-    });
+await AuditLog.create({
+  admin: req.user._id,
+  action: review.isApproved ? 'approve_review' : 'unapprove_review',
+  targetId: review._id,
+  targetType: 'Review',
+  details: { isApproved: review.isApproved }
+});
+res.json({
+  success: true,
+  review,
+  message: `Review ${review.isApproved ? 'approved' : 'unapproved'} successfully`
+});
   } catch (error) {
     console.error(" Approve review error:", error);
     res.status(500).json({ error: error.message || "Failed to approve review" });
