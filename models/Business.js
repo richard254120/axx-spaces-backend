@@ -91,6 +91,17 @@ const businessSchema = new mongoose.Schema({
     category: String,
     imageUrl: String,
   }],
+  categoryItems: [{
+    name: {
+      type: String,
+    },
+    price: {
+      type: String,
+    },
+    image: {
+      type: String,
+    },
+  }],
   pricelist: {
     url: String,
     publicId: String,
