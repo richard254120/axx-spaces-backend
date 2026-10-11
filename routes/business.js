@@ -34,6 +34,8 @@ router.post("/", auth, async (req, res) => {
     console.log("User ID:", req.user?.id);
     console.log("Images:", images);
     console.log("Images length:", images?.length);
+    console.log("Category items:", categoryItems);
+    console.log("Category items length:", categoryItems?.length);
 
     const cleanLocation = location ? {
       ...location,
@@ -58,6 +60,7 @@ router.post("/", auth, async (req, res) => {
       images,
       logo,
       products,
+      categoryItems,
       pricelist,
       submitterName,
       isFirstUpload: true,
@@ -317,6 +320,7 @@ router.put("/:id", auth, async (req, res) => {
       images,
       logo,
       products,
+      categoryItems,
       pricelist,
       submitterName,
     } = req.body;
@@ -361,6 +365,7 @@ router.put("/:id", auth, async (req, res) => {
     business.images = images || business.images;
     business.logo = logo || business.logo;
     business.products = products !== undefined ? products : business.products;
+    business.categoryItems = categoryItems !== undefined ? categoryItems : business.categoryItems;
     business.pricelist = pricelist || business.pricelist;
     business.submitterName = submitterName || business.submitterName;
     business.updatedAt = Date.now();
