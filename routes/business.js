@@ -23,6 +23,7 @@ router.post("/", auth, async (req, res) => {
       images,
       logo,
       products,
+      categoryItems = [],
       pricelist,
       submitterName,
     } = req.body;
@@ -320,7 +321,7 @@ router.put("/:id", auth, async (req, res) => {
       images,
       logo,
       products,
-      categoryItems,
+      categoryItems = [],
       pricelist,
       submitterName,
     } = req.body;
