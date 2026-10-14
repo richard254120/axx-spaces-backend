@@ -6,7 +6,7 @@ import User from "../models/User.js";
 import { protect as auth } from "../middleware/auth.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
-import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendLandlordRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail } from "../utils/email.js";
+import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendLandlordRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail, sendWelcomeEmail } from "../utils/email.js";
 import security from "../middleware/enhancedSecurity.js";
 import upload from "../config/multer.js";
 
@@ -122,6 +122,11 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
     }
 
     await newUser.save();
+
+    // Welcome email to the new user (never blocks or breaks signup)
+    if (["landlord", "agent", "host"].includes(newUser.role)) {
+      sendWelcomeEmail(newUser.email, newUser.name, newUser.role).catch(() => {});
+    }
 
     if (role === "mover") {
       await sendMoverRegistrationEmail(newUser);

@@ -561,3 +561,27 @@ export const sendCaretakerInviteEmail = async (email, name, landlordName, tempPa
     console.error(`Caretaker invite email failed to ${email}:`, err.message);
   }
 };
+
+export const sendWelcomeEmail = async (email, name, role) => {
+  if (!email) return;
+  const roleLabel = ({ landlord: "Landlord", agent: "Agent", host: "Host", caretaker: "Caretaker" })[role] || "member";
+  const safeName = String(name || "there").replace(/[<>&"]/g, "");
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1f2937; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0;">Welcome to Axxspace</h1>
+      </div>
+      <div style="background: white; padding: 24px; border: 1px solid #e5e7eb;">
+        <p>Hi <strong>${safeName}</strong>,</p>
+        <p>Your ${roleLabel} account has been created. You can now sign in to the Axxspace Manager app and start adding your listings.</p>
+        <p style="color: #6b7280; font-size: 13px;">If you didn't create this account, please contact us at admin@axxspace.com.</p>
+      </div>
+    </div>
+  `;
+  try {
+    await sendEmail({ to: email, subject: "Welcome to Axxspace", html });
+    console.log(`Welcome email sent to: ${email}`);
+  } catch (err) {
+    console.error(`Welcome email failed to ${email}:`, err.message);
+  }
+};
