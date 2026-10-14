@@ -17,9 +17,15 @@ router.post("/invite", protect, authorize("landlord"), async (req, res) => {
       return res.status(400).json({ error: "Name, email, and phone are required" });
     }
 
-    const existing = await User.findOne({ email, role: "caretaker" });
+    // Check if ANY user with this email already exists — prevents MongoDB duplicate-key errors
+    const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(400).json({ error: "A caretaker with this email already exists" });
+      if (existing.role === "caretaker") {
+        return res.status(400).json({ error: "A caretaker with this email already exists" });
+      }
+      return res.status(400).json({
+        error: "This email is already registered under a different account. Please use a different email for the caretaker.",
+      });
     }
 
     // Verify the properties actually belong to this landlord
@@ -63,7 +69,18 @@ router.post("/invite", protect, authorize("landlord"), async (req, res) => {
     });
   } catch (error) {
     console.error("Caretaker invite FULL error:", JSON.stringify(error, null, 2));
-    res.status(500).json({ error: "Server error while inviting caretaker" });
+    // MongoDB duplicate key — email already exists (edge case if check above races)
+    if (error.code === 11000) {
+      return res.status(400).json({
+        error: "This email is already registered. Please use a different email address for the caretaker account.",
+      });
+    }
+    // Mongoose validation errors — surface specific field messages
+    if (error.name === "ValidationError") {
+      const msg = Object.values(error.errors).map((e) => e.message).join(", ");
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ error: "Server error while inviting caretaker. Please try again." });
   }
 });
 
