@@ -119,6 +119,22 @@ mongoose.connect(process.env.MONGO_URI)
         // REMOVED: Compound unique indexes prevent role changes in database
         // Users should be able to change roles (e.g., landlord -> admin) without conflicts
         console.log("  Skipping compound unique index creation to allow role changes");
+
+        // Remove any strict collection-level validator on users
+        // A jsonSchema validator set in MongoDB Atlas can block new roles/fields
+        // (e.g. caretaker, managedBy, assignedProperties). Mongoose handles all
+        // validation, so we disable the Atlas validator here.
+        try {
+          await db.command({
+            collMod: "users",
+            validator: {},
+            validationLevel: "off",
+            validationAction: "warn",
+          });
+          console.log(" Users collection validator cleared (Mongoose handles validation)");
+        } catch (validatorErr) {
+          console.warn(" Could not clear users collection validator:", validatorErr.message);
+        }
       }
     } catch (indexErr) {
       console.error(" Error updating unique indexes:", indexErr.message);

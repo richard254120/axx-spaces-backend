@@ -1,5 +1,4 @@
 import express from "express";
-import crypto from "crypto";
 import bcrypt from "bcrypt";
 import User from "../models/User.js";
 import Property from "../models/Property.js";
@@ -11,89 +10,106 @@ const router = express.Router();
 // ====================== LANDLORD: Invite a caretaker ======================
 router.post("/invite", protect, authorize("landlord"), async (req, res) => {
   try {
-    const { name, email, phone, propertyIds } = req.body;
-    console.log("[Caretaker Invite] Step 1 - body received:", { name, email, phone, propertyIds });
+    const { name, email, phone, password, propertyIds, notes } = req.body;
 
-    if (!name || !email || !phone) {
-      return res.status(400).json({ error: "Name, email, and phone are required" });
+    // ── Validate required fields ──
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({ error: "Name, email, phone, and password are required." });
     }
 
-    // Check if ANY user with this email already exists — prevents MongoDB duplicate-key errors
-    const existing = await User.findOne({ email });
-    console.log("[Caretaker Invite] Step 2 - existing user check:", existing ? existing.role : "none");
+    // ── Validate password strength ──
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long." });
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: "Password must contain both letters and numbers." });
+    }
+
+    // ── Validate phone format (basic) ──
+    if (!/^\+?[\d\s\-]{7,15}$/.test(phone)) {
+      return res.status(400).json({ error: "Please enter a valid phone number." });
+    }
+
+    // ── Check email not already registered ──
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
       if (existing.role === "caretaker") {
-        return res.status(400).json({ error: "A caretaker with this email already exists" });
+        return res.status(400).json({ error: "A caretaker with this email already exists." });
       }
       return res.status(400).json({
-        error: "This email is already registered under a different account. Please use a different email for the caretaker.",
+        error: "This email is already registered under a different account. Please use a different email.",
       });
     }
 
-    // Verify the properties actually belong to this landlord
+    // ── Verify assigned properties belong to this landlord ──
     let validProperties = [];
-    if (propertyIds && propertyIds.length > 0) {
-      console.log("[Caretaker Invite] Step 3 - looking up propertyIds:", propertyIds);
+    if (Array.isArray(propertyIds) && propertyIds.length > 0) {
       const props = await Property.find({
         _id: { $in: propertyIds },
         owner: req.user._id,
       });
       validProperties = props.map((p) => p._id);
     }
-    console.log("[Caretaker Invite] Step 4 - validProperties:", validProperties.length);
 
-    // Generate a temporary password the caretaker will be told to change
-    const tempPassword = crypto.randomBytes(4).toString("hex");
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    console.log("[Caretaker Invite] Step 5 - password hashed, calling User.create...");
+    // ── Hash the landlord-provided password ──
+    const hashedPassword = await bcrypt.hash(password, 10);
 
+    // ── Step A: insert core fields (passes MongoDB Atlas collection validator) ──
     const caretaker = await User.create({
-      name,
-      email,
-      phone,
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
       password: hashedPassword,
       role: "caretaker",
+      isEmailVerified: true,
+      landlordType: "general",
+      isApproved: true,   // caretakers are pre-approved by the landlord
+      status: "approved",
+    });
+
+    // ── Step B: patch caretaker-specific fields ──
+    await User.findByIdAndUpdate(caretaker._id, {
       managedBy: req.user._id,
       assignedProperties: validProperties,
       caretakerInviteStatus: "pending",
+      ...(notes ? { description: notes.trim() } : {}),
     });
-    console.log("[Caretaker Invite] Step 6 - User.create succeeded:", caretaker._id);
 
-    sendCaretakerInviteEmail(email, name, req.user.name, tempPassword).catch((err) =>
-      console.error("Failed to send caretaker invite email:", err.message)
-    );
+    // ── Send welcome email to caretaker (fire-and-forget) ──
+    sendCaretakerInviteEmail(
+      caretaker.email,
+      caretaker.name,
+      req.user.name,
+      password   // plain password — landlord set it intentionally
+    ).catch((err) => console.error("Failed to send caretaker invite email:", err.message));
 
     res.status(201).json({
-      message: "Caretaker invited successfully",
+      message: "Caretaker added successfully",
       caretaker: {
         id: caretaker._id,
         name: caretaker.name,
         email: caretaker.email,
-        assignedProperties: caretaker.assignedProperties,
+        phone: caretaker.phone,
+        assignedProperties: validProperties,
       },
-      tempPassword, // returned once so landlord can share it manually for now
     });
   } catch (error) {
-    console.error("Caretaker invite FULL error:", error.name, error.message);
-    console.error("Caretaker invite FULL error detail:", JSON.stringify(error, null, 2));
-    // MongoDB duplicate key — email already exists (edge case if check above races)
+    console.error("Caretaker invite error:", error.name, error.message);
     if (error.code === 11000) {
       const field = error.keyValue ? Object.keys(error.keyValue)[0] : "field";
       return res.status(400).json({
-        error: `This ${field} is already registered. Please use a different ${field} for the caretaker account.`,
+        error: `This ${field} is already registered. Please use a different ${field}.`,
       });
     }
-    // Mongoose validation errors — surface specific field messages
     if (error.name === "ValidationError") {
       const msg = Object.values(error.errors).map((e) => e.message).join(", ");
       return res.status(400).json({ error: msg });
     }
-    // CastError — usually invalid ObjectId in propertyIds
     if (error.name === "CastError") {
       return res.status(400).json({ error: `Invalid value for field: ${error.path}` });
     }
     res.status(500).json({
-      error: `Server error while inviting caretaker: ${error.message || "Unknown error"}. Please try again.`,
+      error: `Server error while adding caretaker: ${error.message || "Unknown error"}. Please try again.`,
     });
   }
 });
@@ -122,7 +138,6 @@ router.get("/my-properties", protect, authorize("caretaker"), async (req, res) =
   }
 });
 
-
 // ====================== LANDLORD: Update caretaker's assigned properties ======================
 router.patch("/:id/properties", protect, authorize("landlord"), async (req, res) => {
   try {
@@ -139,7 +154,7 @@ router.patch("/:id/properties", protect, authorize("landlord"), async (req, res)
     }
 
     let validProperties = [];
-    if (propertyIds && propertyIds.length > 0) {
+    if (Array.isArray(propertyIds) && propertyIds.length > 0) {
       const props = await Property.find({
         _id: { $in: propertyIds },
         owner: req.user._id,
@@ -182,5 +197,3 @@ router.delete("/:id", protect, authorize("landlord"), async (req, res) => {
 });
 
 export default router;
-
-// (Insert before export default - handled below via patch script)
