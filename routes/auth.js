@@ -540,6 +540,17 @@ router.post("/google", async (req, res) => {
       user.isGoogleUser = true;
       user.isEmailVerified = true;
       if (picture && !user.profileImage) user.profileImage = picture;
+
+      // If user had generic 'user' role and is signing in through a specific portal (e.g. host, agent, landlord, seller)
+      if (user.role === "user" && targetRole && targetRole !== "user") {
+        user.role = targetRole;
+      }
+
+      // Auto-approve landlord & host accounts (listings are approved separately)
+      if ((user.role === "landlord" || user.role === "host") && !user.isApproved) {
+        user.isApproved = true;
+      }
+
       await user.save();
 
       const token = jwt.sign(
@@ -551,6 +562,7 @@ router.post("/google", async (req, res) => {
     }
 
     // 3. New member: create account automatically
+    const autoApproved = ["user", "seller", "landlord", "host"].includes(targetRole);
     const newUser = new User({
       name,
       email,
@@ -561,6 +573,7 @@ router.post("/google", async (req, res) => {
       profileImage: picture || "",
       password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
       role: targetRole,
+      isApproved: autoApproved,
       landlordType: targetRole === "landlord" && landlordType === "university" ? "university" : "general",
     });
 
