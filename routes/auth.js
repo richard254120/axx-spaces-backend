@@ -124,7 +124,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
     await newUser.save();
 
     // Welcome email to the new user (never blocks or breaks signup)
-    if (["landlord", "agent", "host"].includes(newUser.role)) {
+    if (["landlord", "agent", "host", "caretaker"].includes(newUser.role)) {
       sendWelcomeEmail(newUser.email, newUser.name, newUser.role).catch(() => {});
     }
 
