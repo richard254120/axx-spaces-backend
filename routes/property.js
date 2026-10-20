@@ -552,9 +552,15 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
       }
     }
 
-    // Handle remainingImages array parsing
+    // Handle remainingImages or images array parsing
     let parsedRemainingImages = [];
-    if (Object.prototype.hasOwnProperty.call(req.body, "remainingImages")) {
+    if (Object.prototype.hasOwnProperty.call(req.body, "images")) {
+      try {
+        parsedRemainingImages = typeof req.body.images === "string" ? JSON.parse(req.body.images) : req.body.images;
+      } catch (e) {
+        parsedRemainingImages = Array.isArray(req.body.images) ? req.body.images : [];
+      }
+    } else if (Object.prototype.hasOwnProperty.call(req.body, "remainingImages")) {
       if (remainingImages) {
         try {
           parsedRemainingImages = typeof remainingImages === "string" ? JSON.parse(remainingImages) : remainingImages;
@@ -573,8 +579,8 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     if (updatedImages.length === 0) {
       return res.status(400).json({ error: " Please keep or upload at least one image" });
     }
-    if (updatedImages.length > 10) {
-      return res.status(400).json({ error: " Maximum 10 images allowed" });
+    if (updatedImages.length > 15) {
+      return res.status(400).json({ error: " Maximum 15 images allowed" });
     }
 
     // Update property fields if provided
@@ -617,6 +623,60 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
   } catch (error) {
     console.error(" Update property error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ====================== UPDATE PROPERTY IMAGES (OWNER OR ADMIN) ======================
+router.patch("/:id/images", auth, upload.array("images", 10), async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ error: "Property not found" });
+
+    const isOwner = property.owner.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Access denied. Unauthorized to edit images." });
+    }
+
+    let parsedRemainingImages = [];
+    if (Object.prototype.hasOwnProperty.call(req.body, "images") && !req.files?.length) {
+      try {
+        parsedRemainingImages = typeof req.body.images === "string" ? JSON.parse(req.body.images) : req.body.images;
+      } catch (e) {
+        parsedRemainingImages = Array.isArray(req.body.images) ? req.body.images : [];
+      }
+    } else if (Object.prototype.hasOwnProperty.call(req.body, "remainingImages")) {
+      try {
+        parsedRemainingImages = typeof req.body.remainingImages === "string" ? JSON.parse(req.body.remainingImages) : req.body.remainingImages;
+      } catch (e) {
+        parsedRemainingImages = Array.isArray(req.body.remainingImages) ? req.body.remainingImages : [];
+      }
+    } else {
+      parsedRemainingImages = property.images || [];
+    }
+
+    const newImageUrls = req.files ? req.files.map((file) => file.path || file.secure_url) : [];
+    const updatedImages = [...parsedRemainingImages, ...newImageUrls];
+
+    if (updatedImages.length === 0) {
+      return res.status(400).json({ error: "Property must keep or upload at least one image" });
+    }
+
+    property.images = updatedImages;
+    await property.save();
+
+    console.log(`Property images updated | ID: ${property._id} | Images count: ${property.images.length} | By: ${req.user._id}`);
+
+    res.json({
+      success: true,
+      message: "Property images updated successfully",
+      property,
+      images: property.images
+    });
+  } catch (error) {
+    console.error("Update property images error:", error);
+    res.status(500).json({ error: error.message || "Failed to update property images" });
   }
 });
 
