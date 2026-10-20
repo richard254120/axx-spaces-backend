@@ -32,6 +32,48 @@ const ItemRequestSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  targetLocation: {
+    type: String,
+    default: ""
+  },
+  pickupLocation: {
+    type: String,
+    default: ""
+  },
+  dropoffLocation: {
+    type: String,
+    default: ""
+  },
+  budgetMin: {
+    type: Number,
+    default: null
+  },
+  budgetMax: {
+    type: Number,
+    default: null
+  },
+  budgetCurrency: {
+    type: String,
+    default: "KES"
+  },
+  budgetPeriod: {
+    type: String,
+    default: "total"
+  },
+  urgency: {
+    type: String,
+    enum: ["immediate", "this_week", "this_month", "flexible"],
+    default: "flexible"
+  },
+  preferredContact: {
+    type: String,
+    enum: ["whatsapp", "phone", "email"],
+    default: "whatsapp"
+  },
+  categorySpecifics: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
   status: {
     type: String,
     enum: ["pending", "contacted", "resolved"],
