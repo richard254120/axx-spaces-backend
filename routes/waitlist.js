@@ -203,20 +203,41 @@ router.get("/:propertyId", protect, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/waitlist/landlord/all  — LANDLORD: all waitlist entries across all properties
+// GET /api/waitlist/landlord/all  — LANDLORD or CARETAKER: get waitlist entries
+//
+// • Landlord  → entries across ALL their properties (landlord === req.user._id)
+// • Caretaker → entries for their ASSIGNED properties (via assignedProperties)
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/landlord/all", protect, async (req, res) => {
   try {
-    const entries = await Waitlist.find({
-      landlord: req.user._id,
-      status: { $in: ["waiting", "notified"] },
-    })
-      .populate("property", "title location county images")
-      .sort({ position: 1 });
+    let entries;
+
+    if (req.user.role === "caretaker") {
+      // Pull the caretaker's User record to get assignedProperties
+      const User = (await import("../models/User.js")).default;
+      const caretaker = await User.findById(req.user._id).select("assignedProperties");
+      const assignedIds = caretaker?.assignedProperties || [];
+
+      entries = await Waitlist.find({
+        property: { $in: assignedIds },
+        status: { $in: ["waiting", "notified"] },
+      })
+        .populate("property", "title location county images")
+        .sort({ position: 1 });
+
+    } else {
+      // Landlord — return their own waitlist entries
+      entries = await Waitlist.find({
+        landlord: req.user._id,
+        status: { $in: ["waiting", "notified"] },
+      })
+        .populate("property", "title location county images")
+        .sort({ position: 1 });
+    }
 
     res.json({ entries, total: entries.length });
   } catch (error) {
-    console.error("Landlord waitlist all fetch error:", error.message);
+    console.error("Waitlist all fetch error:", error.message);
     res.status(500).json({ error: "Could not fetch waitlist." });
   }
 });
