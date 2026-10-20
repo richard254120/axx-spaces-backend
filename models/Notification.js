@@ -5,6 +5,7 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     enum: [
       "property_booking",
+      "waitlist_request",
       "material_purchase",
       "tourism_booking",
       "boost",
