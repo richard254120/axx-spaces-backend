@@ -20,7 +20,7 @@ const ItemRequestSchema = new mongoose.Schema({
   },
   serviceType: {
     type: String,
-    enum: ["rental", "mover", "material", "tourism", "business", "other"],
+    enum: ["rental", "quicksale", "quicksales", "accommodation", "mover", "material", "tourism", "business", "other"],
     default: "other",
     required: true
   },

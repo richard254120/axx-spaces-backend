@@ -508,7 +508,7 @@ export const sendItemRequestEmail = async (itemRequest) => {
       <div style="padding: 24px; background: #0f1c2e;">
         <!-- Requester Card -->
         <div style="background: #162438; border-radius: 10px; padding: 18px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.06);">
-          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #fbbf24; font-weight: 700; margin-bottom: 10px;">👤 Requester Information</div>
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #fbbf24; font-weight: 700; margin-bottom: 10px;">Requester Information</div>
           <div style="display: grid; grid-template-columns: 1fr; gap: 8px; font-size: 14px;">
             <div><strong style="color: #cbd5e1;">Name:</strong> <span style="color: #ffffff; font-weight: 600;">${itemRequest.name || "Client"}</span></div>
             <div><strong style="color: #cbd5e1;">Email:</strong> <a href="mailto:${itemRequest.email}" style="color: #60a5fa; text-decoration: none;">${itemRequest.email}</a></div>
@@ -519,13 +519,13 @@ export const sendItemRequestEmail = async (itemRequest) => {
 
         <!-- Request Details -->
         <div style="background: #162438; border-radius: 10px; padding: 18px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.06);">
-          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #fbbf24; font-weight: 700; margin-bottom: 10px;">🎯 Requirement Overview</div>
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #fbbf24; font-weight: 700; margin-bottom: 10px;">Requirement Overview</div>
           <div style="display: grid; grid-template-columns: 1fr; gap: 10px; font-size: 14px;">
             <div><strong style="color: #cbd5e1;">Category:</strong> <span style="background: rgba(201, 168, 76, 0.2); color: #fbbf24; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 12px;">${itemRequest.serviceType || "other"}</span></div>
             <div><strong style="color: #cbd5e1;">Item / Service:</strong> <span style="color: #ffffff; font-size: 16px; font-weight: 700;">"${itemRequest.searchQuery}"</span></div>
-            ${itemRequest.targetLocation ? `<div><strong style="color: #cbd5e1;">Location:</strong> <span style="color: #ffffff;">📍 ${itemRequest.targetLocation}</span></div>` : ""}
-            ${itemRequest.pickupLocation ? `<div><strong style="color: #cbd5e1;">Pickup:</strong> <span style="color: #ffffff;">📦 ${itemRequest.pickupLocation}</span></div>` : ""}
-            ${itemRequest.dropoffLocation ? `<div><strong style="color: #cbd5e1;">Destination:</strong> <span style="color: #ffffff;">🏁 ${itemRequest.dropoffLocation}</span></div>` : ""}
+            ${itemRequest.targetLocation ? `<div><strong style="color: #cbd5e1;">Location:</strong> <span style="color: #ffffff;">${itemRequest.targetLocation}</span></div>` : ""}
+            ${itemRequest.pickupLocation ? `<div><strong style="color: #cbd5e1;">Pickup:</strong> <span style="color: #ffffff;">${itemRequest.pickupLocation}</span></div>` : ""}
+            ${itemRequest.dropoffLocation ? `<div><strong style="color: #cbd5e1;">Destination:</strong> <span style="color: #ffffff;">${itemRequest.dropoffLocation}</span></div>` : ""}
             <div><strong style="color: #cbd5e1;">Budget Range:</strong> <span style="color: #34d399; font-weight: 600;">${budgetStr}</span></div>
             <div><strong style="color: #cbd5e1;">Urgency / Timeline:</strong> <span style="color: #f59e0b;">${urgencyLabels[itemRequest.urgency] || itemRequest.urgency || "Flexible"}</span></div>
             <div style="margin-top: 10px;">
@@ -540,9 +540,9 @@ export const sendItemRequestEmail = async (itemRequest) => {
 
         <!-- Direct Action Buttons -->
         <div style="display: flex; gap: 10px; margin-top: 24px; text-align: center; justify-content: center; flex-wrap: wrap;">
-          ${waPhone ? `<a href="https://wa.me/${waPhone}?text=${encodeURIComponent(`Hello ${itemRequest.name || ""}, I am contacting you from AxxSpace regarding your request for: ${itemRequest.searchQuery}`)}" style="background: #25D366; color: #ffffff; font-weight: 700; font-size: 13px; padding: 12px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">💬 Chat on WhatsApp</a>` : ""}
-          ${itemRequest.phone ? `<a href="tel:${itemRequest.phone}" style="background: #3b82f6; color: #ffffff; font-weight: 700; font-size: 13px; padding: 12px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">📞 Call Requester</a>` : ""}
-          <a href="mailto:${itemRequest.email}?subject=AxxSpace Request: ${encodeURIComponent(itemRequest.searchQuery)}" style="background: #334155; color: #f8fafc; font-weight: 700; font-size: 13px; padding: 12px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">✉️ Send Email</a>
+          ${waPhone ? `<a href="https://wa.me/${waPhone}?text=${encodeURIComponent(`Hello ${itemRequest.name || ""}, I am contacting you from AxxSpace regarding your request for: ${itemRequest.searchQuery}`)}" style="background: #25D366; color: #ffffff; font-weight: 700; font-size: 13px; padding: 12px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">Chat on WhatsApp</a>` : ""}
+          ${itemRequest.phone ? `<a href="tel:${itemRequest.phone}" style="background: #3b82f6; color: #ffffff; font-weight: 700; font-size: 13px; padding: 12px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">Call Requester</a>` : ""}
+          <a href="mailto:${itemRequest.email}?subject=AxxSpace Request: ${encodeURIComponent(itemRequest.searchQuery)}" style="background: #334155; color: #f8fafc; font-weight: 700; font-size: 13px; padding: 12px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">Send Email</a>
         </div>
       </div>
 
