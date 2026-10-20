@@ -28,20 +28,55 @@ const optionalAuth = async (req, res, next) => {
 // Create a new request
 router.post("/", optionalAuth, async (req, res) => {
   try {
-    const { name, email, phone, serviceType, searchQuery, details } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      serviceType,
+      searchQuery,
+      details,
+      targetLocation,
+      pickupLocation,
+      dropoffLocation,
+      budgetMin,
+      budgetMax,
+      budgetCurrency,
+      budgetPeriod,
+      urgency,
+      preferredContact,
+      categorySpecifics
+    } = req.body;
 
-    if (!email || !searchQuery || !details) {
-      return res.status(400).json({ error: "Email, search query, and details are required." });
+    // Check if user is an actual authenticated account, NOT an anonymous guest
+    const isRealUser = req.user && req.user.role !== "guest" && !req.user.name?.toLowerCase().startsWith("guest_");
+
+    // Prioritize explicitly submitted form values over guest auth session
+    const finalName = (name && name.trim()) || (isRealUser ? req.user.name : "") || "Client";
+    const finalEmail = (email && email.trim()) || (isRealUser ? req.user.email : "");
+    const finalPhone = (phone && phone.trim()) || (isRealUser ? req.user.phone : "");
+
+    if (!finalEmail || !searchQuery || !details) {
+      return res.status(400).json({ error: "Email, item / service requested, and details are required." });
     }
 
     const itemRequest = new ItemRequest({
-      user: req.user?._id || undefined,
-      name: req.user?.name || name,
-      email: req.user?.email || email,
-      phone: req.user?.phone || phone,
+      user: isRealUser ? req.user._id : undefined,
+      name: finalName,
+      email: finalEmail,
+      phone: finalPhone,
       serviceType: serviceType || "other",
-      searchQuery,
-      details
+      searchQuery: searchQuery.trim(),
+      details: details.trim(),
+      targetLocation: targetLocation?.trim() || "",
+      pickupLocation: pickupLocation?.trim() || "",
+      dropoffLocation: dropoffLocation?.trim() || "",
+      budgetMin: budgetMin ? Number(budgetMin) : null,
+      budgetMax: budgetMax ? Number(budgetMax) : null,
+      budgetCurrency: budgetCurrency || "KES",
+      budgetPeriod: budgetPeriod || "total",
+      urgency: urgency || "flexible",
+      preferredContact: preferredContact || "whatsapp",
+      categorySpecifics: categorySpecifics || {}
     });
 
     await itemRequest.save();

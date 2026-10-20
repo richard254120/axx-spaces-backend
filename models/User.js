@@ -349,6 +349,19 @@ const userSchema = new mongoose.Schema(
         enum: ["pending", "verified", "rejected"],
         default: "pending",
       },
+      houseHuntingFee: {
+        type: Number,
+        default: 0,
+      },
+      houseHuntingFeeTerms: {
+        type: String,
+        trim: true,
+        default: "Per viewing trip",
+      },
+      offersHouseHunting: {
+        type: Boolean,
+        default: true,
+      },
       agencyId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Agency",

@@ -161,6 +161,9 @@ router.get("/:id/public", async (req, res) => {
         county: agent.agentProfile?.county || "",
         bio: agent.agentProfile?.bio || "",
         verificationStatus: agent.agentProfile?.verificationStatus || "pending",
+        houseHuntingFee: agent.agentProfile?.houseHuntingFee || 0,
+        houseHuntingFeeTerms: agent.agentProfile?.houseHuntingFeeTerms || "Per viewing trip",
+        offersHouseHunting: agent.agentProfile?.offersHouseHunting !== false,
       },
       listingCount: properties.length,
       listings: properties,
@@ -168,6 +171,51 @@ router.get("/:id/public", async (req, res) => {
   } catch (error) {
     console.error("Get public agent error:", error);
     res.status(500).json({ error: "Failed to fetch agent profile" });
+  }
+});
+
+// ====================== PUT /api/agents/house-hunting-fee ======================
+// Auth required - agent updates their house hunting fee and terms
+router.put("/house-hunting-fee", auth, async (req, res) => {
+  try {
+    const { houseHuntingFee, houseHuntingFeeTerms, offersHouseHunting } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (!user.agentProfile) {
+      user.agentProfile = {};
+    }
+
+    if (houseHuntingFee !== undefined) {
+      const parsedFee = Number(houseHuntingFee);
+      user.agentProfile.houseHuntingFee = isNaN(parsedFee) || parsedFee < 0 ? 0 : parsedFee;
+    }
+
+    if (houseHuntingFeeTerms !== undefined) {
+      user.agentProfile.houseHuntingFeeTerms = String(houseHuntingFeeTerms).trim();
+    }
+
+    if (offersHouseHunting !== undefined) {
+      user.agentProfile.offersHouseHunting = Boolean(offersHouseHunting);
+    }
+
+    user.markModified("agentProfile");
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "House hunting fee updated successfully",
+      houseHuntingFee: user.agentProfile.houseHuntingFee,
+      houseHuntingFeeTerms: user.agentProfile.houseHuntingFeeTerms,
+      offersHouseHunting: user.agentProfile.offersHouseHunting,
+      agentProfile: user.agentProfile,
+    });
+  } catch (error) {
+    console.error("Update house hunting fee error:", error);
+    res.status(500).json({ error: error.message || "Failed to update house hunting fee" });
   }
 });
 
