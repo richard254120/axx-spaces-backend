@@ -67,8 +67,8 @@ router.post(["/", "/create"], auth, security.uploadLimiter, upload.fields([{ nam
       description,
       location,
       price: parseFloat(price),
-      bedrooms: parseInt(bedrooms),
-      bathrooms: parseInt(bathrooms),
+      bedrooms: parseInt(bedrooms) || 0,
+      bathrooms: parseInt(bathrooms) || 1,
       amenities: parsedAmenities,
       images: imageUrls,
       videos: videoUrls,
@@ -588,8 +588,8 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     if (description !== undefined) property.description = description;
     if (location !== undefined) property.location = location;
     if (price !== undefined) property.price = parseFloat(price);
-    if (bedrooms !== undefined) property.bedrooms = parseInt(bedrooms);
-    if (bathrooms !== undefined) property.bathrooms = parseInt(bathrooms);
+    if (bedrooms !== undefined && bedrooms !== "") property.bedrooms = parseInt(bedrooms) || 0;
+    if (bathrooms !== undefined && bathrooms !== "") property.bathrooms = parseInt(bathrooms) || 1;
     if (amenities !== undefined) property.amenities = parsedAmenities;
     if (totalUnits !== undefined) property.totalUnits = parseInt(totalUnits);
     if (deposit !== undefined) property.deposit = deposit ? parseFloat(deposit) : undefined;

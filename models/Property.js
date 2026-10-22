@@ -20,7 +20,7 @@ const propertySchema = new mongoose.Schema(
     },
 
     deposit: { type: Number, default: 0 },
-    furnished: { type: Boolean, default: false },
+    furnished: { type: Boolean, default: true },
     leaseType: {
       type: String,
       enum: ["monthly", "6months", "yearly"],
@@ -53,8 +53,8 @@ const propertySchema = new mongoose.Schema(
       type: Number,
     },
 
-    bedrooms: { type: Number, required: true },
-    bathrooms: { type: Number, required: true },
+    bedrooms: { type: Number, default: 0 },
+    bathrooms: { type: Number, default: 1 },
     amenities: [String],
     images: [String],
     videos: [String],
