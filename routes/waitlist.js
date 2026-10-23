@@ -3,7 +3,7 @@
  *
  * Public  : POST   /api/waitlist/:propertyId        — join waitlist (no auth needed)
  * Landlord: GET    /api/waitlist/:propertyId         — list waitlist for a property
- * Landlord: POST   /api/waitlist/:id/notify          — send "unit available" notification
+ * Landlord/Caretaker: POST /api/waitlist/:id/notify          — send "unit available" notification
  * Landlord: DELETE /api/waitlist/:id                 — remove a person from waitlist
  */
 
@@ -54,7 +54,7 @@ function buildAvailabilityEmail({ recipientName, propertyTitle, propertyLocation
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);padding:32px 40px;text-align:center;">
-              <p style="color:#a78bfa;font-size:13px;font-weight:700;letter-spacing:3px;margin:0 0 8px 0;text-transform:uppercase;">Axxspace Rental Platform</p>
+              <p style="color:#93c5fd;font-size:13px;font-weight:700;letter-spacing:3px;margin:0 0 8px 0;text-transform:uppercase;">Axxspace Rental Platform</p>
               <h1 style="color:#ffffff;font-size:26px;font-weight:700;margin:0;line-height:1.3;">Great News — A Unit Is Now Available!</h1>
             </td>
           </tr>
@@ -255,11 +255,17 @@ router.post("/:id/notify", protect, async (req, res) => {
 
     if (!entry) return res.status(404).json({ error: "Waitlist entry not found." });
 
-    // Only the property owner (landlord) can send this notification
-    if (
-      entry.property.owner.toString() !== req.user._id.toString() &&
-      req.user.role !== "admin"
-    ) {
+    // Property owner, an admin, or a caretaker assigned to this property can send this notification
+    const isOwner = entry.property.owner.toString() === req.user._id.toString();
+    let isAssignedCaretaker = false;
+    if (req.user.role === "caretaker") {
+      const User = (await import("../models/User.js")).default;
+      const caretaker = await User.findById(req.user._id).select("assignedProperties");
+      isAssignedCaretaker = (caretaker?.assignedProperties || []).some(
+        (id) => id.toString() === entry.property._id.toString()
+      );
+    }
+    if (!isOwner && !isAssignedCaretaker && req.user.role !== "admin") {
       return res.status(403).json({ error: "Access denied." });
     }
 
