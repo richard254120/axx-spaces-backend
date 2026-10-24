@@ -52,6 +52,8 @@ import agenciesRoutes from "./routes/agencies.js";
 import inquiriesRoutes from "./routes/inquiries.js";
 import reportsRoutes from "./routes/reports.js";
 import waitlistRoutes from "./routes/waitlist.js";
+import userRoutes from "./routes/users.js";
+import memberRoutes from "./routes/members.js";
 
 dotenv.config();
 
@@ -185,6 +187,8 @@ app.use("/api/agencies", security.apiLimiter, agenciesRoutes);
 app.use("/api/inquiries", security.apiLimiter, inquiriesRoutes);
 app.use("/api/reports", security.apiLimiter, reportsRoutes);
 app.use("/api/waitlist", security.apiLimiter, waitlistRoutes);
+app.use("/api/users", security.apiLimiter, userRoutes);
+app.use("/api/members", security.apiLimiter, memberRoutes);
 
 // ====================== STATIC FILE SERVING ======================
 // Serve uploaded files

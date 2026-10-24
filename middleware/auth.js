@@ -102,3 +102,15 @@ export const agentOnly = async (req, res, next) => {
     return res.status(500).json({ error: " Server error" });
   }
 };
+
+// 7. Require specific roles (blocks members from provider-only routes)
+export const requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({
+        error: "Access denied. Action restricted to providers."
+      });
+    }
+    next();
+  };
+};

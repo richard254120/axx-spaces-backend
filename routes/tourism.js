@@ -1,5 +1,5 @@
 import express from "express";
-import { auth } from "../middleware/auth.js";
+import { auth, requireRole } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import security from "../middleware/security.js";
 import { trackTourismView } from "../middleware/viewTracking.js";
@@ -30,12 +30,13 @@ router.get("/featured", getFeatured);
 router.get("/categories", getCategories);
 
 // Owner portal (must be before /:id)
-router.get("/owner/profile", auth, getOwnerProfile);
-router.patch("/owner/profile", auth, profileUpload.single("avatar"), updateOwnerProfile);
-router.get("/owner/listings/:id", auth, getOwnerListing);
+router.get("/owner/profile", auth, requireRole("host", "admin", "provider"), getOwnerProfile);
+router.patch("/owner/profile", auth, requireRole("host", "admin", "provider"), profileUpload.single("avatar"), updateOwnerProfile);
+router.get("/owner/listings/:id", auth, requireRole("host", "admin", "provider"), getOwnerListing);
 router.patch(
   "/owner/listings/:id",
   auth,
+  requireRole("host", "admin", "provider"),
   security.uploadLimiter,
   tourismUpload.fields([
     { name: "images", maxCount: 20 },
@@ -44,14 +45,14 @@ router.patch(
   updateOwnerListing
 );
 
-router.get("/my", auth, getMyListings);
+router.get("/my", auth, requireRole("host", "admin", "provider"), getMyListings);
 router.get("/", getListings);
 
 router.post("/register", tourismUpload.fields([
   { name: "images", maxCount: 20 },
   { name: "videos", maxCount: 10 },
 ]), registerProviderListing);
-router.post("/", auth, upload.array("images", 50), createListing);
+router.post("/", auth, requireRole("host", "admin", "provider"), upload.array("images", 50), createListing);
 
 router.get("/:id", trackTourismView, getListingById);
 router.patch("/:id/view", incrementView);

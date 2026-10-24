@@ -9,7 +9,12 @@ const favoriteSchema = new mongoose.Schema({
   business: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Business",
-    required: true,
+    default: null,
+  },
+  property: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Property",
+    default: null,
   },
   notes: {
     type: String,

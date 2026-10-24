@@ -10,7 +10,7 @@ import {
   updateCertifications,
   updateInsurance,
 } from "../controllers/moverController.js";
-import { auth } from "../middleware/auth.js";
+import { auth, requireRole } from "../middleware/auth.js";
 import { uploadMoverPortfolio } from "../config/multerBusiness.js";
 
 const router = express.Router();
@@ -19,13 +19,13 @@ const router = express.Router();
 router.get("/", getAllMovers);
 
 // Protected — mover must be logged in
-router.get("/stats", auth, getMoverStats);
-router.get("/profile", auth, getMoverProfile);
-router.put("/profile", auth, updateMoverProfile);
+router.get("/stats", auth, requireRole("mover", "admin", "provider"), getMoverStats);
+router.get("/profile", auth, requireRole("mover", "admin", "provider"), getMoverProfile);
+router.put("/profile", auth, requireRole("mover", "admin", "provider"), updateMoverProfile);
 
 // Portfolio management
-router.post("/portfolio", auth, uploadMoverPortfolio.array("images", 10), uploadPortfolio);
-router.delete("/portfolio/:index", auth, deletePortfolioImage);
+router.post("/portfolio", auth, requireRole("mover", "admin", "provider"), uploadMoverPortfolio.array("images", 10), uploadPortfolio);
+router.delete("/portfolio/:index", auth, requireRole("mover", "admin", "provider"), deletePortfolioImage);
 
 // Enhanced profile endpoints
 router.put("/pricing", auth, updatePricing);

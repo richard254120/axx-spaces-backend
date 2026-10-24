@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import Property from "../models/Property.js";
 import QRScan from "../models/QRScan.js";
 import User from "../models/User.js";
-import { auth } from "../middleware/auth.js";
+import { auth, requireRole } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import { sendPropertyEmail, sendPropertyApprovalEmail } from "../utils/email.js";
 import security from "../middleware/security.js";
@@ -12,7 +12,7 @@ import { trackPropertyView } from "../middleware/viewTracking.js";
 const router = express.Router();
 
 // ====================== CREATE PROPERTY ======================
-router.post(["/", "/create"], auth, security.uploadLimiter, upload.fields([{ name: "images", maxCount: 10 }, { name: "videos", maxCount: 10 }]), async (req, res) => {
+router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "admin", "team", "provider", "caretaker"), security.uploadLimiter, upload.fields([{ name: "images", maxCount: 10 }, { name: "videos", maxCount: 10 }]), async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return res.status(401).json({
@@ -471,7 +471,7 @@ router.post("/:id/reviews", async (req, res) => {
 });
 
 // ====================== MY PROPERTIES ======================
-router.get("/my-properties/all", auth, async (req, res) => {
+router.get("/my-properties/all", auth, requireRole("landlord", "agent", "host", "admin", "team", "provider", "caretaker"), async (req, res) => {
   try {
     const properties = await Property.find({ owner: req.user._id }).sort({ createdAt: -1 });
     res.json(properties);

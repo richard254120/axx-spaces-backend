@@ -22,6 +22,63 @@ if (process.env.RESEND_API_KEY) {
 //    Always reads from env — no "onboarding@resend.dev" fallback.
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ? `AxxSpace <${process.env.RESEND_FROM_EMAIL}>` : "Axxspace <admin@axxspace.com>";
 
+// ====================== REGISTER MEMBER ======================
+router.post("/register-member", async (req, res) => {
+  try {
+    const { name, email, phone, password } = req.body;
+
+    if (!name || !email || !password || !phone) {
+      return res.status(400).json({ error: "Name, email, phone, and password are required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long." });
+    }
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (!hasLetter || !hasNumber) {
+      return res.status(400).json({ error: "Password must contain a mixture of both letters and numbers." });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({ error: "An account with this email is already registered" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone.trim(),
+      password: hashedPassword,
+      role: "member",
+      isEmailVerified: true,
+      isApproved: true,
+    });
+
+    await newUser.save();
+
+    sendWelcomeEmail(newUser.email, newUser.name, "member").catch(() => {});
+
+    const token = jwt.sign(
+      { userId: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return res.status(201).json({
+      token,
+      user: formatUserResponse(newUser),
+      message: "Member registered successfully",
+    });
+  } catch (err) {
+    console.error("Member registration error:", err);
+    return res.status(500).json({ error: err.message || "Member registration failed" });
+  }
+});
+
 // ====================== REGISTER ======================
 router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
   try {
@@ -526,7 +583,7 @@ router.post("/google", async (req, res) => {
       return res.status(400).json({ error: "Google ID, email, and name are required" });
     }
 
-    const targetRole = role || "user";
+    const targetRole = role || "member";
 
     // 1. Check if user exists by googleId (any role)
     let user = await User.findOne({ googleId });
@@ -562,7 +619,7 @@ router.post("/google", async (req, res) => {
     }
 
     // 3. New member: create account automatically
-    const autoApproved = ["user", "seller", "landlord", "host"].includes(targetRole);
+    const autoApproved = ["member", "user", "seller", "landlord", "host"].includes(targetRole);
     const newUser = new User({
       name,
       email,
