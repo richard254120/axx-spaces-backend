@@ -127,7 +127,7 @@ function buildAvailabilityEmail({ recipientName, propertyTitle, propertyLocation
 router.post("/:propertyId", async (req, res) => {
   try {
     const { propertyId } = req.params;
-    const { name, email, phone, message } = req.body;
+    const { name, email, phone, message, moveInDate, leaseDuration, occupants } = req.body;
 
     if (!name || !email || !phone) {
       return res.status(400).json({ error: "Name, email, and phone are required." });
@@ -149,9 +149,13 @@ router.post("/:propertyId", async (req, res) => {
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
       message: (message || "").trim(),
+      moveInDate: (moveInDate || "").trim(),
+      leaseDuration: (leaseDuration || "").trim(),
+      occupants: (occupants || "").trim(),
     });
 
     // Create an in-app notification for the landlord
+    const detailSnippet = moveInDate ? ` (Target Move-in: ${moveInDate})` : "";
     await Notification.create({
       type: "waitlist_request",
       userId: property.owner._id,
@@ -159,7 +163,7 @@ router.post("/:propertyId", async (req, res) => {
       userPhone: phone.trim(),
       userEmail: email.trim().toLowerCase(),
       propertyId: property._id,
-      message: `${name} has joined the waitlist for "${property.title}".`,
+      message: `${name} joined the priority waitlist for "${property.title}"${detailSnippet}.`,
       read: false,
     });
 

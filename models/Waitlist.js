@@ -37,6 +37,21 @@ const waitlistSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    moveInDate: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    leaseDuration: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    occupants: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     // FIFO position — set to Date.now at creation; sort ascending = first-come first-served
     position: {
       type: Date,
