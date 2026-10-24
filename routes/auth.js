@@ -122,6 +122,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
     const newUser = new User({
       name, email, password: hashedPassword, phone,
       role: targetRole,
+      isApproved: ["host", "landlord", "member", "user", "guest"].includes(targetRole),
       landlordType:
         targetRole === "landlord" && landlordType === "university"
           ? "university"
@@ -598,8 +599,8 @@ router.post("/google", async (req, res) => {
       user.isEmailVerified = true;
       if (picture && !user.profileImage) user.profileImage = picture;
 
-      // If user had generic 'user' role and is signing in through a specific portal (e.g. host, agent, landlord, seller)
-      if (user.role === "user" && targetRole && targetRole !== "user") {
+      // If user had generic 'user' or 'member' role and is signing in through a specific portal (e.g. host, agent, landlord, seller)
+      if ((user.role === "user" || user.role === "member") && targetRole && targetRole !== "user" && targetRole !== "member") {
         user.role = targetRole;
       }
 
