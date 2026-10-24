@@ -3,6 +3,8 @@ import { auth } from "../middleware/auth.js";
 import Favorite from "../models/Favorite.js";
 import Inquiry from "../models/Inquiry.js";
 import Waitlist from "../models/Waitlist.js";
+import Booking from "../models/Booking.js";
+import ServiceBooking from "../models/ServiceBooking.js";
 
 const router = express.Router();
 
@@ -96,6 +98,88 @@ router.get("/enquiries", auth, async (req, res) => {
   } catch (err) {
     console.error("Get member enquiries error:", err);
     return res.status(500).json({ error: "Failed to fetch enquiries" });
+  }
+});
+
+// GET /api/members/bookings
+router.get("/bookings", auth, async (req, res) => {
+  try {
+    const accommodationBookings = await Booking.find({
+      $or: [
+        { guest: req.user._id },
+        { "guestInfo.email": req.user.email },
+        { "guestInfo.phone": req.user.phone }
+      ]
+    })
+      .populate("accommodation")
+      .populate("roomType")
+      .sort({ createdAt: -1 });
+
+    const serviceBookings = await ServiceBooking.find({
+      customer: req.user._id
+    })
+      .populate("provider", "name email phone profileImage")
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      success: true,
+      bookings: {
+        accommodations: accommodationBookings,
+        services: serviceBookings,
+      }
+    });
+  } catch (err) {
+    console.error("Get member bookings error:", err);
+    return res.status(500).json({ error: "Failed to fetch bookings" });
+  }
+});
+
+// GET /api/members/activities (Comprehensive activity overview)
+router.get("/activities", auth, async (req, res) => {
+  try {
+    const [favorites, waitlistEnquiries, directInquiries, accommodationBookings, serviceBookings] = await Promise.all([
+      Favorite.find({ user: req.user._id })
+        .populate("property")
+        .populate("business")
+        .sort({ createdAt: -1 }),
+      Waitlist.find({
+        $or: [{ email: req.user.email }, { phone: req.user.phone }]
+      }).populate("property").sort({ createdAt: -1 }),
+      Inquiry.find({
+        tenantSessionId: req.user._id.toString()
+      }).populate("rental").sort({ createdAt: -1 }),
+      Booking.find({
+        $or: [
+          { guest: req.user._id },
+          { "guestInfo.email": req.user.email },
+          { "guestInfo.phone": req.user.phone }
+        ]
+      }).populate("accommodation").populate("roomType").sort({ createdAt: -1 }),
+      ServiceBooking.find({
+        customer: req.user._id
+      }).populate("provider", "name email phone profileImage").sort({ createdAt: -1 }),
+    ]);
+
+    const enquiries = [...waitlistEnquiries, ...directInquiries];
+
+    return res.json({
+      success: true,
+      stats: {
+        favoritesCount: favorites.length,
+        enquiriesCount: enquiries.length,
+        bookingsCount: accommodationBookings.length + serviceBookings.length,
+        totalActivities: favorites.length + enquiries.length + accommodationBookings.length + serviceBookings.length,
+      },
+      favorites,
+      enquiries,
+      bookings: {
+        accommodations: accommodationBookings,
+        services: serviceBookings,
+      },
+    });
+  } catch (err) {
+    console.error("Get member activities error:", err);
+    return res.status(500).json({ error: "Failed to fetch activities summary" });
   }
 });
 
