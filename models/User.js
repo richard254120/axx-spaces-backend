@@ -410,6 +410,10 @@ const userSchema = new mongoose.Schema(
         rejectionReason: String,
         cancelledAt: Date,
       },
+      agentQrScans: {
+        type: Number,
+        default: 0,
+      },
     },
   },
   { timestamps: true }

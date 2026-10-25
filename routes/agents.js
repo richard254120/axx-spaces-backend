@@ -1010,4 +1010,33 @@ router.put("/reject-purchase/:userId", auth, adminOnly, async (req, res) => {
   }
 });
 
+
+// ====================== POST /api/agents/:agentId/qr-scan ======================
+// Public — called when someone scans the agent's general QR poster (profile page)
+router.post("/:agentId/qr-scan", async (req, res) => {
+  try {
+    const agent = await User.findOneAndUpdate(
+      { _id: req.params.agentId, role: "agent" },
+      { $inc: { "agentProfile.agentQrScans": 1 } },
+      { new: true, select: "agentProfile.agentQrScans" }
+    );
+    if (!agent) return res.status(404).json({ error: "Agent not found" });
+    res.json({ success: true, agentQrScans: agent.agentProfile?.agentQrScans || 0 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====================== GET /api/agents/qr-scans/me ======================
+// Auth — return the logged-in agent's general QR poster scan count
+router.get("/qr-scans/me", auth, async (req, res) => {
+  try {
+    const agent = await User.findById(req.user._id).select("agentProfile.agentQrScans");
+    res.json({ agentQrScans: agent?.agentProfile?.agentQrScans || 0 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
+
