@@ -122,7 +122,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
     const newUser = new User({
       name, email, password: hashedPassword, phone,
       role: targetRole,
-      isApproved: ["host", "landlord", "member", "user", "guest"].includes(targetRole),
+      isApproved: ["host", "landlord", "member", "user", "guest", "business"].includes(targetRole),
       landlordType:
         targetRole === "landlord" && landlordType === "university"
           ? "university"

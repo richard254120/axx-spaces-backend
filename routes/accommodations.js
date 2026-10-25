@@ -44,7 +44,7 @@ const uploadAccommodationMedia = (req, res, next) => {
 };
 
 // ====================== CREATE ACCOMMODATION ======================
-router.post("/", auth, uploadAccommodationMedia, async (req, res) => {
+router.post("/", auth, hostOnly, uploadAccommodationMedia, async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
       return res.status(401).json({
