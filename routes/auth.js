@@ -6,11 +6,27 @@ import User from "../models/User.js";
 import { protect as auth } from "../middleware/auth.js";
 import { formatUserResponse } from "../utils/formatUser.js";
 import { Resend } from "resend";
-import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendLandlordRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail, sendWelcomeEmail } from "../utils/email.js";
+import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendLandlordRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail, sendWelcomeEmail, sendVerificationEmail } from "../utils/email.js";
 import security from "../middleware/enhancedSecurity.js";
 import upload from "../config/multer.js";
 
 const router = express.Router();
+
+// Email validation helper: standard RFC 5322 regex + domain / TLD verification
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+export function isValidEmail(email) {
+  if (!email || typeof email !== "string") return false;
+  const trimmed = email.trim().toLowerCase();
+  if (!EMAIL_REGEX.test(trimmed)) return false;
+  const parts = trimmed.split("@");
+  if (parts.length !== 2) return false;
+  const domain = parts[1];
+  if (!domain.includes(".") || domain.startsWith(".") || domain.endsWith(".")) return false;
+  const tld = domain.split(".").pop();
+  if (!tld || tld.length < 2) return false;
+  return true;
+}
 
 // ── Initialize Resend only if API key is available
 let resend = null;
@@ -41,6 +57,10 @@ router.post("/register-member", async (req, res) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: "Please enter a valid email address (e.g. name@gmail.com)" });
+    }
+
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ error: "An account with this email is already registered" });
@@ -48,30 +68,34 @@ router.post("/register-member", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
     const newUser = new User({
       name: name.trim(),
       email: normalizedEmail,
       phone: phone.trim(),
       password: hashedPassword,
       role: "member",
-      isEmailVerified: true,
+      isEmailVerified: false,
       isApproved: true,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpiry: verificationExpiry,
     });
 
     await newUser.save();
 
-    sendWelcomeEmail(newUser.email, newUser.name, "member").catch(() => {});
-
-    const token = jwt.sign(
-      { userId: newUser._id, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    await sendVerificationEmail({
+      to: newUser.email,
+      name: newUser.name,
+      token: verificationToken,
+      req,
+    });
 
     return res.status(201).json({
-      token,
-      user: formatUserResponse(newUser),
-      message: "Member registered successfully",
+      message: "Registration successful! A verification email has been sent to your email. Please verify before logging in.",
+      requiresVerification: true,
+      email: newUser.email,
     });
   } catch (err) {
     console.error("Member registration error:", err);
@@ -106,28 +130,41 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
       return res.status(400).json({ error: "Password must contain a mixture of both letters and numbers." });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: "Please enter a valid email address (e.g. name@gmail.com)" });
+    }
+
     const targetRole = role || "landlord";
-    const existingUser = await User.findOne({ email, role: targetRole });
+    const existingUser = await User.findOne({ email: normalizedEmail, role: targetRole });
     if (existingUser) {
       return res.status(400).json({ error: `An account with this email is already registered as a ${targetRole}` });
     }
 
-    const existingPhone = await User.findOne({ phone, role: targetRole });
+    const existingPhone = await User.findOne({ phone: phone.trim(), role: targetRole });
     if (existingPhone) {
       return res.status(400).json({ error: `An account with this phone number is already registered as a ${targetRole}` });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
     const newUser = new User({
-      name, email, password: hashedPassword, phone,
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      phone: phone.trim(),
       role: targetRole,
       isApproved: ["host", "landlord", "member", "user", "guest", "business"].includes(targetRole),
       landlordType:
         targetRole === "landlord" && landlordType === "university"
           ? "university"
           : "general",
-      isEmailVerified: true,
+      isEmailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpiry: verificationExpiry,
     });
 
     if (role === "mover") {
@@ -181,30 +218,25 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
 
     await newUser.save();
 
-    // Welcome email to the new user (never blocks or breaks signup)
-    if (["landlord", "agent", "host", "caretaker"].includes(newUser.role)) {
-      sendWelcomeEmail(newUser.email, newUser.name, newUser.role).catch(() => {});
-    }
+    await sendVerificationEmail({
+      to: newUser.email,
+      name: newUser.name,
+      token: verificationToken,
+      req,
+    });
 
     if (role === "mover") {
-      await sendMoverRegistrationEmail(newUser);
+      sendMoverRegistrationEmail(newUser).catch(() => {});
     } else if (role === "seller") {
-      await sendSellerRegistrationEmail(newUser);
+      sendSellerRegistrationEmail(newUser).catch(() => {});
     } else if (role === "landlord") {
-      await sendLandlordRegistrationEmail(newUser);
+      sendLandlordRegistrationEmail(newUser).catch(() => {});
     }
 
-    const token = jwt.sign(
-      { userId: newUser._id, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
     res.status(201).json({
-      message: "Registration successful! Welcome to AxxSpace.",
-      token,
-      user: formatUserResponse(newUser),
-      requiresVerification: false,
+      message: "Registration successful! A verification email has been sent to your email. Please verify before logging in.",
+      requiresVerification: true,
+      email: newUser.email,
     });
 
   } catch (err) {
@@ -224,27 +256,29 @@ router.post("/login", security.authLimiter, async (req, res) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     let user;
     if (role) {
-      user = await User.findOne({ email, role }).select("+password");
+      user = await User.findOne({ email: normalizedEmail, role }).select("+password");
       console.log(" User found with role:", user ? "YES" : "NO");
       // If not found with specific role, try finding by email only
       if (!user) {
-        user = await User.findOne({ email }).select("+password");
+        user = await User.findOne({ email: normalizedEmail }).select("+password");
         console.log(" User found by email only:", user ? "YES" : "NO");
       }
     } else {
       // Fallback: prioritize admin/team roles first, otherwise return first matching user
-      user = await User.findOne({ email, role: { $in: ["admin", "team"] } }).select("+password");
+      user = await User.findOne({ email: normalizedEmail, role: { $in: ["admin", "team"] } }).select("+password");
       console.log(" Admin/Team user found:", user ? "YES" : "NO");
       if (!user) {
-        user = await User.findOne({ email }).select("+password");
+        user = await User.findOne({ email: normalizedEmail }).select("+password");
         console.log(" Any user found:", user ? "YES" : "NO");
       }
     }
 
     if (!user) {
-      console.log(" User not found for email:", email);
+      console.log(" User not found for email:", normalizedEmail);
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
@@ -252,21 +286,21 @@ router.post("/login", security.authLimiter, async (req, res) => {
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      console.log(" Password invalid for:", email);
+      console.log(" Password invalid for:", normalizedEmail);
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    console.log(" Password valid for:", email);
+    console.log(" Password valid for:", normalizedEmail);
 
-    // Email verification check disabled - users can login immediately after registration
-    // if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
-    //   return res.status(403).json({
-    //     error: " Please verify your email before logging in. Check your inbox for the verification link.",
-    //     requiresVerification: true,
-    //     email: user.email,
-    //     role: user.role
-    //   });
-    // }
+    // Email verification check - users must verify their email before logging in
+    if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
+      return res.status(403).json({
+        error: "Please verify your email before logging in. Check your inbox for the verification link.",
+        requiresVerification: true,
+        email: user.email,
+        role: user.role
+      });
+    }
 
     if (user.role === "mover" && !user.isApproved) {
       return res.status(403).json({
@@ -486,7 +520,7 @@ router.post("/verify-email/:token", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ error: " Verification link is invalid or has expired." });
+      return res.status(400).json({ error: "Verification link is invalid or has expired." });
     }
 
     user.isEmailVerified = true;
@@ -494,8 +528,16 @@ router.post("/verify-email/:token", async (req, res) => {
     user.emailVerificationExpiry = undefined;
     await user.save();
 
+    // Send welcome email upon successful verification
+    sendWelcomeEmail(user.email, user.name, user.role).catch(() => {});
+
     console.log(` Email verified successfully for: ${user.email} (role: ${user.role})`);
-    res.json({ message: " Email verified successfully! You can now login.", role: user.role });
+    res.json({
+      success: true,
+      message: "Email verified successfully! You can now log in.",
+      role: user.role,
+      email: user.email,
+    });
 
   } catch (err) {
     console.error(" Email verification error:", err);
@@ -503,27 +545,41 @@ router.post("/verify-email/:token", async (req, res) => {
   }
 });
 
+// Also handle direct GET request (e.g. if opened directly in browser)
+router.get("/verify-email/:token", async (req, res) => {
+  const { token } = req.params;
+  const origin = req.get("origin");
+  const frontendUrl = (origin && (origin.includes("localhost") || origin.includes("127.0.0.1")))
+    ? origin
+    : (process.env.FRONTEND_URL || "https://axxspace.com");
+  return res.redirect(`${frontendUrl}/verify-email/${token}`);
+});
+
 // ====================== RESEND VERIFICATION EMAIL ======================
 router.post("/resend-verification", async (req, res) => {
   try {
-    const { email, role, platform } = req.body;
+    const { email, role } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
 
-    let query = { email };
+    const normalizedEmail = email.trim().toLowerCase();
+    let query = { email: normalizedEmail };
     if (role) {
       query.role = role;
     }
-    const user = await User.findOne(query);
+    let user = await User.findOne(query);
+    if (!user) {
+      user = await User.findOne({ email: normalizedEmail });
+    }
 
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: "No account found with this email." });
     }
 
     if (user.isEmailVerified) {
-      return res.status(400).json({ error: "Email is already verified" });
+      return res.status(400).json({ error: "This email is already verified. You can log in directly." });
     }
 
     const verificationToken = crypto.randomBytes(32).toString("hex");
@@ -533,41 +589,15 @@ router.post("/resend-verification", async (req, res) => {
     user.emailVerificationExpiry = verificationExpiry;
     await user.save();
 
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: email,
-      subject: " Verify Your Email - Axxspace",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #0B2140; padding: 20px; text-align: center;">
-            <h1 style="color: #fbbf24; margin: 0;">Axxspace</h1>
-            <p style="color: #94a3b8; margin: 6px 0 0;">Kenya's Premier Platform</p>
-          </div>
-          <div style="background: white; padding: 32px; border: 1px solid #e5e7eb;">
-            <p style="color: #1f2937; font-size: 15px;">Hi <strong>${user.name}</strong>,</p>
-            <p style="color: #6b7280; font-size: 14px;">
-              Please verify your email address to activate your account.
-              This link expires in <strong>24 hours</strong>.
-            </p>
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${verificationUrl}"
-                style="background: #fbbf24; color: #0B2140; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
-                 Verify My Email
-              </a>
-            </div>
-            <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-              If you did not create an account with Axxspace, ignore this email.<br/>
-              Link expires in 24 hours.
-            </p>
-          </div>
-        </div>
-      `,
+    await sendVerificationEmail({
+      to: user.email,
+      name: user.name,
+      token: verificationToken,
+      req,
     });
 
-    console.log(` Verification email resent to: ${email}`);
-    res.json({ message: " Verification email sent successfully!" });
+    console.log(` Verification email resent to: ${user.email}`);
+    res.json({ message: "Verification email sent successfully! Please check your inbox (and spam folder)." });
 
   } catch (err) {
     console.error(" Resend verification error:", err);

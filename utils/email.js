@@ -635,3 +635,110 @@ export const sendWelcomeEmail = async (email, name, role) => {
     console.error(`Welcome email failed to ${email}:`, err.message);
   }
 };
+
+export const sendVerificationEmail = async ({ to, name, token, req }) => {
+  const origin = req?.get?.("origin") || req?.headers?.origin;
+  const baseUrl = (origin && (origin.includes("localhost") || origin.includes("127.0.0.1")))
+    ? origin
+    : (process.env.FRONTEND_URL || "https://axxspace.com");
+
+  const verificationUrl = `${baseUrl}/verify-email/${token}`;
+
+  const html = `
+    <div style="font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border: 1px solid #e2e8f0;">
+      <div style="background: linear-gradient(135deg, #0B2140 0%, #17325c 100%); padding: 36px 30px; text-align: center; border-bottom: 3px solid #fbbf24;">
+        <h1 style="color: #fbbf24; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 0.5px;">AXXSPACE</h1>
+        <p style="color: #94a3b8; margin: 8px 0 0; font-size: 14px; font-weight: 500;">Kenya's Premier Living &amp; Business Spaces</p>
+      </div>
+
+      <div style="padding: 36px 32px 30px;">
+        <h2 style="color: #0B2140; margin: 0 0 16px; font-size: 22px; font-weight: 700;">Verify Your Email Address</h2>
+        <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 14px;">
+          Hi <strong>${name || "there"}</strong>,
+        </p>
+        <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 26px;">
+          Thank you for signing up with AxxSpace! To complete your registration and activate your account dashboard, please confirm your email address by clicking the button below:
+        </p>
+
+        <div style="text-align: center; margin: 0 0 28px;">
+          <a href="${verificationUrl}" target="_blank"
+            style="display: inline-block; background: #fbbf24; color: #0B2140; padding: 15px 36px; border-radius: 10px; font-size: 16px; font-weight: 800; text-decoration: none; box-shadow: 0 4px 14px rgba(251, 191, 36, 0.4);">
+            Confirm &amp; Verify Email &rarr;
+          </a>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #fbbf24; border-radius: 8px; padding: 14px 18px; margin-bottom: 22px;">
+          <p style="margin: 0; color: #475569; font-size: 13px; line-height: 1.5;">
+            <strong>Note:</strong> This verification link is valid for <strong>24 hours</strong>. Once verified, you will be automatically redirected to log in.
+          </p>
+        </div>
+
+        <p style="color: #64748b; font-size: 12px; line-height: 1.6; margin: 0 0 6px;">
+          If the button does not work, copy and paste this link into your browser:
+        </p>
+        <p style="margin: 0 0 22px; word-break: break-all;">
+          <a href="${verificationUrl}" style="color: #2563eb; font-size: 12px; text-decoration: underline;">
+            ${verificationUrl}
+          </a>
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+
+        <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0;">
+          If you did not register for an account on AxxSpace, you can safely ignore this email. No account will be activated without verification.
+        </p>
+      </div>
+
+      <div style="background: #f8fafc; padding: 18px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+          &copy; ${new Date().getFullYear()} AxxSpace. All rights reserved.
+        </p>
+      </div>
+    </div>
+  `;
+
+  console.log(` Attempting to send verification email to: ${to}`);
+  if (!resend && (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD)) {
+    console.log(" [Email Mock] Would send verification email to:", to, "URL:", verificationUrl);
+    return { success: true, mocked: true };
+  }
+
+  try {
+    if (resend) {
+      const result = await resend.emails.send({
+        from: FROM_EMAIL,
+        to,
+        subject: "Verify Your Email - AxxSpace",
+        html,
+      });
+      if (result.error) {
+        console.error("Resend error sending verification email:", result.error);
+        throw new Error(result.error.message || "Failed to send via Resend");
+      }
+      console.log(` Verification email sent successfully to ${to}. Resend ID: ${result.data?.id}`);
+      return result;
+    }
+  } catch (err) {
+    console.error("Resend send failed, checking nodemailer fallback:", err.message);
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+      const nodemailer = (await import("nodemailer")).default;
+      const transporter = nodemailer.createTransport({
+        service: process.env.EMAIL_SERVICE || "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+      });
+      const info = await transporter.sendMail({
+        from: `"AxxSpace" <${process.env.EMAIL_USER}>`,
+        to,
+        subject: "Verify Your Email - AxxSpace",
+        html,
+      });
+      console.log(` Verification email sent via Nodemailer to ${to}. MessageId: ${info.messageId}`);
+      return info;
+    }
+    throw err;
+  }
+};
+
