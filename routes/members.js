@@ -11,6 +11,17 @@ import BusinessInquiry from "../models/BusinessInquiry.js";
 
 const router = express.Router();
 
+/**
+ * Contact-based activity lookups must never fall back to `undefined`,
+ * otherwise Mongoose matches records that simply lack that field and
+ * leaks another account's activity into the member dashboard.
+ */
+const bookingOwnerOr = (user) => [
+  { guest: user._id },
+  ...(user.email ? [{ "guestContact.email": user.email }] : []),
+  ...(user.phone ? [{ "guestContact.phone": user.phone }] : []),
+];
+
 // GET /api/members/favorites
 router.get("/favorites", auth, async (req, res) => {
   try {
@@ -83,12 +94,13 @@ router.delete("/favorites/:id", auth, async (req, res) => {
 // GET /api/members/enquiries
 router.get("/enquiries", auth, async (req, res) => {
   try {
-    const waitlistEnquiries = await Waitlist.find({
-      $or: [
-        { email: req.user.email },
-        { phone: req.user.phone },
-      ]
-    }).populate("property").sort({ createdAt: -1 });
+    const contactClauses = [];
+    if (req.user.email) contactClauses.push({ email: req.user.email });
+    if (req.user.phone) contactClauses.push({ phone: req.user.phone });
+
+    const waitlistEnquiries = contactClauses.length
+      ? await Waitlist.find({ $or: contactClauses }).populate("property").sort({ createdAt: -1 })
+      : [];
 
     const directInquiries = await Inquiry.find({
       tenantSessionId: req.user._id.toString()
@@ -108,11 +120,7 @@ router.get("/enquiries", auth, async (req, res) => {
 router.get("/bookings", auth, async (req, res) => {
   try {
     const accommodationBookings = await Booking.find({
-      $or: [
-        { guest: req.user._id },
-        { "guestInfo.email": req.user.email },
-        { "guestInfo.phone": req.user.phone }
-      ]
+      $or: bookingOwnerOr(req.user),
     })
       .populate("accommodation")
       .populate("roomType")
@@ -140,13 +148,18 @@ router.get("/bookings", auth, async (req, res) => {
 // GET /api/members/activities (Comprehensive activity overview)
 router.get("/activities", auth, async (req, res) => {
   try {
+    // Only identity-scoped clauses: an absent email/phone must not widen the query
     const userQuery = {
       $or: [
         { user: req.user._id },
         ...(req.user.email ? [{ email: req.user.email }] : []),
-        ...(req.user.phone ? [{ phone: req.user.phone }] : [])
-      ]
+        ...(req.user.phone ? [{ phone: req.user.phone }] : []),
+      ],
     };
+
+    const contactClauses = [];
+    if (req.user.email) contactClauses.push({ email: req.user.email });
+    if (req.user.phone) contactClauses.push({ phone: req.user.phone });
 
     const [
       favorites,
@@ -162,9 +175,9 @@ router.get("/activities", auth, async (req, res) => {
         .populate("property")
         .populate("business")
         .sort({ createdAt: -1 }),
-      Waitlist.find({
-        $or: [{ email: req.user.email }, { phone: req.user.phone }]
-      }).populate("property").sort({ createdAt: -1 }),
+      contactClauses.length
+        ? Waitlist.find({ $or: contactClauses }).populate("property").sort({ createdAt: -1 })
+        : [],
       Inquiry.find({
         $or: [
           { tenantSessionId: req.user._id.toString() },
@@ -172,11 +185,7 @@ router.get("/activities", auth, async (req, res) => {
         ]
       }).populate("rental").sort({ createdAt: -1 }),
       Booking.find({
-        $or: [
-          { guest: req.user._id },
-          { "guestInfo.email": req.user.email },
-          { "guestInfo.phone": req.user.phone }
-        ]
+        $or: bookingOwnerOr(req.user),
       }).populate("accommodation").populate("roomType").sort({ createdAt: -1 }),
       ServiceBooking.find({
         customer: req.user._id
