@@ -76,9 +76,11 @@ const materialSchema = new mongoose.Schema(
     },
 
     // STATUS
+    //  "active" is the live status set by admin approval; "approved"/"rejected"
+    //    remain for legacy documents already in the DB.
     status: {
       type: String,
-      enum: ["approved", "rejected", "sold", "archived", "pending"],
+      enum: ["active", "approved", "rejected", "sold", "archived", "pending"],
       default: "pending", // Fixed: Default to pending until approved
     },
     isVerified: {

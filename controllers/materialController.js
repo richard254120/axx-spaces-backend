@@ -191,6 +191,39 @@ export const markAsSold = async (req, res) => {
   }
 };
 
+// ============ SELLER — UPDATE OWN MATERIAL ============
+export const updateMaterial = async (req, res) => {
+  try {
+    const material = await Material.findById(req.params.id);
+    if (!material) return res.status(404).json({ error: "Material not found" });
+    if (material.seller.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+      return res.status(403).json({ error: "Unauthorized. You can only edit your own listings." });
+    }
+
+    const editable = ["title", "description", "category", "subcategory", "condition", "location", "county"];
+    editable.forEach((field) => {
+      if (req.body[field] !== undefined && req.body[field] !== "") {
+        material[field] = req.body[field];
+      }
+    });
+    if (req.body.price !== undefined && req.body.price !== "") material.price = parseFloat(req.body.price);
+    if (req.body.quantity !== undefined && req.body.quantity !== "") material.quantity = parseInt(req.body.quantity);
+    if (req.body.lat !== undefined && req.body.lat !== "") material.lat = parseFloat(req.body.lat);
+    if (req.body.lng !== undefined && req.body.lng !== "") material.lng = parseFloat(req.body.lng);
+
+    // Optional: attach newly uploaded images to the existing gallery
+    if (req.files && req.files.length > 0) {
+      material.images = material.images.concat(req.files.map((file) => file.path));
+    }
+
+    await material.save();
+    res.json({ success: true, message: "Material updated!", material });
+  } catch (error) {
+    console.error(" Update material error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // ============ DELETE MATERIAL ============
 export const deleteMaterial = async (req, res) => {
   try {

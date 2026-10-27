@@ -12,6 +12,7 @@ import {
   approveMaterial,
   rejectMaterial,
   markAsSold,
+  updateMaterial,
   deleteMaterial
 } from "../controllers/materialController.js";
 
@@ -24,6 +25,8 @@ router.get("/seller/my-materials", auth, getMyMaterials);
 router.patch("/:id/approve", auth, approveMaterial);
 router.patch("/:id/reject", auth, rejectMaterial);
 router.patch("/:id/sold", auth, markAsSold);
+// Seller edit — must come before the generic admin PATCH /:id route
+router.patch("/:id/update", auth, upload.array("images", 8), updateMaterial);
 router.patch("/:id", auth, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
