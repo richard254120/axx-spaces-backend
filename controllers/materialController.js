@@ -3,38 +3,70 @@ import User from "../models/User.js";
 import Material from "../models/Material.js";
 import { sendMaterialEmail, sendMaterialApprovalEmail } from "../utils/email.js";
 
-// ============ CREATE MATERIAL ============
+// ============ CREATE MATERIAL (Any Authenticated User) ============
 export const createMaterial = async (req, res) => {
   try {
-    if (req.user.role !== "seller" && req.user.role !== "admin") {
-      return res.status(403).json({ error: "Only sellers can upload materials" });
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required to post items" });
     }
-    const { title, description, category, subcategory, price, quantity, condition, location, county, lat, lng } = req.body;
-    if (!title || !description || !category || !price || !quantity) {
-      return res.status(400).json({ error: "Missing required fields" });
+
+    const {
+      title, description, category, subcategory,
+      price, quantity, condition, location, county,
+      lat, lng, sellerPhone, sellerName
+    } = req.body;
+
+    if (!title || !description || !category || !price || !quantity || !location || !county) {
+      return res.status(400).json({ error: "Missing required fields (title, description, category, price, quantity, location, county)" });
     }
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "Please upload at least one image" });
     }
+
     const imageUrls = req.files.map((file) => file.path);
+    const resolvedPhone = (sellerPhone || req.user.phone || "").trim();
+    const resolvedName = (sellerName || req.user.name || req.user.username || "Seller").trim();
+
+    // Auto-save phone to user's profile if it was empty
+    if (resolvedPhone && !req.user.phone) {
+      try {
+        await User.findByIdAndUpdate(req.user._id, { phone: resolvedPhone });
+      } catch (err) {
+        console.warn("Could not sync phone to user profile:", err.message);
+      }
+    }
+
     const material = new Material({
-      title, description, category, subcategory,
+      title: title.trim(),
+      description: description.trim(),
+      category,
+      subcategory: subcategory || "",
       price: parseFloat(price),
-      quantity: parseInt(quantity),
-      condition, location, county,
+      quantity: parseInt(quantity) || 1,
+      condition: condition || "Good",
+      location: location.trim(),
+      county: county.trim(),
       lat: lat ? parseFloat(lat) : undefined,
       lng: lng ? parseFloat(lng) : undefined,
       images: imageUrls,
       seller: req.user._id,
-      sellerName: req.user.name,
-      sellerPhone: req.user.phone,
-      status: "pending",
-      isVerified: false,
+      sellerName: resolvedName,
+      sellerPhone: resolvedPhone,
+      status: "active", // Instant Live
+      isVerified: !!req.user.isApproved || !!req.user.isVerified,
     });
+
     await material.save();
-    await sendMaterialEmail(material, req.user);
-    res.status(201).json({ success: true, message: "Material submitted!", material });
+
+    try {
+      await sendMaterialEmail(material, req.user);
+    } catch (emailErr) {
+      console.warn("Could not send material email notification:", emailErr.message);
+    }
+
+    res.status(201).json({ success: true, message: "Item posted successfully and is now live!", material });
   } catch (error) {
+    console.error("Create material error:", error);
     res.status(500).json({ error: error.message });
   }
 };
