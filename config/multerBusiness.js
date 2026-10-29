@@ -69,6 +69,21 @@ const pricelistStorage = new CloudinaryStorage({
   },
 });
 
+// ============ CLOUDINARY STORAGE FOR PROPERTY OWNERSHIP DOCUMENTS ============
+const ownershipStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "axx-spaces/properties/ownership",
+    resource_type: "auto",
+    type: "upload",
+    access_mode: "public",
+    public_id: (req, file) => {
+      const ext = file.originalname.split('.').pop();
+      return `ownership-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+    },
+  },
+});
+
 // ============ CLOUDINARY STORAGE FOR MOVER PORTFOLIO IMAGES ============
 const moverPortfolioStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -130,6 +145,33 @@ const documentFileFilter = (req, file, cb) => {
   }
 };
 
+// ============ FILE FILTER FOR OWNERSHIP DOCUMENTS ============
+// Title deeds are frequently photographed, so scanned images are accepted too.
+const ownershipFileFilter = (req, file, cb) => {
+  try {
+    const category = (file.mimetype || '').startsWith('image/') ? 'images' : 'documents';
+
+    const typeValidation = validateFileType(file, category);
+    if (!typeValidation.isValid) {
+      console.error(" Ownership document rejected:", file.originalname, typeValidation.error);
+      return cb(new Error(typeValidation.error), false);
+    }
+
+    const sizeValidation = validateFileSize(file, category);
+    if (!sizeValidation.isValid) {
+      console.error(" Ownership document rejected:", file.originalname, sizeValidation.error);
+      return cb(new Error(sizeValidation.error), false);
+    }
+
+    file.originalname = sanitizeFilename(file.originalname);
+    console.log(" Ownership document accepted:", file.originalname);
+    cb(null, true);
+  } catch (error) {
+    console.error(" Ownership document filter error:", error);
+    cb(new Error("File validation failed"), false);
+  }
+};
+
 // ============ MULTER INSTANCES ============
 const uploadLogo = multer({
   storage: logoStorage,
@@ -173,6 +215,14 @@ const uploadMoverPortfolio = multer({
   },
 });
 
+const uploadOwnershipDocument = multer({
+  storage: ownershipStorage,
+  fileFilter: ownershipFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for title deeds / agreements
+  },
+});
+
 // ============ COMBINED UPLOAD FOR BUSINESS CREATION ============
 const uploadBusinessFiles = multer({
   storage: multer.memoryStorage(),
@@ -183,4 +233,4 @@ const uploadBusinessFiles = multer({
 
 console.log(" Multer configured for business uploads");
 
-export { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist, uploadBusinessFiles, uploadMoverPortfolio };
+export { uploadLogo, uploadBusinessPhotos, uploadProductImage, uploadPricelist, uploadBusinessFiles, uploadMoverPortfolio, uploadOwnershipDocument };

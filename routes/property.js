@@ -24,8 +24,12 @@ router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "ad
       title, description, location, price, bedrooms, bathrooms,
       amenities, totalUnits, deposit, furnished, leaseType,
       availableFrom, rules, propertyType, county, lat, lng,
-      bookedUnits, initiallyBooked, university, universityId
+      bookedUnits, initiallyBooked, university, universityId,
+      listingType, priceNegotiable, saleTerms, ownershipType,
+      titleNumber, plotSize, yearBuilt, ownershipProofUrl
     } = req.body;
+
+    const isSale = listingType === "sale";
 
     if (!title || !description || !location || !price || !propertyType || !county) {
       return res.status(400).json({ error: " Missing required fields" });
@@ -35,9 +39,16 @@ router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "ad
       return res.status(400).json({ error: " Please upload at least one image or video" });
     }
 
+    if (isSale && !ownershipType) {
+      return res.status(400).json({
+        error:
+          "Select the ownership type for this sale listing. Buyers need to know whether the property has a title deed, sectional title or agreement.",
+      });
+    }
+
     const owner = await User.findById(req.user._id).select("landlordType");
     const mustLinkUniversity =
-      owner?.landlordType === "university" || propertyType === "Hostel Room";
+      !isSale && (owner?.landlordType === "university" || propertyType === "Hostel Room");
 
     if (mustLinkUniversity && (!universityId || !university)) {
       return res.status(400).json({
@@ -53,7 +64,7 @@ router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "ad
       parsedAmenities = Array.isArray(amenities) ? amenities : [];
     }
 
-    if (parsedAmenities.length === 0) {
+    if (parsedAmenities.length === 0 && !isSale) {
       return res.status(400).json({ error: " Please select at least one amenity" });
     }
 
@@ -67,6 +78,13 @@ router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "ad
       description,
       location,
       price: parseFloat(price),
+      listingType: isSale ? "sale" : "rent",
+      priceNegotiable: isSale && (priceNegotiable === "true" || priceNegotiable === true),
+      saleTerms: isSale ? saleTerms || "cash" : "",
+      ownershipType: isSale ? ownershipType : "",
+      titleNumber: isSale ? titleNumber || "" : "",
+      plotSize: isSale ? plotSize || "" : "",
+      yearBuilt: isSale && yearBuilt ? parseInt(yearBuilt) : undefined,
       bedrooms: parseInt(bedrooms) || 0,
       bathrooms: parseInt(bathrooms) || 1,
       amenities: parsedAmenities,
@@ -74,22 +92,31 @@ router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "ad
       videos: videoUrls,
       owner: req.user._id,
       assignedAgent: isAgent ? req.user._id : undefined,
-      totalUnits: parseInt(totalUnits) || 1,
+      totalUnits: isSale ? 1 : (parseInt(totalUnits) || 1),
       status: "pending",
       propertyType,
       county,
-      university: university || "",
-      universityId: universityId || "",
+      university: isSale ? "" : (university || ""),
+      universityId: isSale ? "" : (universityId || ""),
       lat: lat ? parseFloat(lat) : undefined,
       lng: lng ? parseFloat(lng) : undefined,
-      deposit: deposit ? parseFloat(deposit) : undefined,
-      furnished: furnished === "true" || furnished === true,
-      leaseType: leaseType || "monthly",
-      availableFrom: availableFrom || undefined,
+      deposit: isSale ? 0 : (deposit ? parseFloat(deposit) : undefined),
+      furnished: isSale ? false : (furnished === "true" || furnished === true),
+      leaseType: isSale ? undefined : (leaseType || "monthly"),
+      availableFrom: isSale ? undefined : (availableFrom || undefined),
       rules: rules || "",
-      bookedUnits: initiallyBooked === "true" || initiallyBooked === true
-        ? parseInt(bookedUnits) || 0
-        : 0,
+      bookedUnits: isSale
+        ? 0
+        : (initiallyBooked === "true" || initiallyBooked === true
+          ? parseInt(bookedUnits) || 0
+          : 0),
+      listingAuthorization: isSale && ownershipProofUrl
+        ? {
+          method: "authorization_letter",
+          proofUrl: ownershipProofUrl,
+          confirmedAt: new Date(),
+        }
+        : undefined,
     });
 
     await property.save();
@@ -126,6 +153,7 @@ router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "ad
 //   ?furnished=true
 //   ?featured=true
 //   ?available=true   (availableUnits > 0)
+//   ?listingType=rent|sale   (omit to return both)
 //   ?search=westlands (searches title, location, county)
 router.get("/", async (req, res) => {
   try {
@@ -142,11 +170,13 @@ router.get("/", async (req, res) => {
       search,
       university,
       universityId,
+      listingType,
     } = req.query;
 
     const query = { status: "approved" };
 
     if (county) query.county = county;
+    if (listingType === "rent" || listingType === "sale") query.listingType = listingType;
     if (universityId) query.universityId = universityId;
     else if (university) query.university = university;
     if (propertyType) query.propertyType = { $regex: new RegExp(`^${propertyType}$`, "i") };
@@ -539,7 +569,9 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
       title, description, location, price, bedrooms, bathrooms,
       amenities, totalUnits, deposit, furnished, leaseType,
       availableFrom, rules, propertyType, county, lat, lng,
-      bookedUnits, university, universityId, remainingImages
+      bookedUnits, university, universityId, remainingImages,
+      priceNegotiable, saleTerms, ownershipType, titleNumber,
+      plotSize, yearBuilt, ownershipProofUrl
     } = req.body;
 
     // Handle amenities array parsing
@@ -591,10 +623,16 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     if (bedrooms !== undefined && bedrooms !== "") property.bedrooms = parseInt(bedrooms) || 0;
     if (bathrooms !== undefined && bathrooms !== "") property.bathrooms = parseInt(bathrooms) || 1;
     if (amenities !== undefined) property.amenities = parsedAmenities;
-    if (totalUnits !== undefined) property.totalUnits = parseInt(totalUnits);
-    if (deposit !== undefined) property.deposit = deposit ? parseFloat(deposit) : undefined;
-    if (furnished !== undefined) property.furnished = furnished === "true" || furnished === true;
-    if (leaseType !== undefined) property.leaseType = leaseType;
+    if (totalUnits !== undefined && property.listingType !== "sale") {
+      property.totalUnits = parseInt(totalUnits);
+    }
+    if (deposit !== undefined && property.listingType !== "sale") {
+      property.deposit = deposit ? parseFloat(deposit) : undefined;
+    }
+    if (furnished !== undefined && property.listingType !== "sale") {
+      property.furnished = furnished === "true" || furnished === true;
+    }
+    if (leaseType !== undefined && property.listingType !== "sale") property.leaseType = leaseType;
     if (availableFrom !== undefined) property.availableFrom = availableFrom || undefined;
     if (rules !== undefined) property.rules = rules;
     if (propertyType !== undefined) property.propertyType = propertyType;
@@ -604,6 +642,26 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     if (bookedUnits !== undefined) property.bookedUnits = parseInt(bookedUnits);
     if (university !== undefined) property.university = university;
     if (universityId !== undefined) property.universityId = universityId;
+
+    //  Sale-specific details (transaction type is fixed at creation)
+    if (property.listingType === "sale") {
+      if (priceNegotiable !== undefined) {
+        property.priceNegotiable = priceNegotiable === "true" || priceNegotiable === true;
+      }
+      if (saleTerms !== undefined) property.saleTerms = saleTerms || "cash";
+      if (ownershipType !== undefined) property.ownershipType = ownershipType;
+      if (titleNumber !== undefined) property.titleNumber = titleNumber;
+      if (plotSize !== undefined) property.plotSize = plotSize;
+      if (yearBuilt !== undefined) property.yearBuilt = yearBuilt ? parseInt(yearBuilt) : undefined;
+      if (ownershipProofUrl) {
+        property.listingAuthorization = {
+          method: "authorization_letter",
+          proofUrl: ownershipProofUrl,
+          confirmedAt: new Date(),
+        };
+      }
+    }
+
     property.images = updatedImages;
     if (req.user.role === "agent" && !property.assignedAgent) {
       property.assignedAgent = req.user._id;

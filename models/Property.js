@@ -19,6 +19,14 @@ const propertySchema = new mongoose.Schema(
       required: [true, "Please provide price"],
     },
 
+    //  TRANSACTION TYPE — rentals (default) and houses/plots for sale
+    listingType: {
+      type: String,
+      enum: ["rent", "sale"],
+      default: "rent",
+      index: true,
+    },
+
     deposit: { type: Number, default: 0 },
     furnished: { type: Boolean, default: true },
     leaseType: {
@@ -28,6 +36,22 @@ const propertySchema = new mongoose.Schema(
     },
     availableFrom: { type: Date },
     rules: { type: String, default: "" },
+
+    //  SALE-LISTING FIELDS (only meaningful when listingType === "sale")
+    priceNegotiable: { type: Boolean, default: false },
+    saleTerms: {
+      type: String,
+      enum: ["", "cash", "mortgage", "negotiable"],
+      default: "",
+    },
+    ownershipType: {
+      type: String,
+      enum: ["", "title_deed", "sectional_title", "share_certificate", "agreement", "no_title"],
+      default: "",
+    },
+    titleNumber: { type: String, default: "" },
+    plotSize: { type: String, default: "" },
+    yearBuilt: { type: Number },
 
     propertyType: {
       type: String,
@@ -157,6 +181,9 @@ const propertySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+//  Public listings are queried by status + transaction type, newest first
+propertySchema.index({ status: 1, listingType: 1, createdAt: -1 });
 
 //  Keep availableUnits accurate & auto-unfeature expired promotions
 propertySchema.pre("save", function (next) {
