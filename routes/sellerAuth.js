@@ -2,12 +2,10 @@ import express from "express";
 // QuickSales account auth (legacy path/module name: seller-auth)
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
 import { Resend } from "resend";
 import dotenv from "dotenv";
 import User from "../models/User.js";
 import { formatUserResponse } from "../utils/formatUser.js";
-import { sendVerificationEmail } from "../utils/email.js";
 import { isValidEmail } from "./auth.js";
 
 const router = express.Router();
@@ -52,9 +50,7 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000;
-
+    // QuickSales sellers are usable immediately — no email verification step.
     const seller = new User({
       name: name.trim(),
       email: normalizedEmail,
@@ -63,25 +59,22 @@ router.post("/register", async (req, res) => {
       county: county || "",
       role: "seller",
       isApproved: false,
-      isEmailVerified: false,
-      emailVerificationToken: verificationToken,
-      emailVerificationExpiry: verificationExpiry,
+      isEmailVerified: true,
     });
 
     await seller.save();
 
-    await sendVerificationEmail({
-      to: seller.email,
-      name: seller.name,
-      token: verificationToken,
-      req,
-    });
+    const token = jwt.sign(
+      { userId: seller._id, role: seller.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.status(201).json({
       success: true,
-      message: "Seller account created! Please check your email to verify your account before logging in.",
-      requiresVerification: true,
-      email: seller.email,
+      message: "Seller account created! You're signed in and ready to post.",
+      token,
+      user: formatUserResponse(seller),
     });
   } catch (error) {
     console.error("Seller register error:", error);
@@ -110,14 +103,10 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Incorrect password" });
     }
 
-    // Email verification check - seller must verify email before logging in
+    // Sellers sign in immediately: heal accounts created before that policy.
     if (!seller.isEmailVerified) {
-      return res.status(403).json({
-        error: "Please verify your email before logging in. Check your inbox for the verification link.",
-        requiresVerification: true,
-        email: seller.email,
-        role: "seller"
-      });
+      seller.isEmailVerified = true;
+      await seller.save();
     }
 
     const token = jwt.sign(

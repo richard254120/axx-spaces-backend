@@ -9,6 +9,7 @@ import { Resend } from "resend";
 import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendLandlordRegistrationEmail, sendTourismApprovalEmail, sendMoverApprovalEmail, sendWelcomeEmail, sendVerificationEmail } from "../utils/email.js";
 import security from "../middleware/enhancedSecurity.js";
 import upload from "../config/multer.js";
+import { skipsEmailVerification } from "../utils/verificationPolicy.js";
 
 const router = express.Router();
 
@@ -68,34 +69,29 @@ router.post("/register-member", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
+    // Community accounts sign in immediately — no email verification step.
     const newUser = new User({
       name: name.trim(),
       email: normalizedEmail,
       phone: phone.trim(),
       password: hashedPassword,
       role: "member",
-      isEmailVerified: false,
+      isEmailVerified: true,
       isApproved: true,
-      emailVerificationToken: verificationToken,
-      emailVerificationExpiry: verificationExpiry,
     });
 
     await newUser.save();
 
-    await sendVerificationEmail({
-      to: newUser.email,
-      name: newUser.name,
-      token: verificationToken,
-      req,
-    });
+    const token = jwt.sign(
+      { userId: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     return res.status(201).json({
-      message: "Registration successful! A verification email has been sent to your email. Please verify before logging in.",
-      requiresVerification: true,
-      email: newUser.email,
+      message: "Welcome to AxxSpace! Your community account is ready.",
+      token,
+      user: formatUserResponse(newUser),
     });
   } catch (err) {
     console.error("Member registration error:", err);
@@ -148,6 +144,10 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Explorers, members, sellers and guests are usable immediately; listing
+    // roles still confirm their email before the first sign-in.
+    const autoVerified = skipsEmailVerification(targetRole);
+
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
@@ -162,9 +162,9 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
         targetRole === "landlord" && landlordType === "university"
           ? "university"
           : "general",
-      isEmailVerified: false,
-      emailVerificationToken: verificationToken,
-      emailVerificationExpiry: verificationExpiry,
+      isEmailVerified: autoVerified,
+      emailVerificationToken: autoVerified ? undefined : verificationToken,
+      emailVerificationExpiry: autoVerified ? undefined : verificationExpiry,
     });
 
     if (role === "mover") {
@@ -218,12 +218,14 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
 
     await newUser.save();
 
-    await sendVerificationEmail({
-      to: newUser.email,
-      name: newUser.name,
-      token: verificationToken,
-      req,
-    });
+    if (!autoVerified) {
+      await sendVerificationEmail({
+        to: newUser.email,
+        name: newUser.name,
+        token: verificationToken,
+        req,
+      });
+    }
 
     if (role === "mover") {
       sendMoverRegistrationEmail(newUser).catch(() => {});
@@ -231,6 +233,20 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
       sendSellerRegistrationEmail(newUser).catch(() => {});
     } else if (role === "landlord") {
       sendLandlordRegistrationEmail(newUser).catch(() => {});
+    }
+
+    if (autoVerified) {
+      const token = jwt.sign(
+        { userId: newUser._id, role: newUser.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      return res.status(201).json({
+        message: "Welcome to AxxSpace! Your account is ready.",
+        token,
+        user: formatUserResponse(newUser),
+      });
     }
 
     res.status(201).json({
@@ -292,8 +308,12 @@ router.post("/login", security.authLimiter, async (req, res) => {
 
     console.log(" Password valid for:", normalizedEmail);
 
-    // Email verification check - users must verify their email before logging in
-    if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
+    // Explorers, members and QuickSales sellers sign in immediately: heal any
+    // account created before that policy and skip the verification gate.
+    if (!user.isEmailVerified && skipsEmailVerification(user.role)) {
+      user.isEmailVerified = true;
+      await user.save();
+    } else if (!user.isEmailVerified && user.role !== "admin" && user.role !== "team") {
       return res.status(403).json({
         error: "Please verify your email before logging in. Check your inbox for the verification link.",
         requiresVerification: true,
