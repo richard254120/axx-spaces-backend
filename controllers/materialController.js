@@ -3,11 +3,22 @@ import User from "../models/User.js";
 import Material from "../models/Material.js";
 import { sendMaterialEmail, sendMaterialApprovalEmail } from "../utils/email.js";
 
-// ============ CREATE MATERIAL (Any Authenticated User) ============
+// Publishing on QuickSales is restricted to AXXSpace members and registered sellers
+const PUBLISHING_ROLES = ["member", "seller", "admin"];
+
+// ============ CREATE MATERIAL (AXXSpace members & sellers only) ============
 export const createMaterial = async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: "Authentication required to post items" });
+    }
+
+    if (!PUBLISHING_ROLES.includes(req.user.role)) {
+      return res.status(403).json({
+        error: "Only AXXSpace members and registered sellers can publish items. Upgrade to an AXXSpace membership or create a seller account to start selling.",
+        code: "MEMBERSHIP_REQUIRED",
+        role: req.user.role,
+      });
     }
 
     const {
