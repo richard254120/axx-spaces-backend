@@ -39,6 +39,11 @@ if (process.env.RESEND_API_KEY) {
 //    Always reads from env — no "onboarding@resend.dev" fallback.
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ? `AxxSpace <${process.env.RESEND_FROM_EMAIL}>` : "Axxspace <admin@axxspace.com>";
 
+// Minimum gap between two verification emails sent to the same account.
+// This stops the resend endpoint from being used to flood an inbox.
+const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
+const VERIFICATION_RESEND_COOLDOWN_SECONDS = VERIFICATION_RESEND_COOLDOWN_MS / 1000;
+
 // ====================== REGISTER MEMBER ======================
 router.post("/register-member", async (req, res) => {
   try {
@@ -225,6 +230,10 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
         token: verificationToken,
         req,
       });
+
+      // Record the send time so the resend endpoint can enforce a cooldown
+      newUser.emailVerificationLastSentAt = new Date();
+      await newUser.save();
     }
 
     if (role === "mover") {
@@ -540,12 +549,31 @@ router.post("/verify-email/:token", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ error: "Verification link is invalid or has expired." });
+      // The token is still on the account but past its expiry: let the client
+      // offer a resend instead of a generic failure.
+      const expiredUser = await User.findOne({ emailVerificationToken: token });
+      if (expiredUser) {
+        return res.status(400).json({
+          error: "This verification link has expired. Request a new link below to continue.",
+          expired: true,
+          canResend: true,
+          // Whoever holds the expired token already received it by email,
+          // so echoing the address back is safe and saves retyping.
+          email: expiredUser.email,
+        });
+      }
+
+      return res.status(400).json({
+        error: "This verification link is invalid. Request a new link below to continue.",
+        expired: false,
+        canResend: true,
+      });
     }
 
     user.isEmailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpiry = undefined;
+    user.emailVerificationLastSentAt = undefined;
     await user.save();
 
     // Send welcome email upon successful verification
@@ -576,7 +604,7 @@ router.get("/verify-email/:token", async (req, res) => {
 });
 
 // ====================== RESEND VERIFICATION EMAIL ======================
-router.post("/resend-verification", async (req, res) => {
+router.post("/resend-verification", security.verificationResendLimiter, async (req, res) => {
   try {
     const { email, role } = req.body;
 
@@ -585,6 +613,10 @@ router.post("/resend-verification", async (req, res) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: "Please enter a valid email address (e.g. name@gmail.com)" });
+    }
+
     let query = { email: normalizedEmail };
     if (role) {
       query.role = role;
@@ -602,6 +634,19 @@ router.post("/resend-verification", async (req, res) => {
       return res.status(400).json({ error: "This email is already verified. You can log in directly." });
     }
 
+    // Enforce a short cooldown between resends so the link cannot be spammed
+    if (user.emailVerificationLastSentAt) {
+      const elapsed = Date.now() - new Date(user.emailVerificationLastSentAt).getTime();
+      const remainingMs = VERIFICATION_RESEND_COOLDOWN_MS - elapsed;
+      if (remainingMs > 0) {
+        const retryAfter = Math.ceil(remainingMs / 1000);
+        return res.status(429).json({
+          error: `A verification email was just sent. Please wait ${retryAfter} second${retryAfter === 1 ? "" : "s"} before requesting another.`,
+          retryAfter,
+        });
+      }
+    }
+
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationExpiry = Date.now() + 24 * 60 * 60 * 1000;
 
@@ -616,8 +661,15 @@ router.post("/resend-verification", async (req, res) => {
       req,
     });
 
+    user.emailVerificationLastSentAt = new Date();
+    await user.save();
+
     console.log(` Verification email resent to: ${user.email}`);
-    res.json({ message: "Verification email sent successfully! Please check your inbox (and spam folder)." });
+    res.json({
+      message: "Verification email sent successfully! Please check your inbox (and spam folder).",
+      retryAfter: VERIFICATION_RESEND_COOLDOWN_SECONDS,
+      expiresInHours: 24,
+    });
 
   } catch (err) {
     console.error(" Resend verification error:", err);

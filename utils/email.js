@@ -669,7 +669,7 @@ export const sendVerificationEmail = async ({ to, name, token, req }) => {
 
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #fbbf24; border-radius: 8px; padding: 14px 18px; margin-bottom: 22px;">
           <p style="margin: 0; color: #475569; font-size: 13px; line-height: 1.5;">
-            <strong>Note:</strong> This verification link is valid for <strong>24 hours</strong>. Once verified, you will be automatically redirected to log in.
+            <strong>Note:</strong> This verification link is valid for <strong>24 hours</strong>. If it expires, return to the login page and choose <strong>Resend Verification Email</strong> to get a fresh link.
           </p>
         </div>
 

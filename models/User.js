@@ -255,6 +255,10 @@ const userSchema = new mongoose.Schema(
     emailVerificationExpiry: {
       type: Date,
     },
+    // When the verification email was last sent, used to rate-limit resends
+    emailVerificationLastSentAt: {
+      type: Date,
+    },
 
     //  GOOGLE OAUTH FIELDS
     googleId: {

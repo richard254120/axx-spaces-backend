@@ -222,6 +222,14 @@ const passwordResetLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
+// Rate limiter for verification email resends (protects the mail quota from spam)
+const verificationResendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "Too many verification emails requested. Please wait a few minutes and try again." },
+  skipSuccessfulRequests: false,
+});
+
 // Input Validation Middleware
 const validateInput = (req, res, next) => {
   const suspiciousPatterns = [
@@ -413,6 +421,7 @@ export default {
   generalLimiter: enhancedRateLimit,
   authLimiter,
   passwordResetLimiter,
+  verificationResendLimiter,
   csrfProtection,
   attachCSRFToken,
   generateCSRFToken,
