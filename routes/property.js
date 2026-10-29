@@ -11,6 +11,10 @@ import { trackPropertyView } from "../middleware/viewTracking.js";
 
 const router = express.Router();
 
+// Timestamp of the last "expire finished promotions" sweep. Kept in module
+// scope so the sweep runs once a minute instead of on every listing request.
+let lastPromotionSweep = 0;
+
 // ====================== CREATE PROPERTY ======================
 router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "admin", "team", "provider", "caretaker"), security.uploadLimiter, upload.fields([{ name: "images", maxCount: 10 }, { name: "videos", maxCount: 10 }]), async (req, res) => {
   try {
@@ -215,21 +219,28 @@ router.get("/", async (req, res) => {
 
     const cap = Math.min(parseInt(limit) || 100, 500);
 
-    // Check and expire promotions that have ended
-    await Property.updateMany(
-      {
-        isFeatured: true,
-        promotionEndDate: { $lt: new Date() }
-      },
-      {
-        $set: {
-          isFeatured: false,
-          promotionTier: null,
-          promotionStartDate: null,
-          promotionEndDate: null
+    // Check and expire promotions that have ended.
+    // This used to run on every single GET, which turned a read endpoint into a
+    // write on the busiest table. It is now throttled to once a minute.
+    if (Date.now() - lastPromotionSweep > 60_000) {
+      lastPromotionSweep = Date.now();
+      Property.updateMany(
+        {
+          isFeatured: true,
+          promotionEndDate: { $lt: new Date() }
+        },
+        {
+          $set: {
+            isFeatured: false,
+            promotionTier: null,
+            promotionStartDate: null,
+            promotionEndDate: null
+          }
         }
-      }
-    );
+      ).catch((sweepError) => {
+        console.error("Promotion sweep failed:", sweepError.message);
+      });
+    }
 
     const properties = await Property.find(query)
       .populate("owner", "name phone email verificationBadges")
@@ -241,6 +252,9 @@ router.get("/", async (req, res) => {
       availableUnits: Math.max(0, (p.totalUnits || 1) - (p.bookedUnits || 0)),
     }));
 
+    // Short public cache: repeat visits and back-navigation paint instantly,
+    // while newly approved listings still appear within half a minute.
+    res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
     res.json(processed);
   } catch (error) {
     console.error(" Get properties error:", error);

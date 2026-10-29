@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import helmet from "helmet";
+import compression from "compression";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import fs from "fs";
@@ -81,6 +82,15 @@ app.set("trust proxy", 1);
 
 // ====================== SECURITY MIDDLEWARE ======================
 security.applyTo(app);
+
+// ====================== COMPRESSION ======================
+// Listing payloads are large JSON arrays; gzip takes them from megabytes to a
+// few hundred kilobytes on the wire. Registered first so every response and
+// every proxied upload benefits.
+app.use(compression({
+  threshold: 1024, // don't bother compressing tiny responses
+  level: 6,        // good balance of CPU vs transfer size
+}));
 
 // ====================== BODY PARSERS ======================
 app.use(express.json({ limit: "10mb" }));
@@ -191,8 +201,14 @@ app.use("/api/users", security.apiLimiter, userRoutes);
 app.use("/api/members", security.apiLimiter, memberRoutes);
 
 // ====================== STATIC FILE SERVING ======================
-// Serve uploaded files
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Serve uploaded files. Uploads are content-addressed by their Cloudinary name
+// and never change in place, so they can be cached hard by the browser.
+app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
+  maxAge: "30d",
+  immutable: true,
+  etag: true,
+  lastModified: true,
+}));
 
 app.get("/api/health", (req, res) =>
   res.json({ status: "OK", timestamp: new Date().toISOString() })

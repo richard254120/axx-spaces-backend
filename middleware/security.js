@@ -29,6 +29,8 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       "http://localhost:5173",
+      "http://localhost:4173", // vite preview (production build smoke test)
+      "http://localhost:4174",
       "http://localhost:3000",
       "http://localhost:3001",
       "http://localhost:3002",
