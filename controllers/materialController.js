@@ -215,19 +215,23 @@ export const markAsSold = async (req, res) => {
     material.status = "sold";
     await material.save();
 
-    // Track commission for the platform (5% of material price)
-    const commission = material.price * 0.05;
-    await User.findByIdAndUpdate(req.user._id, {
-      $inc: { totalCommissionEarned: commission },
-      $push: {
-        commissionHistory: {
-          type: "material_sale",
-          amount: commission,
-          referenceId: material._id,
-          date: new Date(),
+    // Only paid seller accounts accrue platform commission — Explorer
+    // (community) accounts sell commission-free.
+    if (req.user.role === "seller") {
+      // Track commission for the platform (5% of material price)
+      const commission = material.price * 0.05;
+      await User.findByIdAndUpdate(req.user._id, {
+        $inc: { totalCommissionEarned: commission },
+        $push: {
+          commissionHistory: {
+            type: "material_sale",
+            amount: commission,
+            referenceId: material._id,
+            date: new Date(),
+          },
         },
-      },
-    });
+      });
+    }
 
     res.json({ success: true, material });
   } catch (error) {
