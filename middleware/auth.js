@@ -77,11 +77,11 @@ export const authorize = (...roles) => {
   };
 };
 
-// 5. Host-only middleware for accommodation routes
+// 5. Host/Agent-only middleware for accommodation routes
 export const hostOnly = async (req, res, next) => {
   try {
-    if (!req.user || (req.user.role !== "host" && req.user.role !== "admin")) {
-      return res.status(403).json({ error: " Access denied. Host only." });
+    if (!req.user || (req.user.role !== "host" && req.user.role !== "agent" && req.user.role !== "admin")) {
+      return res.status(403).json({ error: " Access denied. Hosts and agents only." });
     }
     next();
   } catch (error) {
