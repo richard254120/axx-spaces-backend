@@ -12,6 +12,7 @@ import upload from "../config/multer.js";
 import accommodationUpload from "../config/multerAccommodation.js";
 import security from "../middleware/security.js";
 import { notifyUser } from "../utils/userNotifications.js";
+import { getEffectiveListingLimit } from "../config/providerPackages.js";
 
 const router = express.Router();
 
@@ -50,6 +51,20 @@ router.post("/", auth, hostOnly, uploadAccommodationMedia, async (req, res) => {
       return res.status(401).json({
         error: "User does not exist or invalid token. Please login again."
       });
+    }
+
+    // Free-tier listing cap — paid provider subscriptions raise the limit
+    if (!["admin", "team"].includes(req.user.role)) {
+      const capUser = await User.findById(req.user._id).select("providerSubscription role");
+      const { limit, tier } = getEffectiveListingLimit(capUser, "host");
+      if (limit !== Infinity) {
+        const activeCount = await Accommodation.countDocuments({ owner: req.user._id, status: { $ne: "rejected" } });
+        if (activeCount >= limit) {
+          return res.status(403).json({
+            error: `Your ${tier} plan allows ${limit} active accommodation listing${limit === 1 ? "" : "s"}. Remove an old listing or upgrade your plan to list more.`,
+          });
+        }
+      }
     }
 
     const {
@@ -322,7 +337,7 @@ router.get("/", async (req, res) => {
 
     const accommodations = await Accommodation.find(query)
       .populate("owner", "name phone email verificationBadges")
-      .sort({ isFeatured: -1, createdAt: -1 })
+      .sort({ isHomeFeature: -1, isFeatured: -1, createdAt: -1 })
       .limit(cap);
 
     // Get images for each accommodation

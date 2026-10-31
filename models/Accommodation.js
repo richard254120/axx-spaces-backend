@@ -135,8 +135,12 @@ const accommodationSchema = new mongoose.Schema(
     },
     promotionTier: {
       type: String,
-      enum: ["none", "boost-3days", "boost-7days", "boost-30days", "premium-30days"],
+      enum: ["none", "boost-3days", "boost-7days", "boost-30days", "premium-30days", "home-7days", "home-30days"],
       default: "none",
+    },
+    isHomeFeature: {
+      type: Boolean,
+      default: false,
     },
     views: {
       type: Number,
@@ -164,6 +168,7 @@ const accommodationSchema = new mongoose.Schema(
 accommodationSchema.pre("save", function (next) {
   if (this.isFeatured && this.promotionEndDate && new Date() > this.promotionEndDate) {
     this.isFeatured = false;
+    this.isHomeFeature = false;
     this.promotionTier = "none";
   }
   next();

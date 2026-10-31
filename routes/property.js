@@ -8,6 +8,7 @@ import upload from "../config/multer.js";
 import { sendPropertyEmail, sendPropertyApprovalEmail } from "../utils/email.js";
 import security from "../middleware/security.js";
 import { trackPropertyView } from "../middleware/viewTracking.js";
+import { getEffectiveListingLimit } from "../config/providerPackages.js";
 
 const router = express.Router();
 
@@ -22,6 +23,20 @@ router.post(["/", "/create"], auth, requireRole("landlord", "agent", "host", "ad
       return res.status(401).json({
         error: "User does not exist or invalid token. Please login again."
       });
+    }
+
+    // Free-tier listing cap — paid provider subscriptions raise the limit
+    if (!["admin", "team"].includes(req.user.role)) {
+      const capUser = await User.findById(req.user._id).select("providerSubscription role");
+      const { limit, tier } = getEffectiveListingLimit(capUser, "landlord");
+      if (limit !== Infinity) {
+        const activeCount = await Property.countDocuments({ owner: req.user._id, status: { $ne: "rejected" } });
+        if (activeCount >= limit) {
+          return res.status(403).json({
+            error: `Your ${tier} plan allows ${limit} active rental listing${limit === 1 ? "" : "s"}. Remove an old listing or upgrade your plan to list more.`,
+          });
+        }
+      }
     }
 
     const {

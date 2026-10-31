@@ -131,8 +131,12 @@ const propertySchema = new mongoose.Schema(
     },
     promotionTier: {
       type: String,
-      enum: ["none", "boost-3days", "boost-7days", "boost-30days", "premium-30days"],
+      enum: ["none", "boost-3days", "boost-7days", "boost-30days", "premium-30days", "home-7days", "home-30days"],
       default: "none",
+    },
+    isHomeFeature: {
+      type: Boolean,
+      default: false,
     },
     promotionStartDate: {
       type: Date,
@@ -192,6 +196,7 @@ propertySchema.pre("save", function (next) {
   // Auto-unfeature if promotion expired
   if (this.isFeatured && this.promotionEndDate && new Date() > this.promotionEndDate) {
     this.isFeatured = false;
+    this.isHomeFeature = false;
     this.promotionTier = "none";
   }
 

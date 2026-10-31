@@ -4,8 +4,15 @@ import { auth } from "../middleware/auth.js";
 import User from "../models/User.js";
 import Property from "../models/Property.js";
 import Material from "../models/Material.js";
+import Accommodation from "../models/Accommodation.js";
 import Config from "../models/Config.js";
 import Notification from "../models/Notification.js";
+import { PROMOTION_CATALOG, findPromotion } from "../config/promotionCatalog.js";
+import {
+  getAllProviderPackages,
+  getProviderPackage,
+  calculateProviderExpiry,
+} from "../config/providerPackages.js";
 
 const router = express.Router();
 
@@ -57,6 +64,36 @@ const getAccessToken = async () => {
     console.error("Access Token Error:", error.response?.data || error.message);
     throw new Error("Failed to authenticate with M-Pesa");
   }
+};
+
+/**
+ * Shared STK Push sender — builds credentials, fires the prompt and returns the M-Pesa response
+ */
+const sendStkPush = async ({ phone, amount, description }) => {
+  const token = await getAccessToken();
+  const config = await getMpesaConfig();
+  const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+  const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
+
+  const payload = {
+    BusinessShortCode: config.MPESA_SHORTCODE,
+    Password: password,
+    Timestamp: timestamp,
+    TransactionType: "CustomerPayBillOnline",
+    Amount: Math.round(Number(amount)),
+    PartyA: phone.replace(/\s+/g, ""),
+    PartyB: config.MPESA_SHORTCODE,
+    PhoneNumber: phone.replace(/\s+/g, ""),
+    CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
+    AccountReference: config.MPESA_ACCOUNT_NUMBER,
+    TransactionDesc: description,
+  };
+
+  return axios.post(
+    "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+    payload,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
 };
 
 // ====================== NEW: STK PUSH (INITIATION) ======================
@@ -161,6 +198,34 @@ router.post("/callback", async (req, res) => {
           }
         }
 
+        // If payment was for a listing promotion (unified boost/homepage feature via catalog)
+        if (payment.type === "listing_promotion" && payment.listingId) {
+          const isHome = Boolean(payment.homeFeature);
+          const durationDays = payment.durationDays || 30;
+          const model = payment.listingModel === "Property" ? Property : Accommodation;
+          const listing = await model.findById(payment.listingId);
+          if (listing) {
+            listing.isFeatured = true;
+            listing.promotionStartDate = new Date();
+            listing.promotionEndDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+            listing.promotionTier = payment.plan;
+            listing.isHomeFeature = isHome;
+            await listing.save();
+
+            // Track on the paying user's record
+            await User.findByIdAndUpdate(user._id, {
+              $push: {
+                promotedListings: {
+                  propertyId: payment.listingId,
+                  tier: payment.plan,
+                  startDate: new Date(),
+                  endDate: listing.promotionEndDate,
+                },
+              },
+            });
+          }
+        }
+
         // If payment was for a material boost, update the material
         if (payment.materialId) {
           const material = await Material.findById(payment.materialId);
@@ -249,6 +314,18 @@ router.post("/callback", async (req, res) => {
           }
         }
 
+        // If payment was for a landlord/host provider subscription, activate it
+        if (payment.subscriptionType === "provider" && payment.tier) {
+          user.providerSubscription = {
+            tier: payment.tier,
+            role: payment.providerRole || user.role,
+            startedAt: new Date(),
+            expiresAt: calculateProviderExpiry(),
+            lastAmount: payment.amount,
+            lastTransactionId: payment.transactionId,
+          };
+        }
+
         // If payment was for property booking, create booking record
         if (payment.type === "property_booking" && payment.propertyId) {
           const property = await Property.findById(payment.propertyId);
@@ -321,7 +398,7 @@ router.post("/callback", async (req, res) => {
         }
 
         // If payment was for mover profile boost
-        if (payment.moverId || (!payment.propertyId && !payment.materialId && !payment.businessId && !payment.subscriptionType && payment.plan && (payment.plan.includes("Profile Boost") || payment.plan.startsWith("boost-")))) {
+        if ((payment.moverId || (!payment.propertyId && !payment.materialId && !payment.businessId && !payment.subscriptionType && !payment.accommodationId && !payment.listingId && payment.plan && (payment.plan.includes("Profile Boost") || payment.plan.startsWith("boost-"))))) {
           const moverId = payment.moverId || user._id;
           const mover = await User.findById(moverId);
           if (mover) {
@@ -360,6 +437,10 @@ router.post("/callback", async (req, res) => {
             notificationData.tourismId = payment.tourismId;
             notificationData.checkIn = payment.checkIn;
             notificationData.checkOut = payment.checkOut;
+            if (payment.feeAmount) notificationData.serviceFee = payment.feeAmount;
+          } else if (payment.type === "listing_promotion") {
+            notificationData.listingId = payment.listingId;
+            notificationData.listingModel = payment.listingModel;
           }
 
           const notification = new Notification(notificationData);
@@ -513,7 +594,8 @@ router.post("/purchase-material", auth, async (req, res) => {
   }
 });
 
-// ====================== TOURISM BOOKING PAYMENT ======================
+// ====================== TOURISM / ACCOMMODATION BOOKING PAYMENT ======================
+// Charges stay amount + platform service fee in a single M-Pesa prompt.
 router.post("/book-tourism", auth, async (req, res) => {
   try {
     const { tourismId, phone, amount, checkIn, checkOut } = req.body;
@@ -528,36 +610,25 @@ router.post("/book-tourism", auth, async (req, res) => {
       return res.status(404).json({ error: " Tourism listing not found" });
     }
 
-    const token = await getAccessToken();
-    const config = await getMpesaConfig();
-    const timestamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
-    const password = Buffer.from(`${config.MPESA_SHORTCODE}${config.MPESA_PASSKEY}${timestamp}`).toString("base64");
+    // Platform service fee on in-platform bookings
+    const baseAmount = Math.round(Number(amount));
+    const feePercent = PROMOTION_CATALOG.bookingServiceFeePercent;
+    const feeAmount = feePercent > 0 ? Math.round(baseAmount * feePercent / 100) : 0;
+    const totalAmount = baseAmount + feeAmount;
 
-    const payload = {
-      BusinessShortCode: config.MPESA_SHORTCODE,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: "CustomerPayBillOnline",
-      Amount: Math.round(Number(amount)),
-      PartyA: phone.replace(/\s+/g, ""),
-      PartyB: config.MPESA_SHORTCODE,
-      PhoneNumber: phone.replace(/\s+/g, ""),
-      CallBackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
-      AccountReference: config.MPESA_ACCOUNT_NUMBER,
-      TransactionDesc: `Tourism Booking: ${tourism.name}`,
-    };
-
-    const mpesaResponse = await axios.post(
-      "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
-      payload,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const mpesaResponse = await sendStkPush({
+      phone,
+      amount: totalAmount,
+      description: `Booking: ${tourism.name} (incl. ${feePercent}% service fee)`,
+    });
 
     await User.findByIdAndUpdate(req.user.id, {
       $push: {
         paymentHistory: {
           transactionId: mpesaResponse.data.CheckoutRequestID,
-          amount,
+          amount: totalAmount,
+          baseAmount,
+          feeAmount,
           tourismId,
           checkIn,
           checkOut,
@@ -570,13 +641,176 @@ router.post("/book-tourism", auth, async (req, res) => {
 
     res.json({
       success: true,
-      message: " M-Pesa prompt sent! Enter PIN on your phone to complete tourism booking.",
+      message: feeAmount > 0
+        ? `M-Pesa prompt sent! Enter PIN to complete your booking (KSh ${totalAmount.toLocaleString()} incl. KSh ${feeAmount.toLocaleString()} service fee).`
+        : " M-Pesa prompt sent! Enter PIN on your phone to complete tourism booking.",
       checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
+      baseAmount,
+      serviceFee: feeAmount,
+      feePercent,
+      totalAmount,
     });
 
   } catch (error) {
     console.error("Tourism Booking Payment Error:", error.response?.data || error.message);
     res.status(500).json({ error: "Failed to initiate tourism booking payment" });
+  }
+});
+
+// ====================== PROMOTION CATALOG (boosts & homepage features) ======================
+// Public — frontend renders pricing from this single source of truth
+router.get("/promotion-catalog", (req, res) => {
+  res.json({ success: true, catalog: PROMOTION_CATALOG });
+});
+
+// Purchase a boost or homepage feature for a rental (Property) or accommodation listing.
+// Only the listing owner (or admin) can pay to promote it.
+router.post("/initiate-listing-promotion", auth, async (req, res) => {
+  try {
+    const { listingType, listingId, planId, phone: inputPhone } = req.body;
+
+    if (!["Property", "Accommodation"].includes(listingType)) {
+      return res.status(400).json({ error: "listingType must be Property or Accommodation" });
+    }
+
+    const plan = findPromotion(planId);
+    if (!plan) {
+      return res.status(400).json({ error: "Invalid promotion plan. See /promotion-catalog for options." });
+    }
+
+    const Model = listingType === "Property" ? Property : Accommodation;
+    const listing = await Model.findById(listingId);
+    if (!listing) {
+      return res.status(404).json({ error: "Listing not found" });
+    }
+
+    const ownerRef = listing.owner?._id ? listing.owner._id : listing.owner;
+    const isOwner = ownerRef && ownerRef.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only the listing owner can promote this listing" });
+    }
+
+    const phone = (inputPhone || req.user.phone || "").replace(/\s+/g, "");
+    if (!phone) {
+      return res.status(400).json({ error: "Phone number is required for the M-Pesa prompt" });
+    }
+
+    const isHomeFeature = plan.id.startsWith("home-");
+    const mpesaResponse = await sendStkPush({
+      phone,
+      amount: plan.price,
+      description: `${isHomeFeature ? "Homepage Feature" : "Boost"}: ${listing.name || listing.title || "Listing"}`,
+    });
+
+    await User.findByIdAndUpdate(req.user.id, {
+      $push: {
+        paymentHistory: {
+          transactionId: mpesaResponse.data.CheckoutRequestID,
+          amount: plan.price,
+          plan: plan.id,
+          durationDays: plan.durationDays,
+          homeFeature: isHomeFeature,
+          listingId,
+          listingModel: listingType,
+          type: "listing_promotion",
+          status: "pending",
+          date: new Date(),
+        },
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: `M-Pesa prompt sent! Enter PIN on your phone to activate the ${plan.name} for KSh ${plan.price}.`,
+      checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
+      plan: { id: plan.id, name: plan.name, price: plan.price, durationDays: plan.durationDays },
+      amount: plan.price,
+    });
+  } catch (error) {
+    console.error("Listing Promotion Initiation Error:", error.response?.data || error.message);
+    return res.status(500).json({ error: "Failed to send M-Pesa prompt. Please try again." });
+  }
+});
+
+// ====================== PROVIDER SUBSCRIPTIONS (landlord / host) ======================
+// Returns the packages for the caller's provider role plus their current subscription state.
+router.get("/provider-packages", auth, async (req, res) => {
+  try {
+    const role = req.user.role === "landlord" ? "landlord" : req.user.role === "host" ? "host" : null;
+    if (!role) {
+      return res.status(400).json({ error: "Provider subscriptions are for landlord and host accounts" });
+    }
+
+    const user = await User.findById(req.user._id).select("providerSubscription");
+    const sub = user?.providerSubscription;
+    const active = sub && sub.tier !== "free" && sub.expiresAt && new Date(sub.expiresAt) > new Date();
+
+    return res.json({
+      success: true,
+      role,
+      packages: getAllProviderPackages(role),
+      current: {
+        tier: active ? sub.tier : "free",
+        expiresAt: active ? sub.expiresAt : null,
+      },
+    });
+  } catch (error) {
+    console.error("Provider Packages Error:", error);
+    return res.status(500).json({ error: "Failed to fetch provider packages" });
+  }
+});
+
+// Buy a landlord/host monthly subscription via M-Pesa STK Push.
+router.post("/subscribe-provider", auth, async (req, res) => {
+  try {
+    const { tier, phone: inputPhone } = req.body;
+
+    const role = req.user.role === "landlord" ? "landlord" : req.user.role === "host" ? "host" : null;
+    if (!role) {
+      return res.status(403).json({ error: "Only landlords and hosts can buy provider subscriptions" });
+    }
+
+    const pkg = getProviderPackage(role, tier);
+    if (!pkg || pkg.price <= 0) {
+      return res.status(400).json({ error: "Invalid tier. Choose starter or pro." });
+    }
+
+    const phone = (inputPhone || req.user.phone || "").replace(/\s+/g, "");
+    if (!phone) {
+      return res.status(400).json({ error: "Phone number is required for the M-Pesa prompt" });
+    }
+
+    const mpesaResponse = await sendStkPush({
+      phone,
+      amount: pkg.price,
+      description: `Axxspace ${pkg.name} Plan (30 days)`,
+    });
+
+    await User.findByIdAndUpdate(req.user._id, {
+      $push: {
+        paymentHistory: {
+          transactionId: mpesaResponse.data.CheckoutRequestID,
+          amount: pkg.price,
+          plan: pkg.name,
+          tier,
+          providerRole: role,
+          subscriptionType: "provider",
+          status: "pending",
+          date: new Date(),
+        },
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: `M-Pesa prompt sent! Enter PIN on your phone to activate the ${pkg.name} plan.`,
+      checkoutRequestID: mpesaResponse.data.CheckoutRequestID,
+      tier,
+      amount: pkg.price,
+    });
+  } catch (error) {
+    console.error("Provider Subscription Error:", error.response?.data || error.message);
+    return res.status(500).json({ error: "Failed to send M-Pesa prompt. Please try again." });
   }
 });
 
