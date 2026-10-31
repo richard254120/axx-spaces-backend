@@ -114,3 +114,21 @@ export const requireRole = (...roles) => {
     next();
   };
 };
+
+// 8. Optional auth — attaches req.user when a valid token is present, otherwise continues as guest
+export const optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return next();
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    const user = await User.findById(decoded.userId).select("-password");
+    if (user && !user.isBanned) {
+      req.user = user;
+      req.userId = decoded.userId;
+    }
+  } catch {
+    // Invalid/expired token — treat as guest rather than failing the request
+  }
+  next();
+};

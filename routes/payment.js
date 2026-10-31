@@ -612,7 +612,7 @@ router.post("/book-tourism", auth, async (req, res) => {
 
     // Platform service fee on in-platform bookings
     const baseAmount = Math.round(Number(amount));
-    const feePercent = PROMOTION_CATALOG.bookingServiceFeePercent;
+    const feePercent = Number(process.env.BOOKING_SERVICE_FEE_PERCENT || PROMOTION_CATALOG.bookingServiceFeePercent);
     const feeAmount = feePercent > 0 ? Math.round(baseAmount * feePercent / 100) : 0;
     const totalAmount = baseAmount + feeAmount;
 

@@ -7,11 +7,12 @@ import Availability from "../models/Availability.js";
 import Booking from "../models/Booking.js";
 import Review from "../models/Review.js";
 import User from "../models/User.js";
-import { auth, adminOnly, authorize, hostOnly } from "../middleware/auth.js";
+import { auth, adminOnly, authorize, hostOnly, optionalAuth } from "../middleware/auth.js";
 import upload from "../config/multer.js";
 import accommodationUpload from "../config/multerAccommodation.js";
 import security from "../middleware/security.js";
 import { notifyUser } from "../utils/userNotifications.js";
+import { maskOwnerContact } from "../utils/contactMask.js";
 import { getEffectiveListingLimit } from "../config/providerPackages.js";
 
 const router = express.Router();
@@ -508,7 +509,7 @@ router.get("/my-accommodations/all", auth, async (req, res) => {
 });
 
 // ====================== GET SINGLE ACCOMMODATION ======================
-router.get("/:id", async (req, res) => {
+router.get("/:id", optionalAuth, async (req, res) => {
   try {
     const accommodation = await Accommodation.findById(req.params.id)
       .populate("owner", "name phone email verificationBadges")
@@ -532,12 +533,12 @@ router.get("/:id", async (req, res) => {
       .populate("user", "name profileImage")
       .sort({ createdAt: -1 });
 
-    res.json({
+    res.json(maskOwnerContact({
       ...accommodation.toObject(),
       images,
       roomTypes,
       reviews,
-    });
+    }, req));
   } catch (error) {
     console.error("Get single accommodation error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch accommodation" });

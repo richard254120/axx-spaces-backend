@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 import Property from "../models/Property.js";
 import QRScan from "../models/QRScan.js";
 import User from "../models/User.js";
-import { auth, requireRole } from "../middleware/auth.js";
+import { auth, requireRole, optionalAuth } from "../middleware/auth.js";
+import { maskOwnerContact } from "../utils/contactMask.js";
 import upload from "../config/multer.js";
 import { sendPropertyEmail, sendPropertyApprovalEmail } from "../utils/email.js";
 import security from "../middleware/security.js";
@@ -279,7 +280,7 @@ router.get("/", async (req, res) => {
 
 // ====================== GET SINGLE PROPERTY ======================
 // Used by MapView "View listing →" links and detail pages
-router.get("/:id", trackPropertyView, async (req, res) => {
+router.get("/:id", optionalAuth, trackPropertyView, async (req, res) => {
   try {
     const property = await Property.findById(req.params.id)
       .populate("owner", "name phone email")
@@ -287,10 +288,10 @@ router.get("/:id", trackPropertyView, async (req, res) => {
 
     if (!property) return res.status(404).json({ error: " Property not found" });
 
-    res.json({
+    res.json(maskOwnerContact({
       ...property.toObject(),
       availableUnits: Math.max(0, (property.totalUnits || 1) - (property.bookedUnits || 0)),
-    });
+    }, req));
   } catch (error) {
     console.error(" Get single property error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch property" });
