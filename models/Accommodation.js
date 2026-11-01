@@ -53,6 +53,13 @@ const accommodationSchema = new mongoose.Schema(
     amenities: [{
       type: String,
     }],
+    // Category-specific listing details collected by the tailored registration
+    // form (e.g. star rating for hotels, dorm style for hostels, ablutions for
+    // campsites). Free-form label → value object, displayed on the listing page.
+    extraDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     videos: [{
       type: String,
       trim: true,

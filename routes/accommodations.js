@@ -72,7 +72,7 @@ router.post("/", auth, hostOnly, uploadAccommodationMedia, async (req, res) => {
       name, type, description, address, lat, lng,
       amenities, houseRules, checkInTime, checkOutTime,
       maxGuests, totalRooms, basePrice, weekendPrice, peakPrice,
-      county, town, commonLocation, mapLink, bookingUrl
+      county, town, commonLocation, mapLink, bookingUrl, extraDetails
     } = req.body;
 
     if (!name || !type || !description || !address || !lat || !lng) {
@@ -84,6 +84,17 @@ router.post("/", auth, hostOnly, uploadAccommodationMedia, async (req, res) => {
       parsedAmenities = amenities ? JSON.parse(amenities) : [];
     } catch (e) {
       parsedAmenities = Array.isArray(amenities) ? amenities : [];
+    }
+
+    // Category-specific listing details (star rating, dorm style, ablutions, etc.)
+    let parsedExtraDetails = {};
+    if (extraDetails) {
+      try {
+        const raw = typeof extraDetails === "string" ? JSON.parse(extraDetails) : extraDetails;
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) parsedExtraDetails = raw;
+      } catch (e) {
+        parsedExtraDetails = {};
+      }
     }
 
     // Extract image files and video files
@@ -129,6 +140,7 @@ router.post("/", auth, hostOnly, uploadAccommodationMedia, async (req, res) => {
       bookingUrl: bookingUrl || "",
       location: { lat: parseFloat(lat), lng: parseFloat(lng) },
       amenities: parsedAmenities,
+      extraDetails: parsedExtraDetails,
       houseRules: houseRules || "",
       checkInTime: checkInTime || "14:00",
       checkOutTime: checkOutTime || "11:00",
@@ -563,7 +575,7 @@ router.patch("/:id", auth, uploadAccommodationMedia, async (req, res) => {
       amenities, houseRules, checkInTime, checkOutTime,
       maxGuests, totalRooms, basePrice, weekendPrice, peakPrice,
       county, town, commonLocation, mapLink, bookingUrl,
-      remainingImages, removeVideos
+      remainingImages, removeVideos, extraDetails
     } = req.body;
 
     let parsedAmenities = [];
@@ -572,6 +584,17 @@ router.patch("/:id", auth, uploadAccommodationMedia, async (req, res) => {
         parsedAmenities = typeof amenities === "string" ? JSON.parse(amenities) : amenities;
       } catch (e) {
         parsedAmenities = Array.isArray(amenities) ? amenities : [];
+      }
+    }
+
+    let parsedExtraDetails = null;
+    if (extraDetails !== undefined) {
+      parsedExtraDetails = {};
+      try {
+        const raw = typeof extraDetails === "string" ? JSON.parse(extraDetails) : extraDetails;
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) parsedExtraDetails = raw;
+      } catch (e) {
+        parsedExtraDetails = {};
       }
     }
 
@@ -641,6 +664,7 @@ router.patch("/:id", auth, uploadAccommodationMedia, async (req, res) => {
     if (lat !== undefined && !isNaN(parseFloat(lat))) accommodation.location.lat = parseFloat(lat);
     if (lng !== undefined && !isNaN(parseFloat(lng))) accommodation.location.lng = parseFloat(lng);
     if (amenities !== undefined) accommodation.amenities = parsedAmenities;
+    if (parsedExtraDetails !== null) accommodation.extraDetails = parsedExtraDetails;
     if (houseRules !== undefined) accommodation.houseRules = houseRules;
     if (checkInTime !== undefined) accommodation.checkInTime = checkInTime;
     if (checkOutTime !== undefined) accommodation.checkOutTime = checkOutTime;
