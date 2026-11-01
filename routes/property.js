@@ -583,7 +583,7 @@ router.patch("/:id/status", auth, async (req, res) => {
 });
 
 // ====================== UPDATE PROPERTY (OWNER OR ADMIN) ======================
-router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
+router.patch("/:id", auth, upload.fields([{ name: "images", maxCount: 10 }, { name: "videos", maxCount: 5 }]), async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property) return res.status(404).json({ error: " Property not found" });
@@ -599,7 +599,7 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
       title, description, location, price, bedrooms, bathrooms,
       amenities, totalUnits, deposit, furnished, leaseType,
       availableFrom, rules, propertyType, county, lat, lng,
-      bookedUnits, university, universityId, remainingImages,
+      bookedUnits, university, universityId, remainingImages, remainingVideos,
       priceNegotiable, saleTerms, ownershipType, titleNumber,
       plotSize, yearBuilt, ownershipProofUrl
     } = req.body;
@@ -635,7 +635,7 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     }
 
     // Append newly uploaded images
-    const newImageUrls = req.files ? req.files.map((file) => file.path || file.secure_url) : [];
+    const newImageUrls = (req.files?.images || []).map((file) => file.path || file.secure_url);
     const updatedImages = [...parsedRemainingImages, ...newImageUrls];
 
     if (updatedImages.length === 0) {
@@ -643,6 +643,27 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     }
     if (updatedImages.length > 15) {
       return res.status(400).json({ error: " Maximum 15 images allowed" });
+    }
+
+    // Handle video gallery: keep existing minus removals, append newly uploaded
+    let parsedRemainingVideos = [];
+    if (Object.prototype.hasOwnProperty.call(req.body, "remainingVideos")) {
+      if (remainingVideos) {
+        try {
+          parsedRemainingVideos = typeof remainingVideos === "string" ? JSON.parse(remainingVideos) : remainingVideos;
+        } catch (e) {
+          parsedRemainingVideos = Array.isArray(remainingVideos) ? remainingVideos : [];
+        }
+      }
+    } else {
+      parsedRemainingVideos = property.videos || [];
+    }
+
+    const newVideoUrls = (req.files?.videos || []).map((file) => file.path || file.secure_url);
+    const updatedVideos = [...parsedRemainingVideos, ...newVideoUrls];
+
+    if (updatedVideos.length > 5) {
+      return res.status(400).json({ error: " Maximum 5 videos allowed" });
     }
 
     // Update property fields if provided
@@ -693,6 +714,7 @@ router.patch("/:id", auth, upload.array("images", 10), async (req, res) => {
     }
 
     property.images = updatedImages;
+    property.videos = updatedVideos;
     if (req.user.role === "agent" && !property.assignedAgent) {
       property.assignedAgent = req.user._id;
     }
