@@ -18,7 +18,6 @@ const __dirname = path.dirname(__filename);
 
 // Routes
 import authRoutes from "./routes/auth.js";
-import appDownloadRoutes from "./routes/appDownload.js";
 import caretakerRoutes from "./routes/caretaker.js";
 import propertyRoutes from "./routes/property.js";
 import paymentRoutes from "./routes/payment.js";
@@ -202,10 +201,6 @@ app.use("/api/reports", security.apiLimiter, reportsRoutes);
 app.use("/api/waitlist", security.apiLimiter, waitlistRoutes);
 app.use("/api/users", security.apiLimiter, userRoutes);
 app.use("/api/members", security.apiLimiter, memberRoutes);
-
-// Public app download (not rate-limited): redirects the browser straight to the
-// APK on the EAS CDN so a single click downloads it without showing the raw URL.
-app.use("/api/app", appDownloadRoutes);
 
 // ====================== STATIC FILE SERVING ======================
 // Serve uploaded files. Uploads are content-addressed by their Cloudinary name
