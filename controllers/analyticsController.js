@@ -3,6 +3,7 @@ import Material from "../models/Material.js";
 import TourismListing from "../models/TourismListing.js";
 import User from "../models/User.js";
 import Business from "../models/Business.js";
+import Accommodation from "../models/Accommodation.js";
 
 // @desc    Get demographic data
 // @route   GET /api/analytics/demographics
@@ -25,6 +26,11 @@ export const getDemographics = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
 
+    const accommodationCounties = await Accommodation.aggregate([
+      { $group: { _id: "$county", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
     // Combine all county data
     const allCounties = {};
     
@@ -40,6 +46,10 @@ export const getDemographics = async (req, res) => {
       allCounties[item._id] = (allCounties[item._id] || 0) + item.count;
     });
 
+    accommodationCounties.forEach(item => {
+      if (item._id) allCounties[item._id] = (allCounties[item._id] || 0) + item.count;
+    });
+
     // Convert to array and sort
     const countyData = Object.entries(allCounties)
       .map(([county, count]) => ({ county, count }))
@@ -51,19 +61,25 @@ export const getDemographics = async (req, res) => {
     const materialCount = await Material.countDocuments();
     const tourismCount = await TourismListing.countDocuments();
     const businessCount = await Business.countDocuments();
-    const userCount = await User.countDocuments();
+    const accommodationCount = await Accommodation.countDocuments();
+
+    // Real people only: anonymous guest sign-ins create throwaway "guest"
+    // accounts on every visit, so they must never inflate the user count.
+    const userCount = await User.countDocuments({ role: { $ne: "guest" } });
+    const guestCount = await User.countDocuments({ role: "guest" });
 
     const serviceData = [
       { service: "Properties", count: propertyCount },
       { service: "Materials", count: materialCount },
       { service: "Tourism", count: tourismCount },
       { service: "Businesses", count: businessCount },
+      { service: "Stays", count: accommodationCount },
       { service: "Users", count: userCount },
     ].sort((a, b) => b.count - a.count);
 
-    // Get user location data (if available)
+    // Distinct real locations from registered (non-guest) users
     const userLocations = await User.aggregate([
-      { $match: { location: { $exists: true, $ne: "" } } },
+      { $match: { role: { $ne: "guest" }, location: { $exists: true, $ne: "" } } },
       { $group: { _id: "$location", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 10 }
@@ -75,8 +91,9 @@ export const getDemographics = async (req, res) => {
         counties: countyData,
         services: serviceData,
         userLocations: userLocations,
-        totalListings: propertyCount + materialCount + tourismCount + businessCount,
+        totalListings: propertyCount + materialCount + tourismCount + businessCount + accommodationCount,
         totalUsers: userCount,
+        guestSessions: guestCount,
       },
     });
   } catch (error) {
