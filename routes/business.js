@@ -274,6 +274,44 @@ router.get("/announcements", async (req, res) => {
   }
 });
 
+// ====================== COMPARE BUSINESSES ======================
+// NOTE: must be declared BEFORE the "/:id" route below, otherwise Express
+// matches "/compare" as an :id param and the comparison request 404s.
+router.get("/compare", async (req, res) => {
+  try {
+    const { ids } = req.query;
+
+    if (!ids) {
+      return res.status(400).json({ error: "Business IDs are required" });
+    }
+
+    const businessIds = ids.split(",").filter(Boolean);
+    if (businessIds.length === 0) {
+      return res.status(400).json({ error: "Business IDs are required" });
+    }
+
+    const businesses = await Business.find({
+      _id: { $in: businessIds },
+      status: "approved",
+    })
+      .populate("owner", "name email phone")
+      .select("name description categories location contact rating reviewCount priceRange employeeCount yearEstablished verificationBadges images socialMedia featured");
+
+    // Preserve the order the client sent so the comparison columns line up.
+    const orderMap = new Map(businessIds.map((id, i) => [id, i]));
+    businesses.sort((a, b) => (orderMap.get(a._id.toString()) ?? 0) - (orderMap.get(b._id.toString()) ?? 0));
+
+    if (businesses.length === 0) {
+      return res.status(404).json({ error: "No businesses found" });
+    }
+
+    res.json({ success: true, businesses });
+  } catch (error) {
+    console.error("Compare businesses error:", error);
+    res.status(500).json({ error: "Failed to compare businesses" });
+  }
+});
+
 // ====================== GET SINGLE BUSINESS ======================
 router.get("/:id", async (req, res) => {
   try {
@@ -1052,42 +1090,6 @@ router.get("/events/all", async (req, res) => {
   } catch (error) {
     console.error("Get events error:", error);
     res.status(500).json({ error: "Failed to fetch events" });
-  }
-});
-
-// ====================== COMPARE BUSINESSES ======================
-router.get("/compare", async (req, res) => {
-  try {
-    console.log("=== COMPARE BUSINESSES START ===");
-    console.log("Request query:", req.query);
-
-    const { ids } = req.query;
-
-    if (!ids) {
-      return res.status(400).json({ error: "Business IDs are required" });
-    }
-
-    const businessIds = ids.split(",");
-    console.log("Business IDs to compare:", businessIds);
-
-    const businesses = await Business.find({
-      _id: { $in: businessIds },
-      status: "approved",
-    })
-      .populate("owner", "name email phone")
-      .select("name description categories location contact rating reviewCount priceRange employeeCount yearEstablished verificationBadges images");
-
-    console.log(`Found ${businesses.length} businesses for comparison`);
-
-    if (businesses.length === 0) {
-      return res.status(404).json({ error: "No businesses found" });
-    }
-
-    res.json({ success: true, businesses });
-  } catch (error) {
-    console.error("Compare businesses error:", error);
-    console.error("Error stack:", error.stack);
-    res.status(500).json({ error: "Failed to compare businesses" });
   }
 });
 
