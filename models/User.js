@@ -200,7 +200,7 @@ const userSchema = new mongoose.Schema(
     //  EXISTING MONETIZATION FIELDS
     providerSubscription: {
       tier: { type: String, enum: ["free", "starter", "pro"], default: "free" },
-      role: { type: String, enum: ["landlord", "host"], default: null },
+      role: { type: String, enum: ["landlord", "host", null], default: null },
       startedAt: Date,
       expiresAt: Date,
       lastAmount: Number,
