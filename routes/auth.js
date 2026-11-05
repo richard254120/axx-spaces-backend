@@ -44,6 +44,44 @@ const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ? `AxxSpace <${process.env.RESE
 const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
 const VERIFICATION_RESEND_COOLDOWN_SECONDS = VERIFICATION_RESEND_COOLDOWN_MS / 1000;
 
+// Which real account roles are permitted to sign in through each portal login.
+// Because one email can hold several role-accounts (e.g. a landlord who is also
+// an accommodation host), a portal must only accept its own role(s) — never fall
+// back to an unrelated account that merely shares the email address.
+const PORTAL_ALLOWED_ROLES = {
+  landlord: ["landlord", "caretaker"],
+  host: ["host"],
+  seller: ["seller"],
+  business: ["business"],
+  agent: ["agent", "agency_admin"],
+  mover: ["mover"],
+  admin: ["admin", "team"],
+  member: ["member", "user", "guest"],
+  user: ["member", "user", "guest"],
+  // Mobile "tenant" login maps to community member accounts (there is no
+  // stored "tenant" role), so it must be allowed to authenticate members.
+  tenant: ["member", "user", "guest", "tenant"],
+  provider: ["provider", "pending_provider"],
+};
+
+// Friendly labels + matching portal login path, used to guide a user who signed
+// in with valid credentials through the wrong portal.
+const ROLE_LABEL = {
+  landlord: "Landlord", caretaker: "Caretaker", host: "Accommodation Host",
+  seller: "QuickSales Seller", business: "Business", agent: "Agent",
+  agency_admin: "Agency Admin", mover: "Mover", provider: "Service Provider",
+  pending_provider: "Service Provider", admin: "Administrator", team: "Team member",
+  member: "Member", user: "Member", guest: "Guest",
+  tenant: "Tenant",
+};
+const PORTAL_LOGIN_PATH = {
+  landlord: "/login", caretaker: "/login", host: "/accommodation/login",
+  seller: "/quicksales-login", business: "/business-login", agent: "/agent/login",
+  agency_admin: "/agent/login", mover: "/login", provider: "/login",
+  pending_provider: "/login", member: "/user-login", user: "/user-login", guest: "/user-login",
+  tenant: "/user-login",
+};
+
 // ====================== REGISTER MEMBER ======================
 router.post("/register-member", async (req, res) => {
   try {
@@ -283,36 +321,66 @@ router.post("/login", security.authLimiter, async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    let user;
-    if (role) {
-      user = await User.findOne({ email: normalizedEmail, role }).select("+password");
-      console.log(" User found with role:", user ? "YES" : "NO");
-      // If not found with specific role, try finding by email only
+    // Portal-aware sign-in: authenticate the account that actually belongs to the
+    // requested portal. A person may hold several role-accounts under one email, so
+    // we never accept an unrelated account just because the email matches.
+    const requestedRole = role ? String(role).trim().toLowerCase() : null;
+    let user = null;
+    let passwordVerified = false;
+
+    if (requestedRole) {
+      const allowed = PORTAL_ALLOWED_ROLES[requestedRole] || [requestedRole];
+      const candidates = await User.find({ email: normalizedEmail }).select("+password");
+      if (!candidates.length) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // 1) Find a valid credential for an account allowed on THIS portal.
+      for (const c of candidates) {
+        if (allowed.includes(c.role) && (await bcrypt.compare(password, c.password))) {
+          user = c;
+          passwordVerified = true;
+          break;
+        }
+      }
+
+      // 2) The password is valid but belongs to a different-role account: send the
+      //    user to the right portal. Checked after password verification so account
+      //    existence is never leaked to an unauthenticated caller.
       if (!user) {
-        user = await User.findOne({ email: normalizedEmail }).select("+password");
-        console.log(" User found by email only:", user ? "YES" : "NO");
+        for (const c of candidates) {
+          if (!allowed.includes(c.role) && (await bcrypt.compare(password, c.password))) {
+            return res.status(403).json({
+              error: `These login details belong to a ${ROLE_LABEL[c.role] || c.role} account, not a ${ROLE_LABEL[requestedRole] || requestedRole} account. Please sign in from the correct portal.`,
+              code: "ROLE_MISMATCH",
+              actualRole: c.role,
+              requestedRole,
+              email: c.email,
+              portalPath: PORTAL_LOGIN_PATH[c.role] || null,
+            });
+          }
+        }
+        return res.status(401).json({ error: "Invalid email or password" });
       }
     } else {
-      // Fallback: prioritize admin/team roles first, otherwise return first matching user
+      // Role-less sign-in (kept for compatibility): admin/team first, then any.
       user = await User.findOne({ email: normalizedEmail, role: { $in: ["admin", "team"] } }).select("+password");
-      console.log(" Admin/Team user found:", user ? "YES" : "NO");
       if (!user) {
         user = await User.findOne({ email: normalizedEmail }).select("+password");
-        console.log(" Any user found:", user ? "YES" : "NO");
       }
-    }
-
-    if (!user) {
-      console.log(" User not found for email:", normalizedEmail);
-      return res.status(401).json({ error: "Invalid email or password" });
+      if (!user) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
     }
 
     console.log(" User found:", { email: user.email, role: user.role, isEmailVerified: user.isEmailVerified });
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      console.log(" Password invalid for:", normalizedEmail);
-      return res.status(401).json({ error: "Invalid email or password" });
+    if (!passwordVerified) {
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        console.log(" Password invalid for:", normalizedEmail);
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
     }
 
     console.log(" Password valid for:", normalizedEmail);
