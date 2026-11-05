@@ -350,6 +350,12 @@ router.post("/login", security.authLimiter, async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    // Record login telemetry for admin dashboard activity stats (non-fatal)
+    User.updateOne(
+      { _id: user._id },
+      { $set: { lastLogin: new Date() }, $inc: { loginCount: 1 } }
+    ).catch((e) => console.error(" login telemetry update failed:", e.message));
+
     res.json({
       token,
       user: formatUserResponse(user),

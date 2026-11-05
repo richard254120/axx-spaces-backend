@@ -6,6 +6,7 @@ import TourismListing from "../models/TourismListing.js";
 import SellerVerification from "../models/SellerVerification.js";
 import Business from "../models/Business.js";
 import Notification from "../models/Notification.js";
+import AuditLog from "../models/AuditLog.js";
 import Accommodation from "../models/Accommodation.js";
 import AccommodationImage from "../models/AccommodationImage.js";
 import { protect, adminOnly } from "../middleware/auth.js";
@@ -414,6 +415,123 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error(" Get stats error:", error);
     res.status(500).json({ error: error.message || "Failed to fetch stats" });
+  }
+});
+
+// ====================== GET ACTIVITY / ENGAGEMENT STATS ======================
+// Returns daily series + headline numbers for registrations, logins, edits and
+// listing submissions (Properties, QuickSales/Materials, Businesses, Accommodations).
+router.get("/activity", protect, adminOnly, async (req, res) => {
+  try {
+    const DAYS = Math.min(Math.max(parseInt(req.query.days, 10) || 14, 2), 90);
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (DAYS - 1));
+
+    // Build empty day buckets, then fill from aggregations.
+    const buckets = [];
+    for (let i = 0; i < DAYS; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      buckets.push({
+        key: d.toISOString().slice(0, 10),
+        label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      });
+    }
+    const idx = {};
+    buckets.forEach((b, i) => { idx[b.key] = i; });
+
+    // Daily counts of a model's date field (createdAt / lastLogin).
+    const dailyOf = async (Model, field) => {
+      const arr = new Array(DAYS).fill(0);
+      const rows = await Model.aggregate([
+        { $match: { [field]: { $gte: start } } },
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$" + field } }, n: { $sum: 1 } } },
+      ]);
+      rows.forEach((r) => { if (idx[r._id] != null) arr[idx[r._id]] = r.n; });
+      return arr;
+    };
+
+    // Daily counts of items edited after creation (updatedAt > createdAt).
+    const dailyEdits = async (Model) => {
+      const arr = new Array(DAYS).fill(0);
+      const rows = await Model.aggregate([
+        { $match: { updatedAt: { $gte: start }, $expr: { $gt: ["$updatedAt", "$createdAt"] } } },
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } }, n: { $sum: 1 } } },
+      ]);
+      rows.forEach((r) => { if (idx[r._id] != null) arr[idx[r._id]] = r.n; });
+      return arr;
+    };
+
+    const add = (a, b) => a.map((v, i) => v + (b[i] || 0));
+    const sum = (a) => a.reduce((x, y) => x + y, 0);
+
+    const [
+      regSeries,
+      loginSeries,
+      propSeries,
+      matSeries,
+      bizSeries,
+      accSeries,
+      editProp,
+      editMat,
+      editBiz,
+      editAcc,
+      totalUsers,
+      loggedOnce,
+      auditSeries,
+    ] = await Promise.all([
+      dailyOf(User, "createdAt"),
+      dailyOf(User, "lastLogin"),
+      dailyOf(Property, "createdAt"),
+      dailyOf(Material, "createdAt"),
+      dailyOf(Business, "createdAt"),
+      dailyOf(Accommodation, "createdAt"),
+      dailyEdits(Property),
+      dailyEdits(Material),
+      dailyEdits(Business),
+      dailyEdits(Accommodation),
+      User.countDocuments(),
+      User.countDocuments({ loginCount: { $gt: 0 } }),
+      dailyOf(AuditLog, "createdAt"),
+    ]);
+
+    const submitSeries = add(add(propSeries, matSeries), add(bizSeries, accSeries));
+    const editSeries = add(add(editProp, editMat), add(editBiz, editAcc));
+
+    res.json({
+      success: true,
+      data: {
+        days: DAYS,
+        labels: buckets.map((b) => b.label),
+        series: {
+          registrations: regSeries,
+          logins: loginSeries,
+          submissions: submitSeries,
+          edits: editSeries,
+          audits: auditSeries,
+        },
+        growth: {
+          properties: propSeries,
+          materials: matSeries,
+          businesses: bizSeries,
+          accommodations: accSeries,
+        },
+        totals: {
+          registered: totalUsers,
+          registeredPeriod: sum(regSeries),
+          loggedPeriod: sum(loginSeries),
+          loggedEver: loggedOnce,
+          submissionsPeriod: sum(submitSeries),
+          editsPeriod: sum(editSeries),
+          auditActionsPeriod: sum(auditSeries),
+        },
+      },
+    });
+  } catch (error) {
+    console.error(" Get activity error:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch activity" });
   }
 });
 

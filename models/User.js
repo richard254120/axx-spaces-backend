@@ -441,6 +441,14 @@ const userSchema = new mongoose.Schema(
         default: 0,
       },
     },
+    // Login telemetry for admin dashboard activity stats
+    lastLogin: {
+      type: Date,
+    },
+    loginCount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
