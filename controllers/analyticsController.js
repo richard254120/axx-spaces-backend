@@ -5,7 +5,6 @@ import User from "../models/User.js";
 import Business from "../models/Business.js";
 import Accommodation from "../models/Accommodation.js";
 import AgentQRScan from "../models/AgentQRScan.js";
-import AgentQRScan from "../models/AgentQRScan.js";
 
 // @desc    Get demographic data
 // @route   GET /api/analytics/demographics
