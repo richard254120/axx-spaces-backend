@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import Business from "../models/Business.js";
 import Accommodation from "../models/Accommodation.js";
 import AgentQRScan from "../models/AgentQRScan.js";
+import AgentQRScan from "../models/AgentQRScan.js";
 
 // @desc    Get demographic data
 // @route   GET /api/analytics/demographics
@@ -294,6 +295,42 @@ export const getSummary = async (req, res) => {
         AgentQRScan.countDocuments({ agent: userId, scannedAt: { $gte: weekStart } }),
         Property.countDocuments({ assignedAgent: userId, status: "approved" }),
       ]);
+
+      baseData = {
+        views: totalAgentQrScans,
+        inquiries: scansThisWeek,
+        bookings: scansToday,
+        revenue: 0,
+        conversionRate: "0.0",
+        propertiesAssigned: totalPropertiesAssigned,
+        qrScansToday: scansToday,
+        qrScansThisWeek: scansThisWeek,
+        qrScansAllTime: totalAgentQrScans,
+      };
+    } else if (userType === "agent") {
+      // Agent dashboard analytics
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      
+      // QR Scan metrics
+      const totalAgentQrScans = await AgentQRScan.countDocuments({ agent: userId });
+      const scansToday = await AgentQRScan.countDocuments({
+        agent: userId,
+        scannedAt: { $gte: today },
+      });
+      const scansThisWeek = await AgentQRScan.countDocuments({
+        agent: userId,
+        scannedAt: { $gte: startOfWeek },
+      });
+      
+      // Properties assigned to agent
+      const totalPropertiesAssigned = await Property.countDocuments({
+        assignedAgent: userId,
+        status: "approved",
+      });
 
       baseData = {
         views: totalAgentQrScans,

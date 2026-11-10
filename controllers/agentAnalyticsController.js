@@ -1,261 +1,343 @@
 import AgentQRScan from "../models/AgentQRScan.js";
 import Property from "../models/Property.js";
 import Inquiry from "../models/Inquiry.js";
+import mongoose from "mongoose";
 
-// Helper function to parse date range from query params
-const parseDateRange = (startDate, endDate, period = "30d") => {
-  const now = new Date();
-  let start, end;
-
-  if (startDate && endDate) {
-    start = new Date(startDate);
-    end = new Date(endDate);
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      throw new Error("Invalid date format. Use ISO 8601 format (YYYY-MM-DD)");
-    }
-    
-    if (start > end) {
-      throw new Error("startDate must be before or equal to endDate");
-    }
-  } else {
-    // Use period
-    end = new Date(now.setUTCHours(23, 59, 59, 999));
-    
-    switch (period) {
-      case "7d":
-        start = new Date(now.setDate(now.getDate() - 6));
-        break;
-      case "90d":
-        start = new Date(now.setDate(now.getDate() - 89));
-        break;
-      case "30d":
-      default:
-        start = new Date(now.setDate(now.getDate() - 29));
-        break;
-    }
-    start.setUTCHours(0, 0, 0, 0);
-  }
-
-  return { start, end };
-};
-
-// Helper to get UTC date string (YYYY-MM-DD)
-const getUTCDateString = (date) => {
-  return date.toISOString().split("T")[0];
-};
-
-// @desc    Get detailed scan statistics for an agent
+// @desc    Get comprehensive QR scan statistics for agent
 // @route   GET /api/agents/qr-scans/stats
-// @access  Private (agent only, own data)
+// @access  Private (Agent only)
 export const getAgentScanStats = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const agentId = req.user._id;
+    const agentId = req.user._id || req.user.id;
     const { startDate, endDate, period = "30d" } = req.query;
 
-    // Parse date range
+    // Calculate date range
     let start, end;
-    try {
-      ({ start, end } = parseDateRange(startDate, endDate, period));
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
+    if (startDate && endDate) {
+      start = new Date(startDate);
+      end = new Date(endDate);
+      if (start > end) {
+        return res.status(400).json({ error: "startDate must be before endDate" });
+      }
+    } else {
+      // Use period
+      end = new Date();
+      end.setUTCHours(23, 59, 59, 999);
+      start = new Date();
+      
+      const periodMap = {
+        "7d": 7,
+        "30d": 30,
+        "90d": 90,
+      };
+      const days = periodMap[period] || 30;
+      start.setDate(start.getDate() - days);
+      start.setUTCHours(0, 0, 0, 0);
     }
 
-    // Aggregate scan data
-    const scans = await AgentQRScan.find({
+    // Total scans in period
+    const totalScans = await AgentQRScan.countDocuments({
       agent: agentId,
       scannedAt: { $gte: start, $lte: end },
-    }).sort({ scannedAt: 1 });
-
-    const totalScans = scans.length;
+    });
 
     // Daily breakdown
-    const dailyMap = {};
-    scans.forEach((scan) => {
-      const dateStr = getUTCDateString(scan.scannedAt);
-      if (!dailyMap[dateStr]) {
-        dailyMap[dateStr] = { date: dateStr, scans: 0, sources: {} };
-      }
-      dailyMap[dateStr].scans += 1;
-      dailyMap[dateStr].sources[scan.source] = (dailyMap[dateStr].sources[scan.source] || 0) + 1;
-    });
-    const dailyBreakdown = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+    const dailyBreakdown = await AgentQRScan.aggregate([
+      {
+        $match: {
+          agent: new mongoose.Types.ObjectId(agentId),
+          scannedAt: { $gte: start, $lte: end },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            date: {
+              $dateToString: { format: "%Y-%m-%d", date: "$scannedAt" },
+            },
+          },
+          scans: { $sum: 1 },
+          sources: {
+            $push: "$source",
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: "$_id.date",
+          scans: 1,
+          sources: {
+            $arrayToObject: {
+              $map: {
+                input: { $setUnion: "$sources" },
+                as: "source",
+                in: {
+                  k: "$$source",
+                  v: {
+                    $size: {
+                      $filter: {
+                        input: "$sources",
+                        cond: { $eq: ["$$this", "$$source"] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      { $sort: { date: -1 } },
+    ]);
 
     // Source breakdown
-    const sourceBreakdown = {};
-    scans.forEach((scan) => {
-      sourceBreakdown[scan.source] = (sourceBreakdown[scan.source] || 0) + 1;
+    const sourceBreakdown = await AgentQRScan.aggregate([
+      {
+        $match: {
+          agent: new mongoose.Types.ObjectId(agentId),
+          scannedAt: { $gte: start, $lte: end },
+        },
+      },
+      {
+        $group: {
+          _id: "$source",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const sourceBreakdownObj = {};
+    sourceBreakdown.forEach((s) => {
+      sourceBreakdownObj[s._id] = s.count;
     });
+
+    // Location breakdown (top cities)
+    const locationBreakdown = await AgentQRScan.aggregate([
+      {
+        $match: {
+          agent: new mongoose.Types.ObjectId(agentId),
+          scannedAt: { $gte: start, $lte: end },
+          "location.city": { $exists: true, $ne: "" },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            city: "$location.city",
+            country: "$location.country",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+      {
+        $project: {
+          _id: 0,
+          city: "$_id.city",
+          country: "$_id.country",
+          count: 1,
+        },
+      },
+    ]);
 
     // Device breakdown
-    const deviceBreakdown = {};
-    scans.forEach((scan) => {
-      const deviceType = scan.device?.type || "unknown";
-      deviceBreakdown[deviceType] = (deviceBreakdown[deviceType] || 0) + 1;
+    const deviceBreakdown = await AgentQRScan.aggregate([
+      {
+        $match: {
+          agent: new mongoose.Types.ObjectId(agentId),
+          scannedAt: { $gte: start, $lte: end },
+        },
+      },
+      {
+        $group: {
+          _id: "$device.type",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const deviceBreakdownObj = {};
+    deviceBreakdown.forEach((d) => {
+      deviceBreakdownObj[d._id] = d.count;
     });
 
-    // Location breakdown (top 10 cities)
-    const locationMap = {};
-    scans.forEach((scan) => {
-      if (scan.location?.city) {
-        const key = `${scan.location.city}, ${scan.location.country || ""}`.trim();
-        locationMap[key] = (locationMap[key] || 0) + 1;
-      }
-    });
-    const locationBreakdown = Object.entries(locationMap)
-      .map(([location, count]) => ({ location, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+    // Peak hours (hour of day analysis)
+    const peakHours = await AgentQRScan.aggregate([
+      {
+        $match: {
+          agent: new mongoose.Types.ObjectId(agentId),
+          scannedAt: { $gte: start, $lte: end },
+        },
+      },
+      {
+        $group: {
+          _id: { $hour: "$scannedAt" },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+      {
+        $project: {
+          _id: 0,
+          hour: "$_id",
+          count: 1,
+        },
+      },
+    ]);
 
-    // Peak hours (UTC hour of day)
-    const peakHours = Array(24).fill(0);
-    scans.forEach((scan) => {
-      const hour = scan.scannedAt.getUTCHours();
-      peakHours[hour] += 1;
-    });
+    // Calculate trends (week-over-week, month-over-month)
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const twoMonthsAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    // Trends: compare with previous period
-    const periodDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const prevStart = new Date(start);
-    prevStart.setDate(prevStart.getDate() - periodDays);
-    const prevEnd = new Date(start);
-    prevEnd.setSeconds(prevEnd.getSeconds() - 1);
-
-    const prevScans = await AgentQRScan.countDocuments({
+    const thisWeekScans = await AgentQRScan.countDocuments({
       agent: agentId,
-      scannedAt: { $gte: prevStart, $lte: prevEnd },
+      scannedAt: { $gte: weekAgo, $lte: now },
     });
 
-    let changePercent = 0;
-    if (prevScans > 0) {
-      changePercent = (((totalScans - prevScans) / prevScans) * 100).toFixed(1);
-    } else if (totalScans > 0) {
-      changePercent = 100;
-    }
+    const lastWeekScans = await AgentQRScan.countDocuments({
+      agent: agentId,
+      scannedAt: { $gte: twoWeeksAgo, $lt: weekAgo },
+    });
 
-    const trends = {};
-    if (period === "7d") {
-      trends.weekOverWeek = parseFloat(changePercent);
-    } else if (period === "30d") {
-      trends.monthOverMonth = parseFloat(changePercent);
-    } else {
-      trends.periodOverPeriod = parseFloat(changePercent);
-    }
+    const thisMonthScans = await AgentQRScan.countDocuments({
+      agent: agentId,
+      scannedAt: { $gte: monthAgo, $lte: now },
+    });
+
+    const lastMonthScans = await AgentQRScan.countDocuments({
+      agent: agentId,
+      scannedAt: { $gte: twoMonthsAgo, $lt: monthAgo },
+    });
+
+    const weekOverWeek =
+      lastWeekScans > 0
+        ? (((thisWeekScans - lastWeekScans) / lastWeekScans) * 100).toFixed(1)
+        : thisWeekScans > 0
+        ? "+100"
+        : "0";
+
+    const monthOverMonth =
+      lastMonthScans > 0
+        ? (((thisMonthScans - lastMonthScans) / lastMonthScans) * 100).toFixed(1)
+        : thisMonthScans > 0
+        ? "+100"
+        : "0";
 
     res.json({
       success: true,
       data: {
-        agentId,
-        period,
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
         totalScans,
+        period: period || `${startDate} to ${endDate}`,
+        dateRange: {
+          start: start.toISOString().split("T")[0],
+          end: end.toISOString().split("T")[0],
+        },
         dailyBreakdown,
-        sourceBreakdown,
-        deviceBreakdown,
+        sourceBreakdown: sourceBreakdownObj,
         locationBreakdown,
+        deviceBreakdown: deviceBreakdownObj,
         peakHours,
-        trends,
+        trends: {
+          weekOverWeek: weekOverWeek >= 0 ? `+${weekOverWeek}%` : `${weekOverWeek}%`,
+          monthOverMonth: monthOverMonth >= 0 ? `+${monthOverMonth}%` : `${monthOverMonth}%`,
+        },
       },
     });
   } catch (error) {
     console.error("Get agent scan stats error:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch scan statistics" });
+    res.status(500).json({ error: "Failed to fetch QR scan statistics" });
   }
 };
 
-// @desc    Get agent dashboard summary with combined metrics
+// @desc    Get agent dashboard summary with all metrics
 // @route   GET /api/agents/qr-scans/dashboard
-// @access  Private (agent only, own data)
+// @access  Private (Agent only)
 export const getAgentDashboardSummary = async (req, res) => {
   try {
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
+    const agentId = req.user._id || req.user.id;
 
-    const agentId = req.user._id;
+    // QR scan metrics
     const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Calculate date boundaries (UTC)
-    const todayStart = new Date(now);
-    todayStart.setUTCHours(0, 0, 0, 0);
+    const scansLast7Days = await AgentQRScan.countDocuments({
+      agent: agentId,
+      scannedAt: { $gte: sevenDaysAgo },
+    });
 
-    const last7DaysStart = new Date(now);
-    last7DaysStart.setDate(last7DaysStart.getDate() - 7);
-    last7DaysStart.setUTCHours(0, 0, 0, 0);
+    const scansLast30Days = await AgentQRScan.countDocuments({
+      agent: agentId,
+      scannedAt: { $gte: thirtyDaysAgo },
+    });
 
-    const last30DaysStart = new Date(now);
-    last30DaysStart.setDate(last30DaysStart.getDate() - 30);
-    last30DaysStart.setUTCHours(0, 0, 0, 0);
+    const scansAllTime = await AgentQRScan.countDocuments({
+      agent: agentId,
+    });
 
-    // Run queries in parallel
-    const [allTimeScans, last7dScans, last30dScans, todayScans, sparklineData, totalProperties, totalInquiries] = await Promise.all([
-      AgentQRScan.countDocuments({ agent: agentId }),
-      AgentQRScan.countDocuments({ agent: agentId, scannedAt: { $gte: last7DaysStart } }),
-      AgentQRScan.countDocuments({ agent: agentId, scannedAt: { $gte: last30DaysStart } }),
-      AgentQRScan.countDocuments({ agent: agentId, scannedAt: { $gte: todayStart } }),
-      // Sparkline: daily counts for last 7 days
-      AgentQRScan.aggregate([
-        {
-          $match: {
-            agent: agentId,
-            scannedAt: { $gte: last7DaysStart },
-          },
+    // Daily 7-day sparkline
+    const daily7DaySparkline = await AgentQRScan.aggregate([
+      {
+        $match: {
+          agent: new mongoose.Types.ObjectId(agentId),
+          scannedAt: { $gte: sevenDaysAgo },
         },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: "%Y-%m-%d", date: "$scannedAt" },
-            },
-            scans: { $sum: 1 },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$scannedAt" },
           },
+          scans: { $sum: 1 },
         },
-        { $sort: { _id: 1 } },
-      ]),
-      // Total properties assigned to this agent
-      Property.countDocuments({ assignedAgent: agentId, status: "approved" }),
-      // Total inquiries for this agent (soft-fail if model doesn't exist)
-      Inquiry.countDocuments({ agent: agentId }).catch(() => 0),
+      },
+      { $sort: { _id: 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: "$_id",
+          scans: 1,
+        },
+      },
     ]);
 
-    // Fill sparkline with all 7 days (including days with 0 scans)
-    const sparkline7d = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      const dateStr = getUTCDateString(date);
-      const dayData = sparklineData.find((d) => d._id === dateStr);
-      sparkline7d.push({
-        date: dateStr,
-        scans: dayData ? dayData.scans : 0,
+    // Properties assigned to agent
+    const totalPropertiesAssigned = await Property.countDocuments({
+      assignedAgent: agentId,
+      status: "approved",
+    });
+
+    // Total inquiries (if Inquiry model tracks agent)
+    let totalInquiries = 0;
+    try {
+      totalInquiries = await Inquiry.countDocuments({
+        agent: agentId,
       });
+    } catch (err) {
+      // Inquiry model might not have agent field, that's okay
+      console.log("Note: Inquiry model does not track agent field");
     }
 
     res.json({
       success: true,
       data: {
-        agentId,
         qrScans: {
-          allTime: allTimeScans,
-          last7d: last7dScans,
-          last30d: last30dScans,
-          today: todayScans,
-          sparkline7d,
+          last7Days: scansLast7Days,
+          last30Days: scansLast30Days,
+          allTime: scansAllTime,
         },
-        properties: {
-          total: totalProperties,
-        },
-        inquiries: {
-          total: totalInquiries,
-        },
+        daily7DaySparkline,
+        totalPropertiesAssigned,
+        totalInquiries,
       },
     });
   } catch (error) {
     console.error("Get agent dashboard summary error:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch dashboard summary" });
+    res.status(500).json({ error: "Failed to fetch dashboard summary" });
   }
 };

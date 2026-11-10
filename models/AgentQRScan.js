@@ -18,12 +18,8 @@ const agentQRScanSchema = new mongoose.Schema(
       enum: ["poster", "business_card", "flyer", "website", "social_media", "generic"],
       default: "generic",
     },
-    userAgent: {
-      type: String,
-    },
-    ip: {
-      type: String,
-    },
+    userAgent: String,
+    ip: String,
     location: {
       lat: Number,
       lng: Number,
@@ -43,7 +39,7 @@ const agentQRScanSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound index for efficient date-range queries per agent
+// Compound index for efficient date-range queries
 agentQRScanSchema.index({ agent: 1, scannedAt: -1 });
 
 const AgentQRScan = mongoose.models.AgentQRScan || mongoose.model("AgentQRScan", agentQRScanSchema);
