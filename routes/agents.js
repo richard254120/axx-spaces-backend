@@ -3,10 +3,27 @@ import User from "../models/User.js";
 import Accommodation from "../models/Accommodation.js";
 import Property from "../models/Property.js";
 import Notification from "../models/Notification.js";
+import AgentQRScan from "../models/AgentQRScan.js";
 import { auth, adminOnly } from "../middleware/auth.js";
 import { getPackage, getAllPackages, calculateExpiryDate, getMaxListings } from "../config/agentPackages.js";
+import { getAgentScanStats, getAgentDashboardSummary } from "../controllers/agentAnalyticsController.js";
 
 const router = express.Router();
+
+// Helper function to detect device type, OS, and browser from user agent
+function detectDevice(userAgent = "") {
+  const ua = userAgent.toLowerCase();
+  const type = /mobile|android|iphone|ipod/.test(ua) ? "mobile"
+    : /tablet|ipad/.test(ua) ? "tablet"
+    : ua ? "desktop" : "unknown";
+  const os = /android/.test(ua) ? "Android" : /iphone|ipad|ipod/.test(ua) ? "iOS"
+    : /windows/.test(ua) ? "Windows" : /mac/.test(ua) ? "macOS"
+    : /linux/.test(ua) ? "Linux" : "unknown";
+  const browser = /chrome/.test(ua) && !/edg/.test(ua) ? "Chrome"
+    : /safari/.test(ua) && !/chrome/.test(ua) ? "Safari"
+    : /firefox/.test(ua) ? "Firefox" : /edg/.test(ua) ? "Edge" : "unknown";
+  return { type, os, browser };
+}
 
 // ====================== POST /api/agents/apply ======================
 // Auth required - logged-in user submits phone, county, bio, ID number, ID photo, selfie to become an agent
@@ -1011,18 +1028,102 @@ router.put("/reject-purchase/:userId", auth, adminOnly, async (req, res) => {
 });
 
 
+// ====================== GET /api/agents/qr-scans/stats ======================
+// Auth — get detailed scan statistics with daily breakdown, sources, devices, locations
+router.get("/qr-scans/stats", auth, getAgentScanStats);
+
+// ====================== GET /api/agents/qr-scans/daily ======================
+// Auth — get daily scan breakdown for the agent (30-day default)
+router.get("/qr-scans/daily", auth, async (req, res) => {
+  try {
+    // Forward to getAgentScanStats and extract only dailyBreakdown
+    req.query.period = req.query.period || "30d";
+    await getAgentScanStats(req, {
+      json: (data) => {
+        if (data.success && data.data) {
+          res.json({ success: true, data: data.data.dailyBreakdown });
+        } else {
+          res.json(data);
+        }
+      },
+      status: (code) => ({ json: (data) => res.status(code).json(data) }),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====================== GET /api/agents/qr-scans/dashboard ======================
+// Auth — get agent dashboard summary with scans, properties, inquiries
+router.get("/qr-scans/dashboard", auth, getAgentDashboardSummary);
+
 // ====================== POST /api/agents/:agentId/qr-scan ======================
 // Public — called when someone scans the agent's general QR poster (profile page)
 router.post("/:agentId/qr-scan", async (req, res) => {
   try {
+    const { agentId } = req.params;
+    
+    // Validate agentId
+    if (!agentId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: "Invalid agent ID format" });
+    }
+
+    // Increment the counter (backward compatibility)
     const agent = await User.findOneAndUpdate(
-      { _id: req.params.agentId, role: "agent" },
+      { _id: agentId, role: "agent" },
       { $inc: { "agentProfile.agentQrScans": 1 } },
       { new: true, select: "agentProfile.agentQrScans" }
     );
-    if (!agent) return res.status(404).json({ error: "Agent not found" });
-    res.json({ success: true, agentQrScans: agent.agentProfile?.agentQrScans || 0 });
+    
+    if (!agent) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
+    // Extract metadata for detailed scan record
+    const userAgent = req.headers["user-agent"] || "";
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.ip || "";
+    const { source = "generic", location } = req.body;
+
+    // Validate source
+    const validSources = ["poster", "business_card", "flyer", "website", "social_media", "generic"];
+    const finalSource = validSources.includes(source) ? source : "generic";
+
+    // Validate and extract location
+    let finalLocation = {};
+    if (location && typeof location === "object") {
+      if (location.lat !== undefined) finalLocation.lat = Number(location.lat);
+      if (location.lng !== undefined) finalLocation.lng = Number(location.lng);
+      if (location.city) finalLocation.city = String(location.city).trim();
+      if (location.country) finalLocation.country = String(location.country).trim();
+    }
+
+    // Detect device
+    const device = detectDevice(userAgent);
+
+    // Create detailed scan record (non-blocking)
+    let scanId = null;
+    try {
+      const scanRecord = await AgentQRScan.create({
+        agent: agentId,
+        source: finalSource,
+        userAgent,
+        ip,
+        location: finalLocation,
+        device,
+      });
+      scanId = scanRecord._id;
+    } catch (scanError) {
+      console.error("Failed to create AgentQRScan record:", scanError);
+      // Don't fail the request if scan record creation fails
+    }
+
+    res.json({ 
+      success: true, 
+      agentQrScans: agent.agentProfile?.agentQrScans || 0,
+      scanId,
+    });
   } catch (error) {
+    console.error("QR scan error:", error);
     res.status(500).json({ error: error.message });
   }
 });

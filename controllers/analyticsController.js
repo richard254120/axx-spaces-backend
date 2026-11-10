@@ -4,6 +4,7 @@ import TourismListing from "../models/TourismListing.js";
 import User from "../models/User.js";
 import Business from "../models/Business.js";
 import Accommodation from "../models/Accommodation.js";
+import AgentQRScan from "../models/AgentQRScan.js";
 
 // @desc    Get demographic data
 // @route   GET /api/analytics/demographics
@@ -245,6 +246,65 @@ export const getSummary = async (req, res) => {
         totalListings: listings.length,
         averageRating: totalReviews > 0 ? (reviewSum / totalReviews).toFixed(1) : "5.0",
         reviewsCount: totalReviews,
+      };
+    } else if (userType === "business") {
+      const businesses = await Business.find({ owner: userId });
+      let views = 0;
+      let inquiries = 0;
+      let contactClicks = 0;
+      let websiteClicks = 0;
+      let mapClicks = 0;
+
+      businesses.forEach(b => {
+        views += (b.analytics?.profileViews || b.views || 0);
+        inquiries += (b.analytics?.inquiries || 0);
+        contactClicks += (b.analytics?.contactClicks || 0);
+        websiteClicks += (b.analytics?.websiteClicks || 0);
+        mapClicks += (b.analytics?.mapClicks || 0);
+      });
+
+      if (businesses.length > 0 && views === 0) {
+        views = businesses.length * 10;
+      }
+
+      const totalClicks = contactClicks + websiteClicks + mapClicks;
+
+      baseData = {
+        views,
+        inquiries,
+        bookings: totalClicks,
+        revenue: 0,
+        conversionRate: views > 0 ? ((totalClicks / views) * 100).toFixed(1) : "0.0",
+        totalBusinesses: businesses.length,
+      };
+    } else if (userType === "agent") {
+      // Calculate date boundaries (UTC)
+      const now = new Date();
+      const todayStart = new Date(now);
+      todayStart.setUTCHours(0, 0, 0, 0);
+
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - 7);
+      weekStart.setUTCHours(0, 0, 0, 0);
+
+      // Get agent QR scan metrics
+      const [totalAgentQrScans, scansToday, scansThisWeek, totalPropertiesAssigned] = await Promise.all([
+        AgentQRScan.countDocuments({ agent: userId }),
+        AgentQRScan.countDocuments({ agent: userId, scannedAt: { $gte: todayStart } }),
+        AgentQRScan.countDocuments({ agent: userId, scannedAt: { $gte: weekStart } }),
+        Property.countDocuments({ assignedAgent: userId, status: "approved" }),
+      ]);
+
+      baseData = {
+        views: totalAgentQrScans,
+        inquiries: scansThisWeek,
+        bookings: scansToday,
+        revenue: 0,
+        conversionRate: "0.0",
+        propertiesAssigned: totalPropertiesAssigned,
+        qrScansToday: scansToday,
+        qrScansThisWeek: scansThisWeek,
+        qrScansAllTime: totalAgentQrScans,
       };
     } else {
       const businesses = await Business.find({ owner: userId });
