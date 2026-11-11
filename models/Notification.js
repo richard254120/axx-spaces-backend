@@ -18,7 +18,8 @@ const notificationSchema = new mongoose.Schema({
       "accommodation_upload",
       "package_approved",
       "package_rejected",
-      "package_pending"
+      "package_pending",
+      "message"
     ],
     required: true,
   },
@@ -61,6 +62,10 @@ const notificationSchema = new mongoose.Schema({
   accommodationId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Accommodation",
+  },
+  conversationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Conversation",
   },
   checkIn: Date,
   checkOut: Date,

@@ -25,7 +25,7 @@ router.put("/:id/read", auth, async (req, res) => {
     const userId = req.user.id || req.user._id;
     const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, userId },
-      { status: "confirmed" },
+      { read: true },
       { new: true }
     );
     res.json({ success: true, notification });

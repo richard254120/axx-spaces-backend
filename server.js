@@ -57,6 +57,7 @@ import reportsRoutes from "./routes/reports.js";
 import waitlistRoutes from "./routes/waitlist.js";
 import userRoutes from "./routes/users.js";
 import memberRoutes from "./routes/members.js";
+import conversationRoutes from "./routes/conversations.js";
 
 dotenv.config();
 
@@ -202,6 +203,7 @@ app.use("/api/reports", security.apiLimiter, reportsRoutes);
 app.use("/api/waitlist", security.apiLimiter, waitlistRoutes);
 app.use("/api/users", security.apiLimiter, userRoutes);
 app.use("/api/members", security.apiLimiter, memberRoutes);
+app.use("/api/conversations", security.apiLimiter, conversationRoutes);
 
 // ====================== STATIC FILE SERVING ======================
 // Serve uploaded files. Uploads are content-addressed by their Cloudinary name
