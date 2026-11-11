@@ -9,6 +9,7 @@ import Accommodation from "../models/Accommodation.js";
 import AccommodationImage from "../models/AccommodationImage.js";
 import Business from "../models/Business.js";
 import User from "../models/User.js";
+import { sendPushToUser } from "../utils/push.js";
 
 const router = express.Router();
 
@@ -102,6 +103,19 @@ async function deliverMessage(conversation, sender, text) {
     // A notification failure must never block the message itself.
     console.error("Message notification error:", notifyErr.message);
   }
+
+  // Push to the recipient's phone (best-effort; never blocks the message).
+  sendPushToUser(recipientId, {
+    title: `New message from ${sender.name}`,
+    body: text.slice(0, 160),
+    data: {
+      type: "message",
+      conversationId: String(conversation._id),
+      senderName: sender.name,
+      contextTitle: conversation.contextTitle || "Listing",
+      contextType: conversation.contextType,
+    },
+  }).catch(() => {});
 
   return message;
 }

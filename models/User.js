@@ -449,6 +449,11 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Expo push tokens for the mobile apps (one per signed-in device)
+    expoPushTokens: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );

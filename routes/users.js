@@ -6,6 +6,44 @@ import { formatUserResponse } from "../utils/formatUser.js";
 
 const router = express.Router();
 
+const PUSH_TOKEN_PATTERN = /^Expo(nent)?PushToken\[.+\]$/;
+
+// POST /api/users/push-token — register this device for push notifications
+router.post("/push-token", auth, async (req, res) => {
+  try {
+    const token = String(req.body?.token || "").trim();
+    if (!PUSH_TOKEN_PATTERN.test(token)) {
+      return res.status(400).json({ error: "A valid Expo push token is required." });
+    }
+    await User.updateOne(
+      { _id: req.user._id },
+      { $addToSet: { expoPushTokens: token } }
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Push token registration error:", err);
+    return res.status(500).json({ error: "Could not register this device for notifications." });
+  }
+});
+
+// DELETE /api/users/push-token — stop sending to this device (used on logout)
+router.delete("/push-token", auth, async (req, res) => {
+  try {
+    const token = String(req.body?.token || "").trim();
+    if (!token) {
+      return res.status(400).json({ error: "Push token is required." });
+    }
+    await User.updateOne(
+      { _id: req.user._id },
+      { $pull: { expoPushTokens: token } }
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Push token removal error:", err);
+    return res.status(500).json({ error: "Could not remove this device from notifications." });
+  }
+});
+
 // PATCH /api/users/become-provider (member only)
 router.patch("/become-provider", auth, requireRole("member"), async (req, res) => {
   try {
