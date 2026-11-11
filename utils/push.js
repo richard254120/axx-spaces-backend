@@ -31,13 +31,22 @@ export async function sendPushToUser(userId, { title, body, data = {} }) {
       body: JSON.stringify(messages),
     });
     const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      console.error("Expo push request failed:", res.status, JSON.stringify(json));
+      return { sent: 0, error: `HTTP ${res.status}` };
+    }
     const tickets = json?.data || [];
 
     // Expo reports uninstalled apps; drop those tokens so we stop sending to them.
     const deadTokens = [];
     tickets.forEach((ticket, index) => {
-      if (ticket?.status === "error" && ticket?.details?.error === "DeviceNotRegistered") {
+      if (ticket?.status !== "error") return;
+      if (ticket?.details?.error === "DeviceNotRegistered") {
         if (tokens[index]) deadTokens.push(tokens[index]);
+      } else {
+        // Log configuration problems (for example missing FCM credentials) so
+        // delivery failures are visible in the Render logs.
+        console.warn("Expo push ticket error:", ticket.message || ticket.details?.error);
       }
     });
     if (deadTokens.length) {
