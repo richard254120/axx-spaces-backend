@@ -57,7 +57,11 @@ import reportsRoutes from "./routes/reports.js";
 import waitlistRoutes from "./routes/waitlist.js";
 import userRoutes from "./routes/users.js";
 import memberRoutes from "./routes/members.js";
+<<<<<<< HEAD
 import conversationRoutes from "./routes/conversations.js";
+=======
+import axxgoRoutes from "./routes/axxgo.js";
+>>>>>>> cef76e2 (Updated project files)
 
 dotenv.config();
 
@@ -203,7 +207,11 @@ app.use("/api/reports", security.apiLimiter, reportsRoutes);
 app.use("/api/waitlist", security.apiLimiter, waitlistRoutes);
 app.use("/api/users", security.apiLimiter, userRoutes);
 app.use("/api/members", security.apiLimiter, memberRoutes);
+<<<<<<< HEAD
 app.use("/api/conversations", security.apiLimiter, conversationRoutes);
+=======
+app.use("/api/axxgo", security.apiLimiter, axxgoRoutes);
+>>>>>>> cef76e2 (Updated project files)
 
 // ====================== STATIC FILE SERVING ======================
 // Serve uploaded files. Uploads are content-addressed by their Cloudinary name
