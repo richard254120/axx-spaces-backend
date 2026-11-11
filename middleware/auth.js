@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { sessionMaxAgeForRole } from "../utils/sessionToken.js";
 
 // 1. Define and export protect
 export const protect = async (req, res, next) => {
@@ -10,10 +11,13 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ error: " Access denied. No token provided." });
     }
 
-    // Verify the token with enhanced options
+    // Verify the signature first, then apply the session lifetime for the
+    // account type carried in the (still unverified) payload. Community
+    // accounts stay signed in until logout; everything else keeps the 24h cap.
+    const decodedPreview = jwt.decode(token) || {};
     const decoded = jwt.verify(token, process.env.JWT_SECRET, {
       algorithms: ['HS256'],
-      maxAge: '24h'
+      maxAge: sessionMaxAgeForRole(decodedPreview.role)
     });
 
     // Use decoded.userId because JWT is created with userId

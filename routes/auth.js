@@ -10,6 +10,7 @@ import { sendMoverRegistrationEmail, sendSellerRegistrationEmail, sendLandlordRe
 import security from "../middleware/enhancedSecurity.js";
 import upload from "../config/multer.js";
 import { skipsEmailVerification } from "../utils/verificationPolicy.js";
+import { signSessionToken } from "../utils/sessionToken.js";
 
 const router = express.Router();
 
@@ -125,11 +126,7 @@ router.post("/register-member", async (req, res) => {
 
     await newUser.save();
 
-    const token = jwt.sign(
-      { userId: newUser._id, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = signSessionToken(newUser);
 
     return res.status(201).json({
       message: "Welcome to AxxSpace! Your community account is ready.",
@@ -283,11 +280,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
     }
 
     if (autoVerified) {
-      const token = jwt.sign(
-        { userId: newUser._id, role: newUser.role },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
+      const token = signSessionToken(newUser);
 
       return res.status(201).json({
         message: "Welcome to AxxSpace! Your account is ready.",
@@ -412,11 +405,7 @@ router.post("/login", security.authLimiter, async (req, res) => {
       await user.save();
     }
 
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = signSessionToken(user);
 
     // Record login telemetry for admin dashboard activity stats (non-fatal)
     User.updateOne(
@@ -464,7 +453,7 @@ router.post("/guest-signin", async (req, res) => {
       });
       await user.save();
     }
-    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = signSessionToken(user);
     res.status(200).json({
       token,
       user: formatUserResponse(user),
@@ -787,11 +776,7 @@ router.post("/google", async (req, res) => {
 
       await user.save();
 
-      const token = jwt.sign(
-        { userId: user._id, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
+      const token = signSessionToken(user);
       return res.json({ token, user: formatUserResponse(user) });
     }
 
@@ -813,11 +798,7 @@ router.post("/google", async (req, res) => {
 
     await newUser.save();
 
-    const token = jwt.sign(
-      { userId: newUser._id, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = signSessionToken(newUser);
 
     res.status(201).json({
       token,
