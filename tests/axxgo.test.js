@@ -163,7 +163,46 @@ describe("AxxJunks Classifieds Backend API Tests", () => {
 
     assert.strictEqual(res.status, 403);
     const data = await res.json();
-    assert.match(data.error, /registered axxspace users/i);
+    assert.match(data.error, /community member|explorer|only axxspace/i);
+  });
+
+  test("2b. Reject posting if user has a non-member registered role (e.g. landlord)", async () => {
+    const landlordUser = await User.create({
+      name: "Landlord Test",
+      email: "landlord.test@axxspace.com",
+      password: "password123",
+      phone: "0788888888",
+      role: "landlord",
+    });
+    const landlordToken = jwt.sign(
+      { userId: landlordUser._id.toString(), role: "landlord" },
+      process.env.JWT_SECRET,
+      { algorithm: "HS256" }
+    );
+
+    const res = await fetch(`${baseUrl}/listings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${landlordToken}`,
+      },
+      body: JSON.stringify({
+        category: "Rentals",
+        title: "Landlord Property Post",
+        description: "Should be blocked — only member/user roles can post.",
+        county: "Nairobi City",
+        area: "Westlands",
+        posterName: "Landlord",
+        posterPhone: "0788888888",
+        photos: ["https://res.cloudinary.com/demo/image/upload/sample.jpg"],
+      }),
+    });
+
+    assert.strictEqual(res.status, 403);
+    const data = await res.json();
+    assert.match(data.error, /community member|explorer|only axxspace/i);
+
+    await User.findByIdAndDelete(landlordUser._id).catch(() => {});
   });
 
   test("3. Reject posting if honeypot 'website_hp' is filled (anti-bot)", async () => {

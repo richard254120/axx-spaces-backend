@@ -114,10 +114,11 @@ export async function createListing(req, res) {
       return res.status(400).json({ error: "Spam detected. Submission rejected." });
     }
 
-    // Restrict posting: only registered AxxSpace users (not guests or anonymous)
-    if (!req.user || req.user.role === "guest") {
+    // Restrict posting: only Explorer & Community Members (role: member or user)
+    const allowedRoles = ["member", "user"];
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
-        error: "Only registered AxxSpace users can post on AxxJunks. Please sign in or register to publish your listing.",
+        error: "Only AxxSpace Explorer & Community Members can post on AxxJunks.",
       });
     }
 
@@ -612,8 +613,9 @@ export async function deleteListingByManageToken(req, res) {
 // ====================== 5B. GET MY PUBLISHED LISTINGS ======================
 export async function getMyListings(req, res) {
   try {
-    if (!req.user || req.user.role === "guest") {
-      return res.status(403).json({ error: "Only registered AxxSpace users can view their listings." });
+    const allowedRoles = ["member", "user"];
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Only AxxSpace Explorer & Community Members can view their listings." });
     }
     const listings = await AxxGoListing.find({ user: req.user._id }).sort({ createdAt: -1 });
     return res.json({ success: true, count: listings.length, listings });

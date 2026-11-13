@@ -23,11 +23,12 @@ import {
 
 const router = express.Router();
 
-// Middleware: restrict to registered AxxSpace users (blocks anonymous and guest accounts)
+// Middleware: restrict posting to Explorer & Community Members only (role: member or user)
 const registeredUserOnly = (req, res, next) => {
-  if (!req.user || req.user.role === "guest") {
+  const allowedRoles = ["member", "user"];
+  if (!req.user || !allowedRoles.includes(req.user.role)) {
     return res.status(403).json({
-      error: "Only registered AxxSpace users can post on AxxJunks. Please sign in or register to publish your listings.",
+      error: "Only AxxSpace Explorer & Community Members can post on AxxJunks. Please sign in with a Community Member account.",
     });
   }
   next();
