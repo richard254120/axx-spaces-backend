@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../axx-spaces-frontend"
+		},
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "axx-spaces-frontend",
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}

@@ -110,8 +110,15 @@ export async function createListing(req, res) {
 
     // Honeypot check: hidden field 'website_hp' must remain empty
     if (req.body.website_hp) {
-      console.warn(`[AxxGo] Honeypot triggered from IP ${clientIp}`);
+      console.warn(`[AxxJunks] Honeypot triggered from IP ${clientIp}`);
       return res.status(400).json({ error: "Spam detected. Submission rejected." });
+    }
+
+    // Restrict posting: only registered AxxSpace users (not guests or anonymous)
+    if (!req.user || req.user.role === "guest") {
+      return res.status(403).json({
+        error: "Only registered AxxSpace users can post on AxxJunks. Please sign in or register to publish your listing.",
+      });
     }
 
     // Bot challenge verification if provided
@@ -139,15 +146,17 @@ export async function createListing(req, res) {
       categoryFields,
     } = req.body;
 
-    // Sanitize strings
+    // Sanitize strings & fallback to authenticated user profile
     title = sanitizeString(title);
     description = sanitizeString(description);
     county = sanitizeString(county);
     area = sanitizeString(area);
-    posterName = sanitizeString(posterName);
-    const cleanPhone = normalizePhone(posterPhone);
+    posterName = sanitizeString(posterName) || sanitizeString(req.user.name || "");
+    const cleanPhone = normalizePhone(posterPhone) || normalizePhone(req.user.phone || "");
     const cleanWhatsapp = posterWhatsapp ? normalizePhone(posterWhatsapp) : "";
-    const cleanEmail = posterEmail ? sanitizeString(posterEmail).toLowerCase() : "";
+    const cleanEmail = posterEmail
+      ? sanitizeString(posterEmail).toLowerCase()
+      : sanitizeString(req.user.email || "").toLowerCase();
 
     // Parse categoryFields if stringified (from multipart/form-data)
     let parsedCategoryFields = {};
@@ -228,7 +237,7 @@ export async function createListing(req, res) {
     // Generate unique secure management token for account-free edit/delete
     const manageToken = crypto.randomBytes(24).toString("hex");
 
-    // Create listing - status is "active" (LIVE IMMEDIATELY, NO APPROVAL REQUIRED)
+    // Create listing - status is "active" (LIVE IMMEDIATELY for registered AxxSpace users)
     const newListing = await AxxGoListing.create({
       category,
       title,
@@ -241,6 +250,7 @@ export async function createListing(req, res) {
         area,
       },
       photos: photoUrls,
+      user: req.user._id,
       poster: {
         name: posterName,
         phone: cleanPhone,
@@ -262,7 +272,7 @@ export async function createListing(req, res) {
         title,
         listingId: newListing._id,
         manageToken,
-      }).catch((e) => console.warn("AxxGo email error:", e.message));
+      }).catch((e) => console.warn("AxxJunks email error:", e.message));
     }
 
     const frontendBase =
@@ -271,14 +281,14 @@ export async function createListing(req, res) {
 
     return res.status(201).json({
       success: true,
-      message: "Listing published successfully! It is now live on AxxGo.",
+      message: "Listing published successfully! It is now live on AxxJunks.",
       listing: newListing,
       manageToken,
-      manageUrl: `${frontendBase}/axxgo/manage/${manageToken}`,
-      listingUrl: `${frontendBase}/axxgo/listing/${newListing._id}`,
+      manageUrl: `${frontendBase}/axxjunks/manage/${manageToken}`,
+      listingUrl: `${frontendBase}/axxjunks/listing/${newListing._id}`,
     });
   } catch (error) {
-    console.error("Create AxxGo listing error:", error);
+    console.error("Create AxxJunks listing error:", error);
     return res.status(500).json({ error: error.message || "Failed to create listing." });
   }
 }
@@ -596,6 +606,20 @@ export async function deleteListingByManageToken(req, res) {
   } catch (error) {
     console.error("Delete listing error:", error);
     return res.status(500).json({ error: "Failed to delete listing." });
+  }
+}
+
+// ====================== 5B. GET MY PUBLISHED LISTINGS ======================
+export async function getMyListings(req, res) {
+  try {
+    if (!req.user || req.user.role === "guest") {
+      return res.status(403).json({ error: "Only registered AxxSpace users can view their listings." });
+    }
+    const listings = await AxxGoListing.find({ user: req.user._id }).sort({ createdAt: -1 });
+    return res.json({ success: true, count: listings.length, listings });
+  } catch (error) {
+    console.error("Get my listings error:", error);
+    return res.status(500).json({ error: "Failed to fetch your listings." });
   }
 }
 

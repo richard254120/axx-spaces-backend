@@ -2,26 +2,34 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
 import express from "express";
 import mongoose from "mongoose";
+import jwt from "jsonwebtoken";
 import { spawn } from "node:child_process";
 import fs from "fs";
 import axxgoRoutes from "../routes/axxgo.js";
 import AxxGoListing from "../models/AxxGoListing.js";
 import AxxGoReport from "../models/AxxGoReport.js";
+import User from "../models/User.js";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/api/axxjunks", axxgoRoutes);
 app.use("/api/axxgo", axxgoRoutes);
 
 let server;
 let baseUrl;
 let mongodProc;
+let testUser;
+let testUserId;
+let authToken;
+let guestToken;
 
-describe("AxxGo Classifieds Backend API Tests", () => {
+describe("AxxJunks Classifieds Backend API Tests", () => {
   let createdListingId;
   let createdManageToken;
 
   before(async () => {
+    process.env.JWT_SECRET = process.env.JWT_SECRET || "axxspace_test_jwt_secret_key_12345";
     const testDbDir = "/tmp/axxgo_test_db";
     if (!fs.existsSync(testDbDir)) {
       fs.mkdirSync(testDbDir, { recursive: true });
@@ -53,11 +61,42 @@ describe("AxxGo Classifieds Backend API Tests", () => {
       serverSelectionTimeoutMS: 5000,
     });
 
+    // Create a registered AxxSpace test user
+    await User.deleteMany({ email: { $in: ["john.registered@axxspace.com", "guest.test@axxspace.com"] } });
+    testUser = await User.create({
+      name: "John Registered",
+      email: "john.registered@axxspace.com",
+      password: "password123",
+      phone: "0712345678",
+      role: "member",
+    });
+    testUserId = testUser._id.toString();
+
+    authToken = jwt.sign(
+      { userId: testUserId, role: "member" },
+      process.env.JWT_SECRET,
+      { algorithm: "HS256" }
+    );
+
+    // Create a guest user (unregistered)
+    const guestUser = await User.create({
+      name: "Guest Explorer",
+      email: "guest.test@axxspace.com",
+      password: "password123",
+      phone: "0700000000",
+      role: "guest",
+    });
+    guestToken = jwt.sign(
+      { userId: guestUser._id.toString(), role: "guest" },
+      process.env.JWT_SECRET,
+      { algorithm: "HS256" }
+    );
+
     // Start Express test server
     await new Promise((resolve) => {
       server = app.listen(0, "127.0.0.1", () => {
         const port = server.address().port;
-        baseUrl = `http://127.0.0.1:${port}/api/axxgo`;
+        baseUrl = `http://127.0.0.1:${port}/api/axxjunks`;
         resolve();
       });
     });
@@ -67,6 +106,9 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     if (createdListingId) {
       await AxxGoListing.findByIdAndDelete(createdListingId).catch(() => {});
       await AxxGoReport.deleteMany({ listing: createdListingId }).catch(() => {});
+    }
+    if (testUserId) {
+      await User.findByIdAndDelete(testUserId).catch(() => {});
     }
     if (server) {
       await new Promise((resolve) => server.close(resolve));
@@ -79,10 +121,58 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     }
   });
 
-  test("1. Reject posting if honeypot 'website_hp' is filled (anti-bot)", async () => {
+  test("1. Reject posting if no authorization token provided (401)", async () => {
     const res = await fetch(`${baseUrl}/listings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: "Quick Sales",
+        title: "Unauthorized Post",
+        description: "Should fail because no token provided.",
+        county: "Nairobi",
+        area: "CBD",
+        posterName: "Anonymous",
+        posterPhone: "0712345678",
+        photos: ["https://res.cloudinary.com/demo/image/upload/sample.jpg"],
+      }),
+    });
+
+    assert.strictEqual(res.status, 401);
+    const data = await res.json();
+    assert.match(data.error, /access denied|no token/i);
+  });
+
+  test("2. Reject posting if user has guest role (403)", async () => {
+    const res = await fetch(`${baseUrl}/listings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${guestToken}`,
+      },
+      body: JSON.stringify({
+        category: "Quick Sales",
+        title: "Guest Post Attempt",
+        description: "Should fail because user is only a guest.",
+        county: "Nairobi",
+        area: "CBD",
+        posterName: "Guest",
+        posterPhone: "0712345678",
+        photos: ["https://res.cloudinary.com/demo/image/upload/sample.jpg"],
+      }),
+    });
+
+    assert.strictEqual(res.status, 403);
+    const data = await res.json();
+    assert.match(data.error, /registered axxspace users/i);
+  });
+
+  test("3. Reject posting if honeypot 'website_hp' is filled (anti-bot)", async () => {
+    const res = await fetch(`${baseUrl}/listings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
       body: JSON.stringify({
         website_hp: "bot-payload",
         category: "Rentals",
@@ -101,10 +191,13 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     assert.match(data.error, /spam/i);
   });
 
-  test("2. Reject posting with banned scam phrases", async () => {
+  test("4. Reject posting with banned scam phrases", async () => {
     const res = await fetch(`${baseUrl}/listings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
       body: JSON.stringify({
         category: "Rentals",
         title: "Cheap Apartment Send Money First",
@@ -122,7 +215,7 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     assert.match(data.error, /restricted|flagged/i);
   });
 
-  test("3. Successfully post a listing (live immediately without login/approval)", async () => {
+  test("5. Successfully post a listing as a registered AxxSpace user", async () => {
     const payload = {
       category: "Quick Sales",
       title: "Apple iPhone 13 128GB Midnight",
@@ -132,10 +225,10 @@ describe("AxxGo Classifieds Backend API Tests", () => {
       pricePeriod: "one-off",
       county: "Nairobi City",
       area: "CBD Kimathi Street",
-      posterName: "John Doe",
+      posterName: "John Registered",
       posterPhone: "0712345678",
       posterWhatsapp: "0712345678",
-      posterEmail: "johndoe.test@example.com",
+      posterEmail: "john.registered@axxspace.com",
       photos: ["https://res.cloudinary.com/demo/image/upload/sample.jpg"],
       categoryFields: {
         itemCondition: "used - like new",
@@ -146,7 +239,10 @@ describe("AxxGo Classifieds Backend API Tests", () => {
 
     const res = await fetch(`${baseUrl}/listings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -155,14 +251,30 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     assert.strictEqual(data.success, true);
     assert.ok(data.listing);
     assert.strictEqual(data.listing.status, "active"); // LIVE IMMEDIATELY!
+    assert.strictEqual(data.listing.user, testUserId); // Attached to registered user!
     assert.ok(data.manageToken);
     assert.ok(data.manageUrl);
+    assert.match(data.message, /AxxJunks/i);
 
     createdListingId = data.listing._id;
     createdManageToken = data.manageToken;
   });
 
-  test("4. Browse listings and find the created post", async () => {
+  test("6. Retrieve user's published listings (/my-listings)", async () => {
+    const res = await fetch(`${baseUrl}/my-listings`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+    assert.ok(Array.isArray(data.listings));
+    const found = data.listings.find((l) => l._id === createdListingId);
+    assert.ok(found, "User should be able to view his published things");
+  });
+
+  test("7. Browse listings and find the created post (Public)", async () => {
     const res = await fetch(`${baseUrl}/listings?category=Quick%20Sales&search=iPhone`);
     assert.strictEqual(res.status, 200);
     const data = await res.json();
@@ -173,7 +285,7 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     assert.strictEqual(found.manageToken, undefined, "manageToken must not be leaked in public API");
   });
 
-  test("5. View single listing by ID", async () => {
+  test("8. View single listing by ID (Public)", async () => {
     const res = await fetch(`${baseUrl}/listings/${createdListingId}`);
     assert.strictEqual(res.status, 200);
     const data = await res.json();
@@ -182,14 +294,14 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     assert.strictEqual(data.listing.manageToken, undefined, "manageToken must not be leaked in public API");
   });
 
-  test("6. Manage listing using secret token (no login) - update status to 'sold'", async () => {
-    // 6a. Retrieve listing with manage token
+  test("9. Manage listing using secret token - update status to 'sold'", async () => {
+    // Retrieve listing with manage token
     const getRes = await fetch(`${baseUrl}/manage/${createdManageToken}`);
     assert.strictEqual(getRes.status, 200);
     const getData = await getRes.json();
     assert.strictEqual(getData.listing._id, createdListingId);
 
-    // 6b. Update status to 'sold'
+    // Update status to 'sold'
     const updateRes = await fetch(`${baseUrl}/manage/${createdManageToken}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -211,7 +323,7 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     });
   });
 
-  test("7. Renew listing by manage token (extends 30 days)", async () => {
+  test("10. Renew listing by manage token (extends 30 days)", async () => {
     const renewRes = await fetch(`${baseUrl}/manage/${createdManageToken}/renew`, {
       method: "POST",
     });
@@ -221,7 +333,7 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     assert.ok(new Date(renewData.expiresAt).getTime() > Date.now());
   });
 
-  test("8. Reporting mechanism and auto-hide at 3 reports", async () => {
+  test("11. Reporting mechanism and auto-hide at 3 reports", async () => {
     // Report 1
     const r1 = await fetch(`${baseUrl}/listings/${createdListingId}/report`, {
       method: "POST",
@@ -263,7 +375,7 @@ describe("AxxGo Classifieds Backend API Tests", () => {
     assert.strictEqual(detailRes.status, 410);
   });
 
-  test("9. Delete listing using secret manage token", async () => {
+  test("12. Delete listing using secret manage token", async () => {
     const delRes = await fetch(`${baseUrl}/manage/${createdManageToken}`, {
       method: "DELETE",
     });

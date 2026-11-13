@@ -4,6 +4,7 @@ import { axxGoUpload } from "../utils/axxgoImageProcessor.js";
 import { auth, adminOnly } from "../middleware/auth.js";
 import {
   createListing,
+  getMyListings,
   getListings,
   getListingById,
   reportListing,
@@ -21,6 +22,16 @@ import {
 } from "../controllers/axxgoController.js";
 
 const router = express.Router();
+
+// Middleware: restrict to registered AxxSpace users (blocks anonymous and guest accounts)
+const registeredUserOnly = (req, res, next) => {
+  if (!req.user || req.user.role === "guest") {
+    return res.status(403).json({
+      error: "Only registered AxxSpace users can post on AxxJunks. Please sign in or register to publish your listings.",
+    });
+  }
+  next();
+};
 
 // Strict rate limiter for creating new classifieds: max 5 posts per hour per IP
 const axxGoPostLimiter = rateLimit({
@@ -47,15 +58,20 @@ router.get("/listings", getListings);
 // 2. View single listing details
 router.get("/listings/:id", getListingById);
 
-// 3. Post a listing (instant live, no account required, 1-8 photos)
+// 3. Post a listing (restricted to registered AxxSpace users, 1-8 photos)
 router.post(
   "/listings",
+  auth,
+  registeredUserOnly,
   axxGoPostLimiter,
   axxGoUpload.array("photos", 8),
   createListing
 );
 
-// 4. Report a listing
+// 4. Get current user's published listings
+router.get("/my-listings", auth, registeredUserOnly, getMyListings);
+
+// 5. Report a listing
 router.post("/listings/:id/report", axxGoReportLimiter, reportListing);
 
 // ====================== ACCOUNT-FREE MANAGEMENT ENDPOINTS ======================

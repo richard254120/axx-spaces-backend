@@ -56,6 +56,13 @@ const axxGoListingSchema = new mongoose.Schema(
         message: "Must provide between 1 and 8 photos",
       },
     },
+    // The authenticated AxxSpace user who published this listing
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+      default: null,
+    },
     poster: {
       name: {
         type: String,
@@ -168,5 +175,6 @@ axxGoListingSchema.index(
 const AxxGoListing =
   mongoose.models.AxxGoListing || mongoose.model("AxxGoListing", axxGoListingSchema);
 
+export const AxxJunksListing = AxxGoListing;
 export default AxxGoListing;
 
