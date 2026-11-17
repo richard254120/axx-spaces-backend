@@ -11,6 +11,8 @@ import security from "../middleware/enhancedSecurity.js";
 import upload from "../config/multer.js";
 import { skipsEmailVerification } from "../utils/verificationPolicy.js";
 import { signSessionToken } from "../utils/sessionToken.js";
+import { validatePassword } from "../middleware/passwordValidator.js";
+import { recordFailedLogin, clearFailedLogins, checkAccountLock } from "../middleware/accountLockout.js";
 
 const router = express.Router();
 
@@ -111,7 +113,7 @@ router.post("/register-member", async (req, res) => {
       return res.status(400).json({ error: "An account with this email is already registered" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Community accounts sign in immediately — no email verification step.
     const newUser = new User({
@@ -182,7 +184,7 @@ router.post("/register", upload.array("workPhotos", 10), async (req, res) => {
       return res.status(400).json({ error: `An account with this phone number is already registered as a ${targetRole}` });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Explorers, members, sellers and guests are usable immediately; listing
     // roles still confirm their email before the first sign-in.
@@ -306,29 +308,41 @@ router.post("/login", security.authLimiter, async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    console.log(" Login attempt:", { email, role });
-
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Portal-aware sign-in: authenticate the account that actually belongs to the
-    // requested portal. A person may hold several role-accounts under one email, so
-    // we never accept an unrelated account just because the email matches.
+    // Portal-aware sign-in
     const requestedRole = role ? String(role).trim().toLowerCase() : null;
     let user = null;
     let passwordVerified = false;
 
     if (requestedRole) {
       const allowed = PORTAL_ALLOWED_ROLES[requestedRole] || [requestedRole];
-      const candidates = await User.find({ email: normalizedEmail }).select("+password");
+      const candidates = await User.find({ email: normalizedEmail }).select("+password +failedLoginAttempts +loginAttemptWindowStart +lockoutUntil");
       if (!candidates.length) {
+        // Constant-time delay to prevent timing-based email enumeration
+        await bcrypt.hash("dummy", 12);
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
-      // 1) Find a valid credential for an account allowed on THIS portal.
+      // 1) Check account lockout before processing password
+      for (const c of candidates) {
+        if (allowed.includes(c.role)) {
+          const lock = await checkAccountLock(c);
+          if (lock.locked) {
+            return res.status(423).json({
+              error: `Account temporarily locked due to too many failed attempts. Try again in ${lock.retryAfterMinutes} minute${lock.retryAfterMinutes === 1 ? "" : "s"}.`,
+              code: "ACCOUNT_LOCKED",
+              retryAfterMinutes: lock.retryAfterMinutes,
+            });
+          }
+        }
+      }
+
+      // 2) Find a valid credential for an account allowed on THIS portal.
       for (const c of candidates) {
         if (allowed.includes(c.role) && (await bcrypt.compare(password, c.password))) {
           user = c;
@@ -337,10 +351,22 @@ router.post("/login", security.authLimiter, async (req, res) => {
         }
       }
 
-      // 2) The password is valid but belongs to a different-role account: send the
-      //    user to the right portal. Checked after password verification so account
-      //    existence is never leaked to an unauthenticated caller.
+      // 3) Wrong password — record failed attempt on matching-role account
       if (!user) {
+        for (const c of candidates) {
+          if (allowed.includes(c.role)) {
+            const result = await recordFailedLogin(c);
+            if (result?.lockedOut) {
+              return res.status(423).json({
+                error: "Account locked after too many failed attempts. Try again in 30 minutes.",
+                code: "ACCOUNT_LOCKED",
+              });
+            }
+            break;
+          }
+        }
+
+        // Check if the password belongs to a different-role account (portal mismatch)
         for (const c of candidates) {
           if (!allowed.includes(c.role) && (await bcrypt.compare(password, c.password))) {
             return res.status(403).json({
@@ -357,26 +383,46 @@ router.post("/login", security.authLimiter, async (req, res) => {
       }
     } else {
       // Role-less sign-in (kept for compatibility): admin/team first, then any.
-      user = await User.findOne({ email: normalizedEmail, role: { $in: ["admin", "team"] } }).select("+password");
+      user = await User.findOne({ email: normalizedEmail, role: { $in: ["admin", "team"] } }).select("+password +failedLoginAttempts +loginAttemptWindowStart +lockoutUntil");
       if (!user) {
-        user = await User.findOne({ email: normalizedEmail }).select("+password");
+        user = await User.findOne({ email: normalizedEmail }).select("+password +failedLoginAttempts +loginAttemptWindowStart +lockoutUntil");
       }
       if (!user) {
+        await bcrypt.hash("dummy", 12); // constant-time guard
         return res.status(401).json({ error: "Invalid email or password" });
       }
-    }
 
-    console.log(" User found:", { email: user.email, role: user.role, isEmailVerified: user.isEmailVerified });
+      const lock = await checkAccountLock(user);
+      if (lock.locked) {
+        return res.status(423).json({
+          error: `Account temporarily locked. Try again in ${lock.retryAfterMinutes} minute${lock.retryAfterMinutes === 1 ? "" : "s"}.`,
+          code: "ACCOUNT_LOCKED",
+          retryAfterMinutes: lock.retryAfterMinutes,
+        });
+      }
+    }
 
     if (!passwordVerified) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
-        console.log(" Password invalid for:", normalizedEmail);
+        const result = await recordFailedLogin(user);
+        if (result?.lockedOut) {
+          return res.status(423).json({
+            error: "Account locked after too many failed attempts. Try again in 30 minutes.",
+            code: "ACCOUNT_LOCKED",
+          });
+        }
         return res.status(401).json({ error: "Invalid email or password" });
       }
     }
 
-    console.log(" Password valid for:", normalizedEmail);
+    // Clear failed attempt counter on successful password verification
+    await clearFailedLogins(user);
+
+    // Check ban status
+    if (user.isBanned) {
+      return res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+    }
 
     // Explorers, members and QuickSales sellers sign in immediately: heal any
     // account created before that policy and skip the verification gate.
@@ -394,12 +440,11 @@ router.post("/login", security.authLimiter, async (req, res) => {
 
     if (user.role === "mover" && !user.isApproved) {
       return res.status(403).json({
-        error: " Your account is pending admin approval. You will be able to log in once approved."
+        error: "Your account is pending admin approval. You will be able to log in once approved."
       });
     }
 
-    // Landlord/host/tourism providers don't require account approval - auto-approve on login
-    // Only their property listings need admin approval
+    // Landlord/host accounts auto-approve on login (listings are approved separately)
     if ((user.role === "landlord" || user.role === "host") && !user.isApproved) {
       user.isApproved = true;
       await user.save();
@@ -407,11 +452,11 @@ router.post("/login", security.authLimiter, async (req, res) => {
 
     const token = signSessionToken(user);
 
-    // Record login telemetry for admin dashboard activity stats (non-fatal)
+    // Record login telemetry (non-fatal)
     User.updateOne(
       { _id: user._id },
       { $set: { lastLogin: new Date() }, $inc: { loginCount: 1 } }
-    ).catch((e) => console.error(" login telemetry update failed:", e.message));
+    ).catch((e) => console.error("login telemetry update failed:", e.message));
 
     res.json({
       token,
@@ -419,7 +464,7 @@ router.post("/login", security.authLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error(" Login error:", err);
+    console.error("Login error:", err);
     res.status(500).json({ error: "Server error during login" });
   }
 });

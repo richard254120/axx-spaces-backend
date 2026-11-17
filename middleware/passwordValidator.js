@@ -1,137 +1,80 @@
-// passwordValidator.js - Password Strength Validation
+// middleware/passwordValidator.js — Centralized, role-aware password policy
+// OWASP-aligned: minimum length, character diversity, common-password blocklist.
 
-// Password strength requirements
-const PASSWORD_REQUIREMENTS = {
-  minLength: 8,
-  maxLength: 128,
-  requireUppercase: true,
-  requireLowercase: true,
-  requireNumbers: true,
-  requireSpecialChars: true,
-};
+// Partial list of the most-common passwords (extend as needed).
+const COMMON_PASSWORDS = new Set([
+  "password", "password1", "password123", "12345678", "123456789",
+  "1234567890", "qwerty", "qwerty123", "qwertyuiop", "abc123",
+  "iloveyou", "admin", "admin123", "letmein", "welcome",
+  "monkey", "dragon", "master", "sunshine", "princess",
+  "football", "baseball", "soccer", "axxspace", "axxspace1",
+  "kenya123", "nairobi1", "password!", "P@ssword1",
+]);
 
-// Common weak passwords to block
-const COMMON_PASSWORDS = [
-  'password', '123456', '12345678', 'qwerty', 'abc123',
-  'monkey', 'master', 'dragon', '111111', 'baseball',
-  'iloveyou', 'trustno1', 'sunshine', 'princess', 'admin',
-  'welcome', 'shadow', 'ashley', 'football', 'jesus',
-  'michael', 'ninja', 'mustang', 'password1', '123456789',
-  'adobe123', 'admin123', 'letmein', 'photoshop', '1234567',
-  'password123', 'qwerty123', '123123', 'qwertyuiop', '654321',
-  '7777777', '1111111', '1234', '12345', '1234567890',
-  'passw0rd', 'admin1234', 'welcome1', 'login', 'root',
-];
+/**
+ * Validate a password against the site-wide policy.
+ * Returns { valid: true } or { valid: false, error: "..." }
+ */
+export function validatePassword(password, options = {}) {
+  const {
+    minLength = 8,
+    requireUppercase = true,
+    requireLowercase = true,
+    requireNumber = true,
+    requireSpecial = false,
+  } = options;
 
-// Validate password strength
-export const validatePassword = (password) => {
-  const errors = [];
-  
-  // Check length
-  if (password.length < PASSWORD_REQUIREMENTS.minLength) {
-    errors.push(`Password must be at least ${PASSWORD_REQUIREMENTS.minLength} characters long`);
+  if (!password || typeof password !== "string") {
+    return { valid: false, error: "Password is required." };
   }
-  
-  if (password.length > PASSWORD_REQUIREMENTS.maxLength) {
-    errors.push(`Password must not exceed ${PASSWORD_REQUIREMENTS.maxLength} characters`);
-  }
-  
-  // Check for common passwords
-  if (COMMON_PASSWORDS.includes(password.toLowerCase())) {
-    errors.push('Password is too common. Please choose a stronger password');
-  }
-  
-  // Check character requirements
-  if (PASSWORD_REQUIREMENTS.requireUppercase && !/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter');
-  }
-  
-  if (PASSWORD_REQUIREMENTS.requireLowercase && !/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter');
-  }
-  
-  if (PASSWORD_REQUIREMENTS.requireNumbers && !/\d/.test(password)) {
-    errors.push('Password must contain at least one number');
-  }
-  
-  if (PASSWORD_REQUIREMENTS.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    errors.push('Password must contain at least one special character');
-  }
-  
-  // Check for sequential characters
-  const hasSequentialChars = /(012|123|234|345|456|567|678|789|890|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)/i;
-  if (hasSequentialChars.test(password)) {
-    errors.push('Password must not contain sequential characters');
-  }
-  
-  // Check for repeated characters
-  const hasRepeatedChars = /(.)\1{2,}/;
-  if (hasRepeatedChars.test(password)) {
-    errors.push('Password must not contain repeated characters');
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
-};
 
-// Middleware to validate password in requests
-export const passwordValidationMiddleware = (req, res, next) => {
+  if (password.length < minLength) {
+    return { valid: false, error: `Password must be at least ${minLength} characters long.` };
+  }
+
+  if (password.length > 128) {
+    return { valid: false, error: "Password must not exceed 128 characters." };
+  }
+
+  if (requireUppercase && !/[A-Z]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one uppercase letter." };
+  }
+
+  if (requireLowercase && !/[a-z]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one lowercase letter." };
+  }
+
+  if (requireNumber && !/[0-9]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one number." };
+  }
+
+  if (requireSpecial && !/[!@#$%^&*()_+\-=[\]{}|;':",.<>?/`~\\]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one special character." };
+  }
+
+  if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+    return { valid: false, error: "This password is too common. Please choose a stronger one." };
+  }
+
+  // Reject passwords that are entirely repeated characters (e.g. "aaaaaaaa")
+  if (/^(.)\1+$/.test(password)) {
+    return { valid: false, error: "Password must not consist of a single repeated character." };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Express middleware: validates req.body.password on POST/PUT/PATCH.
+ * Usage: router.post("/register", validatePasswordMiddleware, handler)
+ */
+export function validatePasswordMiddleware(req, res, next) {
   const { password } = req.body;
-  
-  if (!password) {
-    return res.status(400).json({ error: 'Password is required' });
+  if (!password) return next(); // let the route handler produce its own missing-field error
+
+  const result = validatePassword(password);
+  if (!result.valid) {
+    return res.status(400).json({ error: result.error });
   }
-  
-  const validation = validatePassword(password);
-  
-  if (!validation.isValid) {
-    return res.status(400).json({
-      error: 'Password does not meet security requirements',
-      details: validation.errors,
-    });
-  }
-  
   next();
-};
-
-// Check if password needs to be changed (for expired passwords)
-export const isPasswordExpired = (passwordChangedAt, maxAge = 90) => {
-  const ninetyDaysInMs = maxAge * 24 * 60 * 60 * 1000;
-  return Date.now() - new Date(passwordChangedAt).getTime() > ninetyDaysInMs;
-};
-
-// Generate password requirements message
-export const getPasswordRequirements = () => {
-  const requirements = [];
-  
-  requirements.push(`At least ${PASSWORD_REQUIREMENTS.minLength} characters`);
-  requirements.push(`At most ${PASSWORD_REQUIREMENTS.maxLength} characters`);
-  
-  if (PASSWORD_REQUIREMENTS.requireUppercase) {
-    requirements.push('At least one uppercase letter');
-  }
-  
-  if (PASSWORD_REQUIREMENTS.requireLowercase) {
-    requirements.push('At least one lowercase letter');
-  }
-  
-  if (PASSWORD_REQUIREMENTS.requireNumbers) {
-    requirements.push('At least one number');
-  }
-  
-  if (PASSWORD_REQUIREMENTS.requireSpecialChars) {
-    requirements.push('At least one special character');
-  }
-  
-  return requirements.join(', ');
-};
-
-export default {
-  validatePassword,
-  passwordValidationMiddleware,
-  isPasswordExpired,
-  getPasswordRequirements,
-  PASSWORD_REQUIREMENTS,
-};
+}

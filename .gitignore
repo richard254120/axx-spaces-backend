@@ -1,7 +1,40 @@
+# ── Secrets & environment ──────────────────────────
 .env
+.env.local
+.env.production
+.env.staging
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+
+# ── Dependencies ────────────────────────────────────
 node_modules/
+
+# ── Uploads (use Cloudinary for persistent storage) ─
 uploads/*
 !uploads/.gitkeep
 !uploads/verification/.gitkeep
+
+# ── Logs ────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+
+# ── OS / Editor ─────────────────────────────────────
 .DS_Store
-npm-debug.log
+Thumbs.db
+.idea/
+.vscode/
+
+# ── Debug scripts (never commit to prod) ────────────
+debugAdminLogin.js
+scratch.js
+testRoleChange.js
+testUnverifiedUser.js
+removeConditionsDb.js
+addAdmin.js
+updateFrontendEnv.js
+updateMainFrontendEnv.js

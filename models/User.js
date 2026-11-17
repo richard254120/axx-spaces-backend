@@ -454,6 +454,34 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+
+    // ── SECURITY: Account lockout (brute-force protection) ──
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+      select: false,  // never leak in API responses
+    },
+    loginAttemptWindowStart: {
+      type: Date,
+      select: false,
+    },
+    lockoutUntil: {
+      type: Date,
+      select: false,
+    },
+
+    // ── SECURITY: Soft ban (admin-initiated) ──
+    isBanned: {
+      type: Boolean,
+      default: false,
+    },
+    banReason: {
+      type: String,
+      default: "",
+    },
+    bannedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
