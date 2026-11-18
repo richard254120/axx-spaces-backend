@@ -60,10 +60,6 @@ import memberRoutes from "./routes/members.js";
 import conversationRoutes from "./routes/conversations.js";
 import axxgoRoutes from "./routes/axxgo.js";
 import securityRoutes from "./routes/security.js";
-import homeServiceRoutes from "./routes/homeServices.js";
-import professionalServiceRoutes from "./routes/professionalServices.js";
-import boostRoutes from "./routes/Boosts.js";
-import moverRoutes from "./routes/moverRoutes.js";
 
 dotenv.config();
 
@@ -224,10 +220,6 @@ app.use("/api/members", security.apiLimiter, memberRoutes);
 app.use("/api/conversations", security.apiLimiter, conversationRoutes);
 app.use("/api/axxjunks", security.apiLimiter, axxgoRoutes);
 app.use("/api/axxgo", security.apiLimiter, axxgoRoutes);
-app.use("/api/home-services", security.generalLimiter, homeServiceRoutes);
-app.use("/api/professional-services", security.generalLimiter, professionalServiceRoutes);
-app.use("/api/boosts", security.generalLimiter, boostRoutes);
-app.use("/api/movers", security.generalLimiter, moverRoutes);
 app.use("/api/security", securityRoutes);
 
 // ====================== STATIC FILE SERVING ======================
