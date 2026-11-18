@@ -6,7 +6,6 @@ import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
-import xss from 'xss-clean';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
@@ -521,7 +520,8 @@ function applyTo(app) {
       securityLogger.warn('[NOSQL-SANITIZE] Dangerous key stripped', { ip: getClientIP(req), path: req.path });
     },
   }));
-  app.use(xss());                   // ⑫ XSS sanitize request bodies
+  // ⑫ XSS: handled by our own validateInput (layer ⑭) which runs deep recursive
+  //    pattern checks. xss-clean (unmaintained, CVEs) has been removed.
   app.use(hpp());                   // ⑬ HTTP parameter pollution prevention
   app.use(validateInput);           // ⑭ Deep pattern-based injection check
   app.use(sanitizeResponse);        // ⑮ Strip sensitive fields from responses
