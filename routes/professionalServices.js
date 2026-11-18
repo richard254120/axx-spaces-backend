@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
       query.$or = [
         { name: new RegExp(search, 'i') },
         { description: new RegExp(search, 'i') },
-        { professionalInfo.specializations: new RegExp(search, 'i') },
+        { 'professionalInfo.specializations': new RegExp(search, 'i') },
         { 'businessInfo.companyName': new RegExp(search, 'i') }
       ];
     }
