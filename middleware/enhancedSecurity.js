@@ -347,7 +347,11 @@ const requestId = (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────
-// 8. INPUT VALIDATION — block XSS / NoSQL injection patterns
+// 8. INPUT VALIDATION — block XSS patterns only
+// NoSQL injection is fully covered by express-mongo-sanitize (layer ⑪).
+// Adding MongoDB operator patterns here causes false-positives that block
+// legitimate frontend filter/search queries (e.g. price ranges, category
+// arrays) and corrupt listing data — so we only scan for XSS here.
 // ─────────────────────────────────────────────
 const XSS_PATTERNS = [
   /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
@@ -361,23 +365,15 @@ const XSS_PATTERNS = [
   /<\s*embed/gi,
 ];
 
-const NOSQL_PATTERNS = [
-  /\$where/gi,
-  /\$gt/gi, /\$gte/gi, /\$lt/gi, /\$lte/gi,
-  /\$ne/gi, /\$in\b/gi, /\$nin\b/gi,
-  /\$or\b/gi, /\$and\b/gi, /\$not\b/gi, /\$nor\b/gi,
-  /\$regex/gi,
-  /\{\s*"\$.*?"\s*:/g,
-];
-
 const isMalicious = (value, depth = 0) => {
-  if (depth > 8) return false; // prevent stack overflow on deeply nested bodies
+  if (depth > 8) return false;
   if (typeof value === 'string') {
-    for (const p of XSS_PATTERNS)    { p.lastIndex = 0; if (p.test(value)) return true; }
-    for (const p of NOSQL_PATTERNS)  { p.lastIndex = 0; if (p.test(value)) return true; }
+    for (const p of XSS_PATTERNS) { p.lastIndex = 0; if (p.test(value)) return true; }
+    // Only check NoSQL patterns on string values (not on query operator keys —
+    // those are handled by express-mongo-sanitize)
   } else if (typeof value === 'object' && value !== null) {
     for (const k of Object.keys(value)) {
-      if (isMalicious(k, depth + 1) || isMalicious(value[k], depth + 1)) return true;
+      if (isMalicious(value[k], depth + 1)) return true;
     }
   }
   return false;
@@ -513,27 +509,13 @@ const userAgentFilter = (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────
-// 13. RESPONSE SANITIZER
-// Strip fields that must never leak in API responses.
+// 13. RESPONSE SANITIZER — REMOVED
+// Mongoose's `select: false` on password, resetPasswordToken,
+// emailVerificationToken already prevents those fields from ever
+// appearing in query results. A recursive object scrubber here
+// corrupts Mongoose ObjectId and Date objects (they become empty {})
+// which broke all marketplace listing responses.
 // ─────────────────────────────────────────────
-const SENSITIVE_FIELDS = new Set(['password', 'resetPasswordToken', 'emailVerificationToken', '__v']);
-
-const sanitizeResponse = (req, res, next) => {
-  const originalJson = res.json.bind(res);
-  res.json = (data) => {
-    const scrub = (obj) => {
-      if (!obj || typeof obj !== 'object') return obj;
-      if (Array.isArray(obj)) return obj.map(scrub);
-      const clean = {};
-      for (const [k, v] of Object.entries(obj)) {
-        if (!SENSITIVE_FIELDS.has(k)) clean[k] = scrub(v);
-      }
-      return clean;
-    };
-    return originalJson(scrub(data));
-  };
-  next();
-};
 
 // ─────────────────────────────────────────────
 // 14. APPLY ALL SECURITY MIDDLEWARE TO APP
@@ -551,27 +533,23 @@ function applyTo(app) {
   app.use(enhancedRateLimit);       // ⑩ Global rate limit
   app.use(mongoSanitize({           // ⑪ NoSQL injection sanitization
     replaceWith: '_',
-    allowDots: false,
+    allowDots: true,                //    allow dot-notation keys (Mongoose uses them)
     onSanitizeError: (req) => {
       securityLogger.warn('[NOSQL-SANITIZE] Dangerous key stripped', { ip: getClientIP(req), path: req.path });
     },
   }));
-  // ⑫ XSS: handled by our own validateInput (layer ⑭) which runs deep recursive
-  //    pattern checks. xss-clean (unmaintained, CVEs) has been removed.
-  app.use(hpp());                   // ⑬ HTTP parameter pollution prevention
-  app.use(validateInput);           // ⑭ Deep pattern-based injection check
-  app.use(sanitizeResponse);        // ⑮ Strip sensitive fields from responses
-  app.use(auditLogger);             // ⑯ Structured security audit log
+  app.use(hpp());                   // ⑫ HTTP parameter pollution prevention
+  app.use(validateInput);           // ⑬ XSS pattern-based input check
+  app.use(auditLogger);             // ⑭ Structured security audit log
 
-  console.log('\n🛡️  [Security] All 16 security layers active:');
+  console.log('\n🛡️  [Security] 14 security layers active:');
   console.log('   ① Request IDs           ② Cookie Parser');
   console.log('   ③ Security Headers      ④ Helmet + CSP');
   console.log('   ⑤ Strict CORS           ⑥ Path Traversal Guard');
   console.log('   ⑦ UA Scanner Block      ⑧ IP Blocker');
   console.log('   ⑨ Request Size Limiter  ⑩ Rate Limiting');
-  console.log('   ⑪ NoSQL Sanitization    ⑫ XSS Protection');
-  console.log('   ⑬ HPP Prevention        ⑭ Input Validation');
-  console.log('   ⑮ Response Sanitizer    ⑯ Audit Logger\n');
+  console.log('   ⑪ NoSQL Sanitization    ⑫ HPP Prevention');
+  console.log('   ⑬ XSS Input Validation  ⑭ Audit Logger\n');
 }
 
 // ─────────────────────────────────────────────
