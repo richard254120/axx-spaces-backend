@@ -272,6 +272,42 @@ const uploadLimiter = rateLimit({
   },
 });
 
+// API endpoints — 200 req / 1 min (used directly on individual route files)
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getClientIP(req),
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Too many API requests, please slow down.' });
+  },
+});
+
+// Reports — 5 / hour
+const reportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getClientIP(req),
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Too many report submissions. Please try again later.' });
+  },
+});
+
+// Inquiries — 20 / 15 min
+const inquiryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getClientIP(req),
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Too many inquiry attempts. Please try again later.' });
+  },
+});
+
 // ─────────────────────────────────────────────
 // 5. SECURITY HEADERS (supplemental to Helmet)
 // ─────────────────────────────────────────────
@@ -549,6 +585,9 @@ export default {
   passwordResetLimiter,
   verificationResendLimiter,
   uploadLimiter,
+  apiLimiter,
+  reportLimiter,
+  inquiryLimiter,
   // CSRF helpers
   csrfProtection,
   attachCSRFToken,
