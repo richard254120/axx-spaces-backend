@@ -1,11 +1,11 @@
 import jwt from "jsonwebtoken";
 
 // Community accounts (explorers / members) stay signed in until they press
-// Log out. Staff, provider and agent portals keep the short session policy.
+// Log out. Staff, provider and agent portals keep a one-week session policy.
 const PERSISTENT_SESSION_ROLES = new Set(["user", "member"]);
 
 export const DEFAULT_TOKEN_EXPIRY = "7d";
-export const DEFAULT_SESSION_MAX_AGE = "24h";
+export const DEFAULT_SESSION_MAX_AGE = "7d";
 export const PERSISTENT_SESSION_MAX_AGE = "3650d";
 
 export const isPersistentSessionRole = (role) =>

@@ -13,7 +13,7 @@ export const protect = async (req, res, next) => {
 
     // Verify the signature first, then apply the session lifetime for the
     // account type carried in the (still unverified) payload. Community
-    // accounts stay signed in until logout; everything else keeps the 24h cap.
+    // accounts stay signed in until logout; everything else keeps the 7-day cap.
     const decodedPreview = jwt.decode(token) || {};
     const decoded = jwt.verify(token, process.env.JWT_SECRET, {
       algorithms: ['HS256'],
