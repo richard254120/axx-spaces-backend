@@ -8,6 +8,7 @@ export function formatUserResponse(user) {
     name: obj.name,
     email: obj.email,
     phone: obj.phone,
+    isWhatsAppNumber: obj.isWhatsAppNumber ?? true,
     role: obj.role,
     landlordType: obj.landlordType || "general",
     profileImage: obj.profileImage || "",

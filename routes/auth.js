@@ -822,7 +822,13 @@ router.post("/google", async (req, res) => {
       await user.save();
 
       const token = signSessionToken(user);
-      return res.json({ token, user: formatUserResponse(user) });
+      const isPlaceholderPhone = !user.phone || user.phone.startsWith("google-");
+      return res.json({
+        token,
+        user: formatUserResponse(user),
+        requiresPhone: isPlaceholderPhone,
+        isNewMember: false,
+      });
     }
 
     // 3. New member: create account automatically
@@ -855,6 +861,61 @@ router.post("/google", async (req, res) => {
   } catch (err) {
     console.error(" Google OAuth error:", err);
     res.status(500).json({ error: err.message || "Google authentication failed" });
+  }
+});
+
+// ====================== UPDATE PHONE (for Google OAuth & Profile completion) ======================
+router.patch("/update-phone", auth, async (req, res) => {
+  try {
+    const { phone, isWhatsAppNumber, county } = req.body;
+
+    if (!phone || typeof phone !== "string" || phone.trim().length < 9) {
+      return res.status(400).json({ error: "Please provide a valid phone number (at least 9 digits)" });
+    }
+
+    const cleanPhone = phone.trim();
+
+    if (cleanPhone.startsWith("google-")) {
+      return res.status(400).json({ error: "Please enter a valid mobile number" });
+    }
+
+    const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{6,15}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+      return res.status(400).json({ error: "Invalid phone number format" });
+    }
+
+    // Check if phone number is already registered by another account
+    const existing = await User.findOne({
+      phone: cleanPhone,
+      _id: { $ne: req.user._id },
+    });
+    if (existing) {
+      return res.status(409).json({ error: "This phone number is already registered to another account" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    user.phone = cleanPhone;
+    if (typeof isWhatsAppNumber === "boolean") {
+      user.isWhatsAppNumber = isWhatsAppNumber;
+    }
+    if (county && typeof county === "string") {
+      user.county = county.trim();
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Phone number updated successfully",
+      user: formatUserResponse(user),
+    });
+  } catch (err) {
+    console.error("Update phone error:", err);
+    res.status(500).json({ error: err.message || "Failed to update phone number" });
   }
 });
 

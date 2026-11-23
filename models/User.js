@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema(
       required: [true, "Please provide phone"],
       trim: true,
     },
+    isWhatsAppNumber: {
+      type: Boolean,
+      default: true,
+    },
     profileImage: {
       type: String,
       default: "",
